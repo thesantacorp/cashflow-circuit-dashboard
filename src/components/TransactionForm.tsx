@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useTransactions } from "@/context/TransactionContext";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -56,7 +55,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
   const handleCategoryChange = (value: string) => {
     setCategoryId(value);
     
-    // Check for emotional warning if this is an expense
     if (type === "expense" && emotionalState) {
       const warningMessage = getPurchaseWarning(
         value,
@@ -71,7 +69,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
   const handleEmotionChange = (value: EmotionalState) => {
     setEmotionalState(value);
     
-    // Update warning if category is selected
     if (categoryId && type === "expense") {
       const warningMessage = getPurchaseWarning(
         categoryId,
@@ -112,9 +109,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
           {warning && (
-            <Alert variant="warning" className="mb-4 bg-yellow-50 border-yellow-200">
-              <AlertCircle className="h-4 w-4 text-yellow-600" />
-              <AlertDescription className="text-yellow-700">{warning}</AlertDescription>
+            <Alert variant="warning" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{warning}</AlertDescription>
             </Alert>
           )}
           
