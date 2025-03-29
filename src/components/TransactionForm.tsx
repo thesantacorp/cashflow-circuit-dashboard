@@ -1,35 +1,23 @@
+
 import React, { useState } from "react";
 import { useTransactions } from "@/context/TransactionContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { TransactionType, EmotionalState } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarIcon, AlertCircle } from "lucide-react";
-import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { cn } from "@/lib/utils";
 import { getPurchaseWarning } from "@/utils/emotionAnalysis";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import AmountInput from "./form/AmountInput";
+import CategorySelector from "./form/CategorySelector";
+import DatePicker from "./form/DatePicker";
+import EmotionSelector from "./form/EmotionSelector";
+import WarningAlert from "./form/WarningAlert";
 
 interface TransactionFormProps {
   type: TransactionType;
   onSuccess?: () => void;
 }
-
-const emotionOptions: { value: EmotionalState; label: string }[] = [
-  { value: "happy", label: "Happy" },
-  { value: "stressed", label: "Stressed" },
-  { value: "bored", label: "Bored" },
-  { value: "excited", label: "Excited" },
-  { value: "sad", label: "Sad" },
-  { value: "neutral", label: "Neutral" },
-];
 
 const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) => {
   const { addTransaction, getCategoriesByType, state } = useTransactions();
@@ -108,99 +96,30 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
-          {warning && (
-            <Alert variant="warning" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{warning}</AlertDescription>
-            </Alert>
-          )}
+          <WarningAlert message={warning || ""} />
           
-          <div className="space-y-2">
-            <Label htmlFor="amount">Amount</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                {currencySymbol}
-              </span>
-              <Input
-                id="amount"
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                className="pl-8"
-                required
-              />
-            </div>
-          </div>
+          <AmountInput 
+            amount={amount} 
+            onAmountChange={setAmount} 
+            currencySymbol={currencySymbol} 
+          />
           
-          <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
-            <Select value={categoryId} onValueChange={handleCategoryChange} required>
-              <SelectTrigger id="category">
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    <div className="flex items-center">
-                      <span
-                        className="h-3 w-3 rounded-full mr-2"
-                        style={{ backgroundColor: category.color }}
-                      />
-                      {category.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <CategorySelector 
+            categoryId={categoryId} 
+            categories={categories} 
+            onCategoryChange={handleCategoryChange} 
+          />
           
           <div className="space-y-2">
             <Label htmlFor="date">Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !date && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, "PPP") : <span>Pick a date</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={(date) => date && setDate(date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <DatePicker date={date} onDateChange={(newDate) => newDate && setDate(newDate)} />
           </div>
           
           {type === "expense" && (
-            <div className="space-y-2">
-              <Label>How do you feel?</Label>
-              <RadioGroup
-                value={emotionalState}
-                onValueChange={(value) => handleEmotionChange(value as EmotionalState)}
-                className="grid grid-cols-3 gap-2"
-              >
-                {emotionOptions.map((emotion) => (
-                  <div key={emotion.value} className="flex items-center space-x-2">
-                    <RadioGroupItem value={emotion.value} id={`emotion-${emotion.value}`} />
-                    <Label htmlFor={`emotion-${emotion.value}`} className="cursor-pointer">
-                      {emotion.label}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
+            <EmotionSelector 
+              emotionalState={emotionalState} 
+              onChange={handleEmotionChange} 
+            />
           )}
           
           <div className="space-y-2">
