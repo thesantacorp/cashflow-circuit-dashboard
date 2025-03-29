@@ -11,9 +11,9 @@ const WarningAlert: React.FC<WarningAlertProps> = ({ message }) => {
   if (!message) return null;
   
   return (
-    <Alert variant="warning" className="mb-4">
-      <AlertCircle className="h-4 w-4" />
-      <AlertDescription>{message}</AlertDescription>
+    <Alert variant="warning" className="mb-4 bg-amber-50 border-amber-200 text-amber-800">
+      <AlertCircle className="h-4 w-4 text-amber-600" />
+      <AlertDescription className="text-amber-800">{message}</AlertDescription>
     </Alert>
   );
 };

@@ -16,9 +16,9 @@ const AmountInput: React.FC<AmountInputProps> = ({
 }) => {
   return (
     <div className="space-y-2">
-      <Label htmlFor="amount">Amount</Label>
+      <Label htmlFor="amount" className="text-orange-700 font-medium">Amount</Label>
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-500 font-medium">
           {currencySymbol}
         </span>
         <Input
@@ -29,7 +29,7 @@ const AmountInput: React.FC<AmountInputProps> = ({
           value={amount}
           onChange={(e) => onAmountChange(e.target.value)}
           placeholder="0.00"
-          className="pl-8"
+          className="pl-8 border-orange-200 focus-visible:ring-orange-400"
           required
         />
       </div>

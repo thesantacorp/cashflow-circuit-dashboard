@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useReducer, useEffect } from "react";
 import { Category, Transaction, TransactionType } from "@/types";
 import { v4 as uuidv4 } from "uuid";
@@ -40,6 +39,7 @@ const initialState: TransactionState = {
 // Define action types
 type ActionType =
   | { type: "ADD_TRANSACTION"; payload: Transaction }
+  | { type: "UPDATE_TRANSACTION"; payload: Transaction }
   | { type: "DELETE_TRANSACTION"; payload: string }
   | { type: "ADD_CATEGORY"; payload: Category }
   | { type: "DELETE_CATEGORY"; payload: string }
@@ -53,6 +53,13 @@ const transactionReducer = (state: TransactionState, action: ActionType): Transa
       return {
         ...state,
         transactions: [...state.transactions, action.payload],
+      };
+    case "UPDATE_TRANSACTION":
+      return {
+        ...state,
+        transactions: state.transactions.map(t => 
+          t.id === action.payload.id ? action.payload : t
+        ),
       };
     case "DELETE_TRANSACTION":
       return {
@@ -98,6 +105,7 @@ const transactionReducer = (state: TransactionState, action: ActionType): Transa
 interface TransactionContextProps {
   state: TransactionState;
   addTransaction: (transaction: Omit<Transaction, "id">) => void;
+  updateTransaction: (transaction: Transaction) => void;
   deleteTransaction: (id: string) => void;
   addCategory: (category: Omit<Category, "id">) => void;
   deleteCategory: (id: string) => void;
@@ -130,6 +138,12 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       payload: { ...transaction, id: uuidv4() },
     });
     toast.success("Transaction added successfully");
+  };
+
+  // Update a transaction
+  const updateTransaction = (transaction: Transaction) => {
+    dispatch({ type: "UPDATE_TRANSACTION", payload: transaction });
+    toast.success("Transaction updated successfully");
   };
 
   // Delete a transaction
@@ -179,6 +193,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       value={{
         state,
         addTransaction,
+        updateTransaction,
         deleteTransaction,
         addCategory,
         deleteCategory,

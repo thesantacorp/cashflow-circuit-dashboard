@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { TransactionProvider } from "@/context/TransactionContext";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import Navbar from "@/components/Navbar";
+import CommunityLink from "@/components/CommunityLink";
 import OverviewPage from "@/pages/OverviewPage";
 import ExpensesPage from "@/pages/ExpensesPage";
 import IncomePage from "@/pages/IncomePage";
@@ -22,9 +23,9 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <div className="min-h-screen flex flex-col">
+            <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white">
               <Navbar />
-              <main className="flex-1">
+              <main className="flex-1 py-6">
                 <Routes>
                   <Route path="/" element={<OverviewPage />} />
                   <Route path="/expenses" element={<ExpensesPage />} />
@@ -32,6 +33,7 @@ const App = () => (
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>
+              <CommunityLink />
             </div>
           </BrowserRouter>
         </TooltipProvider>

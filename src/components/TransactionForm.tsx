@@ -90,12 +90,14 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Add {type === "expense" ? "Expense" : "Income"}</CardTitle>
+    <Card className="border-orange-200 shadow-lg bg-gradient-to-b from-white to-orange-50/30">
+      <CardHeader className="border-b border-orange-100">
+        <CardTitle className="text-orange-600">
+          Add {type === "expense" ? "Expense" : "Income"}
+        </CardTitle>
       </CardHeader>
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-4">
           <WarningAlert message={warning || ""} />
           
           <AmountInput 
@@ -111,7 +113,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
           />
           
           <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
+            <Label htmlFor="date" className="text-orange-700 font-medium">Date</Label>
             <DatePicker date={date} onDateChange={(newDate) => newDate && setDate(newDate)} />
           </div>
           
@@ -123,18 +125,22 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
           )}
           
           <div className="space-y-2">
-            <Label htmlFor="description">Description (Optional)</Label>
+            <Label htmlFor="description" className="text-orange-700 font-medium">Description (Optional)</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Enter description"
               rows={3}
+              className="border-orange-200 focus-visible:ring-orange-400"
             />
           </div>
         </CardContent>
         <CardFooter>
-          <Button type="submit" className="w-full" variant="default">
+          <Button 
+            type="submit" 
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+          >
             Add {type === "expense" ? "Expense" : "Income"}
           </Button>
         </CardFooter>

@@ -14,26 +14,35 @@ const Navbar: React.FC = () => {
   const balance = totalIncome - totalExpenses;
   
   return (
-    <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center max-w-7xl">
+    <nav className="border-b bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md">
+      <div className="container flex h-16 items-center max-w-7xl">
         <Link to="/" className="flex items-center mr-8">
           <BarChart3 className="h-6 w-6 mr-2" />
-          <span className="font-bold">CashFlow</span>
+          <span className="font-bold text-xl">CashFlow</span>
         </Link>
         
         <div className="flex items-center gap-4 md:gap-6">
           <Link to="/">
-            <Button variant={location.pathname === "/" ? "default" : "ghost"}>
+            <Button variant={location.pathname === "/" ? "secondary" : "ghost"} 
+              className={location.pathname === "/" 
+                ? "bg-white/20 text-white hover:bg-white/30" 
+                : "text-white hover:bg-white/10"}>
               Overview
             </Button>
           </Link>
           <Link to="/expenses">
-            <Button variant={location.pathname === "/expenses" ? "default" : "ghost"}>
+            <Button variant={location.pathname === "/expenses" ? "secondary" : "ghost"}
+              className={location.pathname === "/expenses" 
+                ? "bg-white/20 text-white hover:bg-white/30" 
+                : "text-white hover:bg-white/10"}>
               Expenses
             </Button>
           </Link>
           <Link to="/income">
-            <Button variant={location.pathname === "/income" ? "default" : "ghost"}>
+            <Button variant={location.pathname === "/income" ? "secondary" : "ghost"}
+              className={location.pathname === "/income" 
+                ? "bg-white/20 text-white hover:bg-white/30" 
+                : "text-white hover:bg-white/10"}>
               Income
             </Button>
           </Link>
@@ -42,24 +51,24 @@ const Navbar: React.FC = () => {
         <div className="ml-auto flex items-center gap-4">
           <div className="hidden md:flex items-center gap-6">
             <div className="flex flex-col items-end">
-              <span className="text-sm text-muted-foreground">Expenses</span>
-              <span className="font-medium text-expense flex items-center">
+              <span className="text-sm text-white/70">Expenses</span>
+              <span className="font-medium text-white flex items-center">
                 <ArrowDownIcon className="h-3 w-3 mr-1" />
                 ${totalExpenses.toFixed(2)}
               </span>
             </div>
             
             <div className="flex flex-col items-end">
-              <span className="text-sm text-muted-foreground">Income</span>
-              <span className="font-medium text-income flex items-center">
+              <span className="text-sm text-white/70">Income</span>
+              <span className="font-medium text-white flex items-center">
                 <ArrowUpIcon className="h-3 w-3 mr-1" />
                 ${totalIncome.toFixed(2)}
               </span>
             </div>
             
             <div className="flex flex-col items-end">
-              <span className="text-sm text-muted-foreground">Balance</span>
-              <span className={`font-medium ${balance >= 0 ? "text-income" : "text-expense"}`}>
+              <span className="text-sm text-white/70">Balance</span>
+              <span className={`font-medium text-white`}>
                 ${balance.toFixed(2)}
               </span>
             </div>
