@@ -5,6 +5,7 @@ import Dashboard from "@/components/Dashboard";
 import CategoryList from "@/components/CategoryList";
 import TransactionForm from "@/components/TransactionForm";
 import TransactionList from "@/components/TransactionList";
+import CurrencySelector from "@/components/CurrencySelector";
 import { Card } from "@/components/ui/card";
 
 const IncomePage: React.FC = () => {
@@ -12,7 +13,10 @@ const IncomePage: React.FC = () => {
 
   return (
     <div className="container py-6 max-w-7xl">
-      <h1 className="text-3xl font-bold mb-6">Income</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Income</h1>
+        <CurrencySelector />
+      </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
         <TabsList className="grid w-full grid-cols-3">

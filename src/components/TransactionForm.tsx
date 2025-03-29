@@ -1,38 +1,86 @@
 
 import React, { useState } from "react";
 import { useTransactions } from "@/context/TransactionContext";
-import { TransactionType } from "@/types";
+import { useCurrency } from "@/context/CurrencyContext";
+import { TransactionType, EmotionalState } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { getPurchaseWarning } from "@/utils/emotionAnalysis";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface TransactionFormProps {
   type: TransactionType;
   onSuccess?: () => void;
 }
 
+const emotionOptions: { value: EmotionalState; label: string }[] = [
+  { value: "happy", label: "Happy" },
+  { value: "stressed", label: "Stressed" },
+  { value: "bored", label: "Bored" },
+  { value: "excited", label: "Excited" },
+  { value: "sad", label: "Sad" },
+  { value: "neutral", label: "Neutral" },
+];
+
 const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) => {
-  const { addTransaction, getCategoriesByType } = useTransactions();
+  const { addTransaction, getCategoriesByType, state } = useTransactions();
+  const { currencySymbol } = useCurrency();
   const categories = getCategoriesByType(type);
   
   const [amount, setAmount] = useState<string>("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [date, setDate] = useState<Date>(new Date());
+  const [emotionalState, setEmotionalState] = useState<EmotionalState>("neutral");
+  const [warning, setWarning] = useState<string | null>(null);
 
   const resetForm = () => {
     setAmount("");
     setCategoryId("");
     setDescription("");
     setDate(new Date());
+    setEmotionalState("neutral");
+    setWarning(null);
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setCategoryId(value);
+    
+    // Check for emotional warning if this is an expense
+    if (type === "expense" && emotionalState) {
+      const warningMessage = getPurchaseWarning(
+        value,
+        emotionalState,
+        state.transactions,
+        state.categories
+      );
+      setWarning(warningMessage);
+    }
+  };
+
+  const handleEmotionChange = (value: EmotionalState) => {
+    setEmotionalState(value);
+    
+    // Update warning if category is selected
+    if (categoryId && type === "expense") {
+      const warningMessage = getPurchaseWarning(
+        categoryId,
+        value,
+        state.transactions,
+        state.categories
+      );
+      setWarning(warningMessage);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -49,6 +97,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
       description,
       date: date.toISOString(),
       type,
+      emotionalState,
     });
     
     resetForm();
@@ -62,10 +111,19 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
+          {warning && (
+            <Alert variant="warning" className="mb-4 bg-yellow-50 border-yellow-200">
+              <AlertCircle className="h-4 w-4 text-yellow-600" />
+              <AlertDescription className="text-yellow-700">{warning}</AlertDescription>
+            </Alert>
+          )}
+          
           <div className="space-y-2">
             <Label htmlFor="amount">Amount</Label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                {currencySymbol}
+              </span>
               <Input
                 id="amount"
                 type="number"
@@ -82,7 +140,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
           
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
-            <Select value={categoryId} onValueChange={setCategoryId} required>
+            <Select value={categoryId} onValueChange={handleCategoryChange} required>
               <SelectTrigger id="category">
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
@@ -127,6 +185,26 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
               </PopoverContent>
             </Popover>
           </div>
+          
+          {type === "expense" && (
+            <div className="space-y-2">
+              <Label>How do you feel?</Label>
+              <RadioGroup
+                value={emotionalState}
+                onValueChange={(value) => handleEmotionChange(value as EmotionalState)}
+                className="grid grid-cols-3 gap-2"
+              >
+                {emotionOptions.map((emotion) => (
+                  <div key={emotion.value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={emotion.value} id={`emotion-${emotion.value}`} />
+                    <Label htmlFor={`emotion-${emotion.value}`} className="cursor-pointer">
+                      {emotion.label}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+          )}
           
           <div className="space-y-2">
             <Label htmlFor="description">Description (Optional)</Label>

@@ -1,5 +1,7 @@
 
 export type TransactionType = "expense" | "income";
+export type Currency = "USD" | "EUR" | "GBP" | "CAD" | "AUD" | "JPY";
+export type EmotionalState = "happy" | "stressed" | "bored" | "excited" | "sad" | "neutral";
 
 export interface Category {
   id: string;
@@ -16,4 +18,12 @@ export interface Transaction {
   date: string;
   description?: string;
   type: TransactionType;
+  emotionalState?: EmotionalState;
+}
+
+export interface EmotionInsight {
+  emotion: EmotionalState;
+  category: string;
+  percentageIncrease: number;
+  message: string;
 }

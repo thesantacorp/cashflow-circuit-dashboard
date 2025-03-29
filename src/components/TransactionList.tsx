@@ -1,11 +1,13 @@
 
 import React from "react";
 import { useTransactions } from "@/context/TransactionContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import { Transaction, TransactionType } from "@/types";
 import { format } from "date-fns";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface TransactionListProps {
   type: TransactionType;
@@ -13,6 +15,7 @@ interface TransactionListProps {
 
 const TransactionList: React.FC<TransactionListProps> = ({ type }) => {
   const { getTransactionsByType, deleteTransaction, getCategoryById } = useTransactions();
+  const { currencySymbol } = useCurrency();
   const transactions = getTransactionsByType(type);
 
   // Sort transactions by date (newest first)
@@ -35,6 +38,17 @@ const TransactionList: React.FC<TransactionListProps> = ({ type }) => {
     );
   }
 
+  const getEmotionColor = (emotion?: string) => {
+    switch (emotion) {
+      case "happy": return "bg-green-100 text-green-800";
+      case "stressed": return "bg-red-100 text-red-800";
+      case "bored": return "bg-orange-100 text-orange-800";
+      case "excited": return "bg-purple-100 text-purple-800";
+      case "sad": return "bg-blue-100 text-blue-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -54,9 +68,16 @@ const TransactionList: React.FC<TransactionListProps> = ({ type }) => {
                 }}
               >
                 <div className="flex flex-col">
-                  <span className="font-medium">
-                    {category?.name || "Unknown Category"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">
+                      {category?.name || "Unknown Category"}
+                    </span>
+                    {transaction.emotionalState && transaction.emotionalState !== "neutral" && (
+                      <Badge variant="outline" className={getEmotionColor(transaction.emotionalState)}>
+                        {transaction.emotionalState}
+                      </Badge>
+                    )}
+                  </div>
                   <span className="text-sm text-muted-foreground">
                     {transaction.description || "No description"}
                   </span>
@@ -67,10 +88,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ type }) => {
                 <div className="flex items-center gap-3">
                   <span
                     className={`font-semibold ${
-                      type === "expense" ? "text-expense" : "text-income"
+                      type === "expense" ? "text-red-600" : "text-green-600"
                     }`}
                   >
-                    {type === "expense" ? "-" : "+"}${transaction.amount.toFixed(2)}
+                    {type === "expense" ? "-" : "+"}{currencySymbol}{transaction.amount.toFixed(2)}
                   </span>
                   <Button
                     variant="ghost"
