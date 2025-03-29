@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { useTransactions } from "@/context/TransactionContext";
+import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Transaction, TransactionType } from "@/types";
 import { format } from "date-fns";

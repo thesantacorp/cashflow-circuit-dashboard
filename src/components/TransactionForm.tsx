@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { useTransactions } from "@/context/TransactionContext";
+import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { TransactionType, EmotionalState } from "@/types";
 import { Button } from "@/components/ui/button";

@@ -1,6 +1,6 @@
 
 import React from "react";
-import { useTransactions } from "@/context/TransactionContext";
+import { useTransactions } from "@/context/transaction";
 import { TransactionType } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrency } from "@/context/CurrencyContext";

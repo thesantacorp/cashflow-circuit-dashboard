@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { useTransactions } from "@/context/TransactionContext";
+import { useTransactions } from "@/context/transaction";
 import { Category, TransactionType } from "@/types";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";

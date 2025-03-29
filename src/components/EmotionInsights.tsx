@@ -1,6 +1,6 @@
 
 import React, { useMemo } from "react";
-import { useTransactions } from "@/context/TransactionContext";
+import { useTransactions } from "@/context/transaction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { analyzeEmotionalSpending } from "@/utils/emotionAnalysis";
 
