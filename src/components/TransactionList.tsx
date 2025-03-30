@@ -75,15 +75,15 @@ const TransactionList: React.FC<TransactionListProps> = ({ type }) => {
               return (
                 <div
                   key={transaction.id}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:shadow-md transition-shadow duration-200"
+                  className="flex flex-wrap items-center justify-between p-3 border rounded-lg hover:shadow-md transition-shadow duration-200"
                   style={{
                     borderLeftColor: category?.color || "#ccc",
                     borderLeftWidth: "4px",
                   }}
                 >
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">
+                  <div className="flex flex-col mr-2 mb-2 sm:mb-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium break-words max-w-[200px] sm:max-w-full">
                         {category?.name || "Unknown Category"}
                       </span>
                       {transaction.emotionalState && transaction.emotionalState !== "neutral" && (
@@ -92,14 +92,14 @@ const TransactionList: React.FC<TransactionListProps> = ({ type }) => {
                         </Badge>
                       )}
                     </div>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-sm text-muted-foreground break-words max-w-[200px] sm:max-w-full">
                       {transaction.description || "No description"}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {format(new Date(transaction.date), "MMM d, yyyy")}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 ml-auto">
                     <span
                       className={`font-semibold ${
                         type === "expense" ? "text-red-600" : "text-green-600"

@@ -9,7 +9,7 @@ import CurrencySelector from "@/components/CurrencySelector";
 import { Card } from "@/components/ui/card";
 
 const IncomePage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("transactions");
 
   return (
     <div className="container py-6 max-w-7xl">

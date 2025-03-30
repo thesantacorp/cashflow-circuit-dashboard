@@ -25,10 +25,10 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
-              <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white">
+              <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white overflow-x-hidden">
                 <Navbar />
-                <main className="flex-1 py-6 px-4 sm:px-6">
-                  <div className="max-w-7xl mx-auto">
+                <main className="flex-1 py-6 px-4 sm:px-6 w-full">
+                  <div className="max-w-7xl mx-auto w-full">
                     <Routes>
                       <Route path="/" element={<OverviewPage />} />
                       <Route path="/expenses" element={<ExpensesPage />} />

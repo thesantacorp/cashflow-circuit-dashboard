@@ -91,7 +91,12 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground overflow-x-hidden;
+  }
+  
+  html {
+    overflow-x: hidden;
+    width: 100%;
   }
 }
 

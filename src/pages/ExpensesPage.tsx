@@ -8,7 +8,7 @@ import TransactionList from "@/components/TransactionList";
 import { Card } from "@/components/ui/card";
 
 const ExpensesPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("transactions");
 
   return (
     <div className="container py-6 max-w-7xl">
