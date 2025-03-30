@@ -7,11 +7,14 @@ import { useTransactions } from "@/context/transaction";
 import CurrencySelector from "./CurrencySelector";
 import BackupManager from "./BackupManager";
 import { useCurrency } from "@/context/CurrencyContext";
+import MobileNav from "./MobileNav";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
   const { getTotalByType } = useTransactions();
   const { currencySymbol } = useCurrency();
+  const isMobile = useIsMobile();
   
   const totalExpenses = getTotalByType("expense");
   const totalIncome = getTotalByType("income");
@@ -19,13 +22,15 @@ const Navbar: React.FC = () => {
   
   return (
     <nav className="border-b bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md">
-      <div className="container flex h-16 items-center max-w-7xl">
+      <div className="container flex h-16 items-center max-w-7xl px-4">
+        {isMobile && <MobileNav />}
+        
         <Link to="/" className="flex items-center mr-8">
           <BarChart3 className="h-6 w-6 mr-2" />
           <span className="font-bold text-xl">CashFlow</span>
         </Link>
         
-        <div className="flex items-center gap-4 md:gap-6">
+        <div className="hidden md:flex items-center gap-4 md:gap-6">
           <Link to="/">
             <Button variant={location.pathname === "/" ? "secondary" : "ghost"} 
               className={location.pathname === "/" 
@@ -53,8 +58,12 @@ const Navbar: React.FC = () => {
         </div>
         
         <div className="ml-auto flex items-center gap-4">
-          <BackupManager />
-          <CurrencySelector />
+          {!isMobile && (
+            <>
+              <BackupManager />
+              <CurrencySelector />
+            </>
+          )}
           
           <div className="hidden md:flex items-center gap-6">
             <div className="flex flex-col items-end">

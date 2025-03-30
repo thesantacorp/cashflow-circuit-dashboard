@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const BackupManager: React.FC = () => {
   const { 
@@ -35,6 +36,8 @@ const BackupManager: React.FC = () => {
     handleGoogleSignIn,
     handleGoogleSignOut
   } = useBackup();
+  
+  const isMobile = useIsMobile();
 
   // Check if backup is due every time the component mounts
   useEffect(() => {
@@ -70,10 +73,10 @@ const BackupManager: React.FC = () => {
       <DialogTrigger asChild>
         <Button size="sm" variant="outline" className="text-black bg-white flex items-center gap-2">
           <CloudUploadIcon size={16} />
-          <span>Backup</span>
+          <span>{isMobile ? "" : "Backup"}</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[90vw] max-w-md mx-auto">
         <DialogHeader>
           <DialogTitle>Google Drive Backup</DialogTitle>
           <DialogDescription>
@@ -84,7 +87,7 @@ const BackupManager: React.FC = () => {
         <div className="grid gap-4 py-4">
           {!isAuthenticated ? (
             <div className="flex flex-col gap-4 items-center justify-center p-4">
-              <p className="text-center">Sign in with your Google account to enable backups</p>
+              <p className="text-center text-black">Sign in with your Google account to enable backups</p>
               <Button onClick={handleGoogleSignIn} className="w-full" variant="outline">
                 <LogInIcon className="mr-2 h-4 w-4" />
                 Sign in with Google
@@ -93,7 +96,7 @@ const BackupManager: React.FC = () => {
           ) : (
             <>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Signed in to Google Drive</span>
+                <span className="text-sm text-black">Signed in to Google Drive</span>
                 <Button onClick={handleGoogleSignOut} variant="ghost" size="sm">
                   <LogOutIcon className="mr-2 h-4 w-4" />
                   Sign out
@@ -101,7 +104,7 @@ const BackupManager: React.FC = () => {
               </div>
               
               <div className="flex items-center gap-4">
-                <Label htmlFor="backup-enabled" className="text-right">
+                <Label htmlFor="backup-enabled" className="text-right text-black">
                   Enable Automatic Backup
                 </Label>
                 <input
@@ -115,7 +118,7 @@ const BackupManager: React.FC = () => {
               
               {settings.enabled && (
                 <div className="grid gap-2">
-                  <Label htmlFor="backup-frequency">Backup Frequency</Label>
+                  <Label htmlFor="backup-frequency" className="text-black">Backup Frequency</Label>
                   <Select
                     value={settings.frequency}
                     onValueChange={(value) => setBackupFrequency(value as BackupFrequency)}

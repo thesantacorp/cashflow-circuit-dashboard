@@ -27,13 +27,15 @@ const App = () => (
             <BrowserRouter>
               <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white">
                 <Navbar />
-                <main className="flex-1 py-6">
-                  <Routes>
-                    <Route path="/" element={<OverviewPage />} />
-                    <Route path="/expenses" element={<ExpensesPage />} />
-                    <Route path="/income" element={<IncomePage />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
+                <main className="flex-1 py-6 px-4 sm:px-6">
+                  <div className="max-w-7xl mx-auto">
+                    <Routes>
+                      <Route path="/" element={<OverviewPage />} />
+                      <Route path="/expenses" element={<ExpensesPage />} />
+                      <Route path="/income" element={<IncomePage />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </div>
                 </main>
                 <CommunityLink />
               </div>
