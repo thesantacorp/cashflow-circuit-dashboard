@@ -12,7 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CloudUploadIcon, RefreshCwIcon } from "lucide-react";
+import { CloudUploadIcon, RefreshCwIcon, LogInIcon, LogOutIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   Select,
@@ -24,7 +24,17 @@ import {
 import { Label } from "@/components/ui/label";
 
 const BackupManager: React.FC = () => {
-  const { settings, enableBackup, setBackupFrequency, performBackup, restoreBackup, isBackupDue } = useBackup();
+  const { 
+    settings, 
+    enableBackup, 
+    setBackupFrequency, 
+    performBackup, 
+    restoreBackup, 
+    isBackupDue,
+    isAuthenticated,
+    handleGoogleSignIn,
+    handleGoogleSignOut
+  } = useBackup();
 
   // Check if backup is due every time the component mounts
   useEffect(() => {
@@ -72,53 +82,82 @@ const BackupManager: React.FC = () => {
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
-          <div className="flex items-center gap-4">
-            <Label htmlFor="backup-enabled" className="text-right">
-              Enable Automatic Backup
-            </Label>
-            <input
-              id="backup-enabled"
-              type="checkbox"
-              checked={settings.enabled}
-              onChange={(e) => enableBackup(e.target.checked)}
-              className="h-4 w-4"
-            />
-          </div>
-          
-          {settings.enabled && (
-            <div className="grid gap-2">
-              <Label htmlFor="backup-frequency">Backup Frequency</Label>
-              <Select
-                value={settings.frequency}
-                onValueChange={(value) => setBackupFrequency(value as BackupFrequency)}
-              >
-                <SelectTrigger id="backup-frequency">
-                  <SelectValue placeholder="Select frequency" />
-                </SelectTrigger>
-                <SelectContent>
-                  {frequencyOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {!isAuthenticated ? (
+            <div className="flex flex-col gap-4 items-center justify-center p-4">
+              <p className="text-center">Sign in with your Google account to enable backups</p>
+              <Button onClick={handleGoogleSignIn} className="w-full" variant="outline">
+                <LogInIcon className="mr-2 h-4 w-4" />
+                Sign in with Google
+              </Button>
             </div>
-          )}
-          
-          {settings.lastBackup && (
-            <p className="text-sm text-muted-foreground">
-              Last backup: {new Date(settings.lastBackup).toLocaleString()}
-            </p>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Signed in to Google Drive</span>
+                <Button onClick={handleGoogleSignOut} variant="ghost" size="sm">
+                  <LogOutIcon className="mr-2 h-4 w-4" />
+                  Sign out
+                </Button>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <Label htmlFor="backup-enabled" className="text-right">
+                  Enable Automatic Backup
+                </Label>
+                <input
+                  id="backup-enabled"
+                  type="checkbox"
+                  checked={settings.enabled}
+                  onChange={(e) => enableBackup(e.target.checked)}
+                  className="h-4 w-4"
+                />
+              </div>
+              
+              {settings.enabled && (
+                <div className="grid gap-2">
+                  <Label htmlFor="backup-frequency">Backup Frequency</Label>
+                  <Select
+                    value={settings.frequency}
+                    onValueChange={(value) => setBackupFrequency(value as BackupFrequency)}
+                  >
+                    <SelectTrigger id="backup-frequency">
+                      <SelectValue placeholder="Select frequency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {frequencyOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
+              {settings.lastBackup && (
+                <p className="text-sm text-muted-foreground">
+                  Last backup: {new Date(settings.lastBackup).toLocaleString()}
+                </p>
+              )}
+            </>
           )}
         </div>
         
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
-          <Button onClick={() => performBackup()} className="w-full sm:w-auto">
+          <Button 
+            onClick={() => performBackup()} 
+            className="w-full sm:w-auto"
+            disabled={!isAuthenticated}
+          >
             <CloudUploadIcon className="mr-2 h-4 w-4" />
             Backup Now
           </Button>
-          <Button onClick={() => restoreBackup()} variant="outline" className="w-full sm:w-auto">
+          <Button 
+            onClick={() => restoreBackup()} 
+            variant="outline" 
+            className="w-full sm:w-auto"
+            disabled={!isAuthenticated}
+          >
             <RefreshCwIcon className="mr-2 h-4 w-4" />
             Restore Backup
           </Button>

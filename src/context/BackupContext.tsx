@@ -10,6 +10,9 @@ interface BackupContextProps {
   performBackup: () => Promise<void>;
   restoreBackup: () => Promise<void>;
   isBackupDue: () => boolean;
+  isAuthenticated: boolean;
+  handleGoogleSignIn: () => void;
+  handleGoogleSignOut: () => void;
 }
 
 const defaultSettings: BackupSettings = {
@@ -20,10 +23,52 @@ const defaultSettings: BackupSettings = {
 
 const BackupContext = createContext<BackupContextProps | undefined>(undefined);
 
+// Mock Google API functions - In a real app, these would be implemented with Google Drive API
+const mockGoogleAuth = {
+  signIn: async () => {
+    // Simulating Google Sign-in flow
+    console.log("Signing in with Google...");
+    return { success: true, userId: "google-user-123" };
+  },
+  signOut: async () => {
+    console.log("Signing out from Google...");
+    return { success: true };
+  },
+  isSignedIn: () => {
+    const savedAuth = localStorage.getItem("googleAuthStatus");
+    return savedAuth ? JSON.parse(savedAuth).isSignedIn : false;
+  },
+};
+
+const mockGoogleDrive = {
+  createFolder: async (name: string) => {
+    console.log(`Creating folder in Google Drive: ${name}`);
+    return { id: "folder-123", name };
+  },
+  uploadFile: async (folderId: string, fileName: string, content: string) => {
+    console.log(`Uploading file to Google Drive: ${fileName} in folder ${folderId}`);
+    return { id: "file-123", name: fileName };
+  },
+  listFiles: async (folderId: string) => {
+    console.log(`Listing files in folder ${folderId}`);
+    return [{ id: "file-123", name: "backup.json", modifiedTime: new Date().toISOString() }];
+  },
+  downloadFile: async (fileId: string) => {
+    console.log(`Downloading file ${fileId} from Google Drive`);
+    // In this mock, we'll just return the current data from localStorage
+    const data = localStorage.getItem("transactionState");
+    return data;
+  },
+};
+
 export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<BackupSettings>(() => {
     const saved = localStorage.getItem("backupSettings");
     return saved ? JSON.parse(saved) : defaultSettings;
+  });
+  
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return mockGoogleAuth.isSignedIn();
   });
 
   useEffect(() => {
@@ -51,6 +96,10 @@ export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const enableBackup = (enable: boolean) => {
+    if (enable && !isAuthenticated) {
+      toast.error("Please sign in with Google first to enable backups");
+      return;
+    }
     setSettings({ ...settings, enabled: enable });
   };
 
@@ -58,8 +107,49 @@ export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSettings({ ...settings, frequency });
   };
 
+  const handleGoogleSignIn = async () => {
+    try {
+      const response = await mockGoogleAuth.signIn();
+      if (response.success) {
+        setIsAuthenticated(true);
+        localStorage.setItem("googleAuthStatus", JSON.stringify({ isSignedIn: true, userId: response.userId }));
+        toast.success("Successfully signed in with Google");
+        
+        // Create app folder in Google Drive if it doesn't exist
+        await mockGoogleDrive.createFolder("CashFlowBackups");
+      }
+    } catch (error) {
+      console.error("Google sign in failed:", error);
+      toast.error("Failed to sign in with Google. Please try again.");
+    }
+  };
+
+  const handleGoogleSignOut = async () => {
+    try {
+      await mockGoogleAuth.signOut();
+      setIsAuthenticated(false);
+      localStorage.setItem("googleAuthStatus", JSON.stringify({ isSignedIn: false }));
+      
+      // If backup was enabled, disable it
+      if (settings.enabled) {
+        setSettings({ ...settings, enabled: false });
+      }
+      
+      toast.success("Successfully signed out from Google");
+    } catch (error) {
+      console.error("Google sign out failed:", error);
+      toast.error("Failed to sign out from Google");
+    }
+  };
+
   // Google Drive API functions
   const performBackup = async (): Promise<void> => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in with Google first");
+      handleGoogleSignIn();
+      return;
+    }
+
     try {
       // Get transaction data
       const transactionData = localStorage.getItem("transactionState");
@@ -69,8 +159,12 @@ export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
       }
 
-      // In a real implementation, we would use Google Drive API here
-      console.log("Backing up data to Google Drive:", transactionData);
+      // Create a filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const filename = `cashflow-backup-${timestamp}.json`;
+      
+      // Upload to Google Drive
+      await mockGoogleDrive.uploadFile("CashFlowBackups", filename, transactionData);
       
       // Update last backup time
       setSettings({
@@ -78,7 +172,7 @@ export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         lastBackup: new Date().toISOString(),
       });
       
-      toast.success("Backup completed successfully");
+      toast.success("Backup completed successfully to Google Drive");
     } catch (error) {
       console.error("Backup failed:", error);
       toast.error("Backup failed. Please try again.");
@@ -86,23 +180,41 @@ export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const restoreBackup = async (): Promise<void> => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in with Google first");
+      handleGoogleSignIn();
+      return;
+    }
+
     try {
-      // In a real implementation, we would fetch from Google Drive API here
-      console.log("Restoring data from Google Drive");
+      // Get list of backup files
+      const files = await mockGoogleDrive.listFiles("CashFlowBackups");
       
-      // Simulate restored data (in a real app, this would come from Google Drive)
-      const restoredData = localStorage.getItem("transactionState");
-      
-      if (!restoredData) {
-        toast.error("No backup found to restore");
+      if (files.length === 0) {
+        toast.error("No backups found on Google Drive");
         return;
       }
       
-      // Apply the restored data (in a complete implementation, 
-      // this would be replaced with actual data from Google Drive)
-      localStorage.setItem("transactionState", restoredData);
+      // Get the most recent file
+      const latestFile = files[0];
+      
+      // Download the file
+      const backupData = await mockGoogleDrive.downloadFile(latestFile.id);
+      
+      if (!backupData) {
+        toast.error("Failed to download backup data");
+        return;
+      }
+      
+      // Apply the restored data
+      localStorage.setItem("transactionState", backupData);
       
       toast.success("Restore completed successfully. Reload the page to see changes.");
+      
+      // Reload the page to apply changes
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (error) {
       console.error("Restore failed:", error);
       toast.error("Restore failed. Please try again.");
@@ -118,6 +230,9 @@ export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         performBackup,
         restoreBackup,
         isBackupDue,
+        isAuthenticated,
+        handleGoogleSignIn,
+        handleGoogleSignOut
       }}
     >
       {children}

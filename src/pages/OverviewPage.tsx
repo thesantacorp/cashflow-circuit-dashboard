@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format } from "date-fns";
+import { useCurrency } from "@/context/CurrencyContext";
 
 const OverviewPage: React.FC = () => {
   const { state, getTotalByType } = useTransactions();
   const { transactions, categories } = state;
+  const { currencySymbol } = useCurrency();
   
   const totalExpenses = getTotalByType("expense");
   const totalIncome = getTotalByType("income");
@@ -75,7 +77,7 @@ const OverviewPage: React.FC = () => {
             <ArrowUpIcon className="h-4 w-4 text-income" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalIncome.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{currencySymbol}{totalIncome.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               From {state.categories.filter(c => c.type === "income").length} income sources
             </p>
@@ -88,7 +90,7 @@ const OverviewPage: React.FC = () => {
             <ArrowDownIcon className="h-4 w-4 text-expense" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalExpenses.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{currencySymbol}{totalExpenses.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Across {state.categories.filter(c => c.type === "expense").length} expense categories
             </p>
@@ -102,7 +104,7 @@ const OverviewPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${balance >= 0 ? "text-income" : "text-expense"}`}>
-              ${balance.toFixed(2)}
+              {currencySymbol}{balance.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {balance >= 0 ? "Surplus" : "Deficit"}
@@ -123,7 +125,7 @@ const OverviewPage: React.FC = () => {
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip 
-                    formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
+                    formatter={(value: number) => [`${currencySymbol}${value.toFixed(2)}`, '']}
                     labelFormatter={(label) => `Month: ${label}`}
                   />
                   <Legend />
@@ -179,7 +181,7 @@ const OverviewPage: React.FC = () => {
                           transaction.type === "expense" ? "text-expense" : "text-income"
                         }`}
                       >
-                        {transaction.type === "expense" ? "-" : "+"}${transaction.amount.toFixed(2)}
+                        {transaction.type === "expense" ? "-" : "+"}{currencySymbol}{transaction.amount.toFixed(2)}
                       </span>
                     </div>
                   );
