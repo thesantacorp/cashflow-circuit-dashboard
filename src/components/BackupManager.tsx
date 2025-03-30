@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CloudUploadIcon, RefreshCwIcon } from "lucide-react";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import {
   Select,
@@ -59,7 +58,7 @@ const BackupManager: React.FC = () => {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className="flex items-center gap-2">
+        <Button size="sm" variant="outline" className="text-black bg-white flex items-center gap-2">
           <CloudUploadIcon size={16} />
           <span>Backup</span>
         </Button>

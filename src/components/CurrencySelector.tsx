@@ -29,7 +29,7 @@ const CurrencySelector: React.FC = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" className="text-black bg-white">
           {currencySymbol} {currency}
         </Button>
       </DropdownMenuTrigger>
