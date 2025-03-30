@@ -4,10 +4,14 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowDownIcon, ArrowUpIcon, BarChart3 } from "lucide-react";
 import { useTransactions } from "@/context/transaction";
+import CurrencySelector from "./CurrencySelector";
+import BackupManager from "./BackupManager";
+import { useCurrency } from "@/context/CurrencyContext";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
   const { getTotalByType } = useTransactions();
+  const { currencySymbol } = useCurrency();
   
   const totalExpenses = getTotalByType("expense");
   const totalIncome = getTotalByType("income");
@@ -49,12 +53,15 @@ const Navbar: React.FC = () => {
         </div>
         
         <div className="ml-auto flex items-center gap-4">
+          <BackupManager />
+          <CurrencySelector />
+          
           <div className="hidden md:flex items-center gap-6">
             <div className="flex flex-col items-end">
               <span className="text-sm text-white/70">Expenses</span>
               <span className="font-medium text-white flex items-center">
                 <ArrowDownIcon className="h-3 w-3 mr-1" />
-                ${totalExpenses.toFixed(2)}
+                {currencySymbol}{totalExpenses.toFixed(2)}
               </span>
             </div>
             
@@ -62,14 +69,14 @@ const Navbar: React.FC = () => {
               <span className="text-sm text-white/70">Income</span>
               <span className="font-medium text-white flex items-center">
                 <ArrowUpIcon className="h-3 w-3 mr-1" />
-                ${totalIncome.toFixed(2)}
+                {currencySymbol}{totalIncome.toFixed(2)}
               </span>
             </div>
             
             <div className="flex flex-col items-end">
               <span className="text-sm text-white/70">Balance</span>
               <span className={`font-medium text-white`}>
-                ${balance.toFixed(2)}
+                {currencySymbol}{balance.toFixed(2)}
               </span>
             </div>
           </div>

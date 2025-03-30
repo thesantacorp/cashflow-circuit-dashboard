@@ -15,6 +15,10 @@ const currencySymbols: Record<Currency, string> = {
   CAD: "C$",
   AUD: "A$",
   JPY: "¥",
+  NGN: "₦",
+  GHS: "₵",
+  KES: "KSh",
+  XOF: "CFA",
 };
 
 const CurrencyContext = createContext<CurrencyContextProps | undefined>(undefined);

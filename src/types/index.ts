@@ -1,7 +1,8 @@
 
 export type TransactionType = "expense" | "income";
-export type Currency = "USD" | "EUR" | "GBP" | "CAD" | "AUD" | "JPY";
+export type Currency = "USD" | "EUR" | "GBP" | "CAD" | "AUD" | "JPY" | "NGN" | "GHS" | "KES" | "XOF";
 export type EmotionalState = "happy" | "stressed" | "bored" | "excited" | "sad" | "neutral";
+export type BackupFrequency = "daily" | "weekly" | "monthly" | "manual";
 
 export interface Category {
   id: string;
@@ -26,4 +27,10 @@ export interface EmotionInsight {
   category: string;
   percentageIncrease: number;
   message: string;
+}
+
+export interface BackupSettings {
+  enabled: boolean;
+  frequency: BackupFrequency;
+  lastBackup: string | null;
 }

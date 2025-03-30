@@ -17,6 +17,10 @@ const currencyOptions: { value: Currency; label: string }[] = [
   { value: "CAD", label: "CAD (C$)" },
   { value: "AUD", label: "AUD (A$)" },
   { value: "JPY", label: "JPY (¥)" },
+  { value: "NGN", label: "NGN (₦)" },
+  { value: "GHS", label: "GHS (₵)" },
+  { value: "KES", label: "KES (KSh)" },
+  { value: "XOF", label: "CFA franc (CFA)" },
 ];
 
 const CurrencySelector: React.FC = () => {
@@ -29,7 +33,7 @@ const CurrencySelector: React.FC = () => {
           {currencySymbol} {currency}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto">
         {currencyOptions.map((option) => (
           <DropdownMenuItem
             key={option.value}
