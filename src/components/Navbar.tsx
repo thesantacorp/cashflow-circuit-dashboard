@@ -3,7 +3,7 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowDownIcon, ArrowUpIcon, BarChart3 } from "lucide-react";
-import { useTransactions } from "@/context/TransactionContext";
+import { useTransactions } from "@/context/transaction";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
