@@ -29,6 +29,14 @@ export interface EmotionInsight {
   message: string;
 }
 
+export interface EmotionTrend {
+  emotion: EmotionalState;
+  count: number;
+  percentage: number;
+  totalSpent: number;
+  averageSpent: number;
+}
+
 export interface BackupSettings {
   enabled: boolean;
   frequency: BackupFrequency;

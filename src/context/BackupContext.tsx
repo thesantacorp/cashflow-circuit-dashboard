@@ -24,6 +24,7 @@ const defaultSettings: BackupSettings = {
 const BackupContext = createContext<BackupContextProps | undefined>(undefined);
 
 // Google Drive API client ID - this is a publishable key
+// REPLACE THIS WITH THE CLIENT ID YOU PROVIDE
 const GOOGLE_API_CLIENT_ID = "1061406271465-nfmc9s9u7c8f5b6bvu7noh1tnqt29gdb.apps.googleusercontent.com";
 
 // Google Drive API scopes

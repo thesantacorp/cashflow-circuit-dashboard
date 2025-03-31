@@ -18,6 +18,7 @@ declare global {
             list: (params: any) => Promise<any>;
             create: (params: any) => Promise<any>;
             get: (params: any) => Promise<any>;
+            delete: (params: any) => Promise<any>;
           };
           about: {
             get: (params: any) => Promise<any>;
