@@ -3,7 +3,7 @@ import React from "react";
 import AppLogo from "./AppLogo";
 import { motion } from "framer-motion";
 
-const LoadingScreen: React.FC = () => {
+const LoadingScreen = () => {
   return (
     <motion.div
       className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-r from-orange-500 to-amber-500"

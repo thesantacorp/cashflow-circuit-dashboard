@@ -19,7 +19,7 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => {
+function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -64,6 +64,6 @@ const App = () => {
       </TransactionProvider>
     </QueryClientProvider>
   );
-};
+}
 
 export default App;
