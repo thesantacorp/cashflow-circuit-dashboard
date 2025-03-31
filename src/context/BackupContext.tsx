@@ -23,43 +23,14 @@ const defaultSettings: BackupSettings = {
 
 const BackupContext = createContext<BackupContextProps | undefined>(undefined);
 
-// Mock Google API functions - In a real app, these would be implemented with Google Drive API
-const mockGoogleAuth = {
-  signIn: async () => {
-    // Simulating Google Sign-in flow
-    console.log("Signing in with Google...");
-    return { success: true, userId: "google-user-123" };
-  },
-  signOut: async () => {
-    console.log("Signing out from Google...");
-    return { success: true };
-  },
-  isSignedIn: () => {
-    const savedAuth = localStorage.getItem("googleAuthStatus");
-    return savedAuth ? JSON.parse(savedAuth).isSignedIn : false;
-  },
-};
+// Google Drive API client ID - this is a publishable key
+const GOOGLE_API_CLIENT_ID = "1061406271465-nfmc9s9u7c8f5b6bvu7noh1tnqt29gdb.apps.googleusercontent.com";
 
-const mockGoogleDrive = {
-  createFolder: async (name: string) => {
-    console.log(`Creating folder in Google Drive: ${name}`);
-    return { id: "folder-123", name };
-  },
-  uploadFile: async (folderId: string, fileName: string, content: string) => {
-    console.log(`Uploading file to Google Drive: ${fileName} in folder ${folderId}`);
-    return { id: "file-123", name: fileName };
-  },
-  listFiles: async (folderId: string) => {
-    console.log(`Listing files in folder ${folderId}`);
-    return [{ id: "file-123", name: "backup.json", modifiedTime: new Date().toISOString() }];
-  },
-  downloadFile: async (fileId: string) => {
-    console.log(`Downloading file ${fileId} from Google Drive`);
-    // In this mock, we'll just return the current data from localStorage
-    const data = localStorage.getItem("transactionState");
-    return data;
-  },
-};
+// Google Drive API scopes
+const SCOPES = "https://www.googleapis.com/auth/drive.file";
+
+// App folder name in Google Drive
+const APP_FOLDER_NAME = "StackdBackups";
 
 export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<BackupSettings>(() => {
@@ -67,13 +38,126 @@ export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return saved ? JSON.parse(saved) : defaultSettings;
   });
   
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return mockGoogleAuth.isSignedIn();
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [gapiLoaded, setGapiLoaded] = useState<boolean>(false);
+  const [gisLoaded, setGisLoaded] = useState<boolean>(false);
+  const [appFolderId, setAppFolderId] = useState<string | null>(null);
 
+  // Initialize Google API
+  useEffect(() => {
+    // Load the Google API client script
+    const loadGAPIScript = () => {
+      const script = document.createElement("script");
+      script.src = "https://apis.google.com/js/api.js";
+      script.async = true;
+      script.defer = true;
+      script.onload = initGAPI;
+      document.body.appendChild(script);
+    };
+
+    // Load the Google Identity Services script
+    const loadGISScript = () => {
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.onload = () => setGisLoaded(true);
+      document.body.appendChild(script);
+    };
+
+    // Initialize GAPI
+    const initGAPI = () => {
+      window.gapi.load("client", async () => {
+        try {
+          await window.gapi.client.init({
+            apiKey: null, // We don't need an API key for this use case
+            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
+          });
+          setGapiLoaded(true);
+          
+          // Check if user is already signed in
+          checkAuthStatus();
+        } catch (error) {
+          console.error("Error initializing GAPI client:", error);
+        }
+      });
+    };
+
+    loadGAPIScript();
+    loadGISScript();
+  }, []);
+
+  // Save settings to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem("backupSettings", JSON.stringify(settings));
   }, [settings]);
+
+  // Check if user is authenticated
+  const checkAuthStatus = async () => {
+    if (!window.gapi || !window.google) return;
+    
+    try {
+      const token = localStorage.getItem('gapi_access_token');
+      if (token) {
+        // Set the access token
+        window.gapi.client.setToken({ access_token: token });
+        
+        // Test if the token is still valid with a small request
+        await window.gapi.client.drive.about.get({ fields: 'user' });
+        
+        setIsAuthenticated(true);
+        findOrCreateAppFolder();
+      } else {
+        setIsAuthenticated(false);
+      }
+    } catch (error) {
+      console.error("Auth status error:", error);
+      setIsAuthenticated(false);
+      localStorage.removeItem('gapi_access_token');
+    }
+  };
+
+  // Find or create the app folder in Google Drive
+  const findOrCreateAppFolder = async () => {
+    if (!isAuthenticated || !window.gapi) return;
+
+    try {
+      // First, check if the folder already exists
+      const response = await window.gapi.client.drive.files.list({
+        q: `name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        spaces: 'drive',
+        fields: 'files(id, name)'
+      });
+
+      const files = response.result.files;
+      if (files && files.length > 0) {
+        // Folder exists, use its ID
+        setAppFolderId(files[0].id);
+        console.log("Found existing app folder with ID:", files[0].id);
+        return files[0].id;
+      }
+
+      // Folder doesn't exist, create it
+      const fileMetadata = {
+        name: APP_FOLDER_NAME,
+        mimeType: 'application/vnd.google-apps.folder'
+      };
+
+      const createResponse = await window.gapi.client.drive.files.create({
+        resource: fileMetadata,
+        fields: 'id'
+      });
+
+      const folderId = createResponse.result.id;
+      setAppFolderId(folderId);
+      console.log("Created new app folder with ID:", folderId);
+      return folderId;
+    } catch (error) {
+      console.error("Error finding/creating app folder:", error);
+      toast.error("Failed to access Google Drive folder");
+      return null;
+    }
+  };
 
   // Check if backup is due based on frequency
   const isBackupDue = (): boolean => {
@@ -107,28 +191,62 @@ export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSettings({ ...settings, frequency });
   };
 
+  // Google Sign In
   const handleGoogleSignIn = async () => {
+    if (!gisLoaded) {
+      toast.error("Google API is still loading. Please try again in a moment.");
+      return;
+    }
+    
     try {
-      const response = await mockGoogleAuth.signIn();
-      if (response.success) {
-        setIsAuthenticated(true);
-        localStorage.setItem("googleAuthStatus", JSON.stringify({ isSignedIn: true, userId: response.userId }));
-        toast.success("Successfully signed in with Google");
-        
-        // Create app folder in Google Drive if it doesn't exist
-        await mockGoogleDrive.createFolder("CashFlowBackups");
-      }
+      const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_API_CLIENT_ID,
+        scope: SCOPES,
+        callback: async (response: any) => {
+          if (response.error) {
+            throw new Error(response.error);
+          }
+          
+          // Store token in localStorage
+          localStorage.setItem('gapi_access_token', response.access_token);
+          
+          // Set the token for the API client
+          window.gapi.client.setToken(response);
+          
+          setIsAuthenticated(true);
+          toast.success("Successfully signed in with Google");
+          
+          // Create app folder
+          await findOrCreateAppFolder();
+        }
+      });
+      
+      // Request authorization
+      tokenClient.requestAccessToken({ prompt: 'consent' });
     } catch (error) {
       console.error("Google sign in failed:", error);
       toast.error("Failed to sign in with Google. Please try again.");
     }
   };
 
+  // Google Sign Out
   const handleGoogleSignOut = async () => {
+    if (!gisLoaded || !gapiLoaded) return;
+    
     try {
-      await mockGoogleAuth.signOut();
+      const token = window.gapi.client.getToken();
+      if (token) {
+        // Revoke the token
+        window.google.accounts.oauth2.revoke(token.access_token, () => {
+          console.log('Token revoked');
+        });
+        window.gapi.client.setToken(null);
+      }
+      
+      // Clear stored token
+      localStorage.removeItem('gapi_access_token');
+      
       setIsAuthenticated(false);
-      localStorage.setItem("googleAuthStatus", JSON.stringify({ isSignedIn: false }));
       
       // If backup was enabled, disable it
       if (settings.enabled) {
@@ -142,7 +260,7 @@ export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  // Google Drive API functions
+  // Perform backup to Google Drive
   const performBackup = async (): Promise<void> => {
     if (!isAuthenticated) {
       toast.error("Please sign in with Google first");
@@ -151,6 +269,13 @@ export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     try {
+      // Make sure we have the app folder ID
+      const folderId = appFolderId || await findOrCreateAppFolder();
+      if (!folderId) {
+        toast.error("Couldn't access Google Drive folder");
+        return;
+      }
+
       // Get transaction data
       const transactionData = localStorage.getItem("transactionState");
       
@@ -159,12 +284,22 @@ export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
       }
 
-      // Create a filename with timestamp
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const filename = `cashflow-backup-${timestamp}.json`;
+      // Create a Blob from the JSON string
+      const blob = new Blob([transactionData], { type: 'application/json' });
       
-      // Upload to Google Drive
-      await mockGoogleDrive.uploadFile("CashFlowBackups", filename, transactionData);
+      // Create a timestamp for the filename
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const filename = `stackd-backup-${timestamp}.json`;
+      
+      // Create file metadata
+      const metadata = {
+        name: filename,
+        mimeType: 'application/json',
+        parents: [folderId]
+      };
+
+      // Use the Google Drive API to upload the file
+      await uploadFile(blob, metadata);
       
       // Update last backup time
       setSettings({
@@ -179,6 +314,43 @@ export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  // Helper function to upload file to Google Drive
+  const uploadFile = async (blob: Blob, metadata: any): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      // Use the Google Drive API to upload the file
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', blob);
+
+      // Get the access token
+      const token = window.gapi.client.getToken().access_token;
+      
+      // Upload the file using Fetch API
+      fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: form
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log("File uploaded successfully:", data);
+        resolve();
+      })
+      .catch(error => {
+        console.error("Error uploading file:", error);
+        reject(error);
+      });
+    });
+  };
+
+  // Restore backup from Google Drive
   const restoreBackup = async (): Promise<void> => {
     if (!isAuthenticated) {
       toast.error("Please sign in with Google first");
@@ -187,10 +359,24 @@ export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     try {
+      // Make sure we have the app folder ID
+      const folderId = appFolderId || await findOrCreateAppFolder();
+      if (!folderId) {
+        toast.error("Couldn't access Google Drive folder");
+        return;
+      }
+
       // Get list of backup files
-      const files = await mockGoogleDrive.listFiles("CashFlowBackups");
+      const response = await window.gapi.client.drive.files.list({
+        q: `'${folderId}' in parents and mimeType='application/json' and trashed=false`,
+        spaces: 'drive',
+        orderBy: 'createdTime desc',
+        fields: 'files(id, name, createdTime)'
+      });
+
+      const files = response.result.files;
       
-      if (files.length === 0) {
+      if (!files || files.length === 0) {
         toast.error("No backups found on Google Drive");
         return;
       }
@@ -199,7 +385,12 @@ export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const latestFile = files[0];
       
       // Download the file
-      const backupData = await mockGoogleDrive.downloadFile(latestFile.id);
+      const fileResponse = await window.gapi.client.drive.files.get({
+        fileId: latestFile.id,
+        alt: 'media'
+      });
+      
+      const backupData = fileResponse.body;
       
       if (!backupData) {
         toast.error("Failed to download backup data");

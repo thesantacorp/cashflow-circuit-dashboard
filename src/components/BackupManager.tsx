@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useBackup } from "@/context/BackupContext";
 import { BackupFrequency } from "@/types";
 import {
@@ -38,6 +38,8 @@ const BackupManager: React.FC = () => {
   } = useBackup();
   
   const isMobile = useIsMobile();
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   // Check if backup is due every time the component mounts
   useEffect(() => {
@@ -68,6 +70,24 @@ const BackupManager: React.FC = () => {
     { value: "manual", label: "Manual only" },
   ];
 
+  const handleBackupNow = async () => {
+    setIsBackingUp(true);
+    try {
+      await performBackup();
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  const handleRestoreBackup = async () => {
+    setIsRestoring(true);
+    try {
+      await restoreBackup();
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -81,6 +101,7 @@ const BackupManager: React.FC = () => {
           <DialogTitle>Google Drive Backup</DialogTitle>
           <DialogDescription>
             Backup your transaction data to Google Drive and restore it on any device.
+            Your backups are stored in a folder named "StackdBackups" in your Google Drive.
           </DialogDescription>
         </DialogHeader>
         
@@ -148,21 +169,43 @@ const BackupManager: React.FC = () => {
         
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
           <Button 
-            onClick={() => performBackup()} 
+            onClick={handleBackupNow} 
             className="w-full sm:w-auto"
-            disabled={!isAuthenticated}
+            disabled={!isAuthenticated || isBackingUp}
           >
-            <CloudUploadIcon className="mr-2 h-4 w-4" />
-            Backup Now
+            {isBackingUp ? (
+              <>
+                <span className="animate-spin mr-2">
+                  <RefreshCwIcon className="h-4 w-4" />
+                </span>
+                Backing up...
+              </>
+            ) : (
+              <>
+                <CloudUploadIcon className="mr-2 h-4 w-4" />
+                Backup Now
+              </>
+            )}
           </Button>
           <Button 
-            onClick={() => restoreBackup()} 
+            onClick={handleRestoreBackup} 
             variant="outline" 
             className="w-full sm:w-auto"
-            disabled={!isAuthenticated}
+            disabled={!isAuthenticated || isRestoring}
           >
-            <RefreshCwIcon className="mr-2 h-4 w-4" />
-            Restore Backup
+            {isRestoring ? (
+              <>
+                <span className="animate-spin mr-2">
+                  <RefreshCwIcon className="h-4 w-4" />
+                </span>
+                Restoring...
+              </>
+            ) : (
+              <>
+                <RefreshCwIcon className="mr-2 h-4 w-4" />
+                Restore Backup
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
