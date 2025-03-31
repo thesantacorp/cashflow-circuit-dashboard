@@ -140,9 +140,9 @@ const OverviewPage: React.FC = () => {
       
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between">
             <CardTitle>Recent Transactions</CardTitle>
-            <div className="flex space-x-2">
+            <div className="flex space-x-2 mt-2 md:mt-0">
               <Link to="/expenses">
                 <Button variant="outline" size="sm">View Expenses</Button>
               </Link>
@@ -159,17 +159,17 @@ const OverviewPage: React.FC = () => {
                   return (
                     <div
                       key={transaction.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
+                      className="flex flex-wrap items-center justify-between p-3 border rounded-lg"
                       style={{
                         borderLeftColor: category?.color || "#ccc",
                         borderLeftWidth: "4px",
                       }}
                     >
-                      <div className="flex flex-col">
-                        <span className="font-medium">
+                      <div className="flex flex-col mr-2 mb-2 sm:mb-0 max-w-[70%]">
+                        <span className="font-medium break-words">
                           {category?.name || "Unknown Category"}
                         </span>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-sm text-muted-foreground break-words">
                           {transaction.description || "No description"}
                         </span>
                         <span className="text-xs text-muted-foreground">

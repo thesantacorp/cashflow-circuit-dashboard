@@ -27,7 +27,7 @@ const Navbar: React.FC = () => {
         
         <Link to="/" className="flex items-center mr-8">
           <BarChart3 className="h-6 w-6 mr-2" />
-          <span className="font-bold text-xl">CashFlow</span>
+          <span className="font-bold text-xl">Stack'd</span>
         </Link>
         
         <div className="hidden md:flex items-center gap-4 md:gap-6">
