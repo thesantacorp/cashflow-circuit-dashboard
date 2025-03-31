@@ -2,13 +2,14 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowDownIcon, ArrowUpIcon, BarChart3 } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { useTransactions } from "@/context/transaction";
 import CurrencySelector from "./CurrencySelector";
 import BackupManager from "./BackupManager";
 import { useCurrency } from "@/context/CurrencyContext";
 import MobileNav from "./MobileNav";
 import { useIsMobile } from "@/hooks/use-mobile";
+import AppLogo from "./AppLogo";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -26,7 +27,7 @@ const Navbar: React.FC = () => {
         {isMobile && <MobileNav />}
         
         <Link to="/" className="flex items-center mr-8">
-          <BarChart3 className="h-6 w-6 mr-2" />
+          <AppLogo className="h-6 w-6 mr-2" />
           <span className="font-bold text-xl">Stack'd</span>
         </Link>
         

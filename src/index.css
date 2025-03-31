@@ -91,7 +91,8 @@
   }
 
   body {
-    @apply bg-background text-foreground overflow-x-hidden;
+    @apply bg-background text-foreground overflow-x-hidden font-sans;
+    font-family: 'Poppins', sans-serif;
   }
   
   html {
