@@ -3,6 +3,7 @@ export type TransactionType = "expense" | "income";
 export type Currency = "USD" | "EUR" | "GBP" | "CAD" | "AUD" | "JPY" | "NGN" | "GHS" | "KES" | "XOF";
 export type EmotionalState = "happy" | "stressed" | "bored" | "excited" | "sad" | "neutral";
 export type BackupFrequency = "daily" | "weekly" | "monthly" | "manual";
+export type TimePeriod = "week" | "month" | "year" | "all";
 
 export interface Category {
   id: string;
@@ -35,6 +36,17 @@ export interface EmotionTrend {
   percentage: number;
   totalSpent: number;
   averageSpent: number;
+}
+
+export interface EmotionTimelineTrend {
+  period: string; // e.g., "Jan", "Feb" for months or "Week 1", "Week 2" for weeks
+  happy?: number;
+  stressed?: number;
+  bored?: number;
+  excited?: number;
+  sad?: number;
+  neutral?: number;
+  [key: string]: string | number | undefined;
 }
 
 export interface BackupSettings {

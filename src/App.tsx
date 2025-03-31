@@ -12,7 +12,7 @@ import { AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import CommunityLink from "@/components/CommunityLink";
 import LoadingScreen from "@/components/LoadingScreen";
-import OverviewPage from "@/pages/OverviewPage";
+import OverviewPageEnhanced from "@/pages/OverviewPageEnhanced";
 import ExpensesPage from "@/pages/ExpensesPage";
 import IncomePage from "@/pages/IncomePage";
 import NotFound from "./pages/NotFound";
@@ -48,7 +48,7 @@ function App() {
                   <main className="flex-1 py-6 px-4 sm:px-6 w-full">
                     <div className="max-w-7xl mx-auto w-full">
                       <Routes>
-                        <Route path="/" element={<OverviewPage />} />
+                        <Route path="/" element={<OverviewPageEnhanced />} />
                         <Route path="/expenses" element={<ExpensesPage />} />
                         <Route path="/income" element={<IncomePage />} />
                         <Route path="*" element={<NotFound />} />

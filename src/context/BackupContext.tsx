@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { BackupFrequency, BackupSettings } from "@/types";
 import { toast } from "sonner";
@@ -23,9 +22,8 @@ const defaultSettings: BackupSettings = {
 
 const BackupContext = createContext<BackupContextProps | undefined>(undefined);
 
-// Google Drive API client ID - this is a publishable key
-// REPLACE THIS WITH THE CLIENT ID YOU PROVIDE
-const GOOGLE_API_CLIENT_ID = "1061406271465-nfmc9s9u7c8f5b6bvu7noh1tnqt29gdb.apps.googleusercontent.com";
+// Google Drive API client ID
+const GOOGLE_API_CLIENT_ID = "485216740467-m6npiprg02h2f8pma8doa4e3c9rp580c.apps.googleusercontent.com";
 
 // Google Drive API scopes
 const SCOPES = "https://www.googleapis.com/auth/drive.file";
