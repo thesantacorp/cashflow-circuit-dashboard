@@ -4,10 +4,10 @@ import Dashboard from "@/components/Dashboard";
 import TransactionList from "@/components/TransactionList";
 import EmotionInsightsEnhanced from "@/components/EmotionInsightsEnhanced";
 import { motion } from "framer-motion";
-import { useTransaction } from "@/context/transaction";
+import { useTransactions } from "@/context/transaction";
 
 const OverviewPageEnhanced: React.FC = () => {
-  const { transactions } = useTransaction();
+  const { state } = useTransactions();
   
   return (
     <motion.div
@@ -16,12 +16,12 @@ const OverviewPageEnhanced: React.FC = () => {
       transition={{ duration: 0.3 }}
     >
       <div className="grid gap-6">
-        <Dashboard />
+        <Dashboard type="expense" />
         <EmotionInsightsEnhanced />
         <TransactionList 
-          title="Recent Transactions" 
-          transactions={transactions.slice(0, 5)} 
-          showViewAll 
+          type="expense"
+          limit={5}
+          showViewAll={true}
         />
       </div>
     </motion.div>

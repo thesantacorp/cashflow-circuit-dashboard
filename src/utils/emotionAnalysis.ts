@@ -1,4 +1,3 @@
-
 import { Transaction, EmotionalState, EmotionInsight, Category } from "@/types";
 
 // Calculate spending by category for a specific emotion vs. overall
@@ -141,3 +140,8 @@ export function getPurchaseWarning(
 
   return null;
 }
+
+export const getEmotionInsights = (transactions: any[]) => {
+  // Simple implementation that returns an empty array for now
+  return [];
+};

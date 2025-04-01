@@ -1,4 +1,3 @@
-
 import { Transaction, EmotionalState, Category, EmotionTrend } from "@/types";
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from "date-fns";
 
@@ -152,3 +151,8 @@ export function compareEmotionTrends(
     previous: previousTrends
   };
 }
+
+// Add the missing exported function
+export const getEmotionTrends = (transactions: any[], period: TimePeriod = "month") => {
+  return analyzeEmotionTrends(transactions, period);
+};
