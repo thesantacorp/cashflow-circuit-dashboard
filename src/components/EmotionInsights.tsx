@@ -1,12 +1,12 @@
-
 import React, { useMemo, useEffect, useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { analyzeEmotionalSpending } from "@/utils/emotionAnalysis";
-import { analyzeEmotionTrends, TimePeriod } from "@/utils/emotionTrendAnalysis";
+import { analyzeEmotionTrends } from "@/utils/emotionTrendAnalysis";
 import { format, addDays, isSaturday, nextSaturday, isAfter } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { TimePeriod } from "@/types";
 
 const EMOTION_COLORS = {
   happy: "#4ade80", // green
@@ -23,19 +23,16 @@ const EmotionInsights: React.FC = () => {
   const [nextUpdate, setNextUpdate] = useState<Date | null>(null);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("week");
   
-  // Basic spending insights
   const insights = useMemo(() => 
     analyzeEmotionalSpending(state.transactions, state.categories),
     [state.transactions, state.categories]
   );
   
-  // Emotion trends by period
   const trends = useMemo(() => 
     analyzeEmotionTrends(state.transactions, timePeriod),
     [state.transactions, timePeriod]
   );
   
-  // Prepare data for charts
   const trendChartData = useMemo(() => 
     trends.map(trend => ({
       name: trend.emotion.charAt(0).toUpperCase() + trend.emotion.slice(1),
@@ -47,40 +44,30 @@ const EmotionInsights: React.FC = () => {
     [trends]
   );
 
-  // Set up the weekly update schedule (every Saturday at 8pm)
   useEffect(() => {
-    // Get current date and time
     const now = new Date();
     
-    // Check if there's a stored last update time
     const storedLastUpdate = localStorage.getItem("emotionInsightsLastUpdate");
     let lastUpdateDate = storedLastUpdate ? new Date(storedLastUpdate) : null;
     
-    // Determine the next update date (next Saturday at 8pm)
     let nextUpdateDate: Date;
     
     if (isSaturday(now)) {
-      // If today is Saturday
       const saturdayEightPM = new Date(now);
       saturdayEightPM.setHours(20, 0, 0, 0);
       
       if (isAfter(now, saturdayEightPM)) {
-        // If it's past 8pm, next update is next Saturday
         nextUpdateDate = nextSaturday(addDays(now, 1));
         nextUpdateDate.setHours(20, 0, 0, 0);
       } else {
-        // If it's before 8pm, update is today at 8pm
         nextUpdateDate = saturdayEightPM;
       }
     } else {
-      // If today is not Saturday, next update is the coming Saturday
       nextUpdateDate = nextSaturday(now);
       nextUpdateDate.setHours(20, 0, 0, 0);
     }
     
-    // If we don't have a last update time or it's time for an update
     if (!lastUpdateDate || (isAfter(now, lastUpdateDate) && isAfter(now, nextUpdateDate))) {
-      // Update the last update time
       setLastUpdated(now);
       localStorage.setItem("emotionInsightsLastUpdate", now.toISOString());
     } else if (lastUpdateDate) {
@@ -90,7 +77,6 @@ const EmotionInsights: React.FC = () => {
     setNextUpdate(nextUpdateDate);
   }, []);
 
-  // Custom tooltip for emotion charts
   const EmotionTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
