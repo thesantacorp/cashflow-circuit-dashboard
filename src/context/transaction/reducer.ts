@@ -1,9 +1,30 @@
-
-import { TransactionState, ActionType } from "./types";
+import { Transaction, Category } from "@/types";
+import { DEFAULT_CATEGORIES } from "./defaultCategories";
 import { toast } from "sonner";
 
-// Create reducer
-export const transactionReducer = (state: TransactionState, action: ActionType): TransactionState => {
+export interface TransactionState {
+  transactions: Transaction[];
+  categories: Category[];
+}
+
+export type TransactionAction =
+  | { type: "ADD_TRANSACTION"; payload: Transaction }
+  | { type: "UPDATE_TRANSACTION"; payload: { id: string; transaction: Partial<Transaction> } }
+  | { type: "DELETE_TRANSACTION"; payload: { id: string } }
+  | { type: "ADD_CATEGORY"; payload: Category }
+  | { type: "UPDATE_CATEGORY"; payload: { id: string; category: Partial<Category> } }
+  | { type: "DELETE_CATEGORY"; payload: { id: string } }
+  | { type: "IMPORT_TRANSACTIONS"; payload: Transaction[] };
+
+export const initialState: TransactionState = {
+  transactions: [],
+  categories: DEFAULT_CATEGORIES,
+};
+
+export function transactionReducer(
+  state: TransactionState,
+  action: TransactionAction
+): TransactionState {
   switch (action.type) {
     case "ADD_TRANSACTION":
       return {
@@ -28,7 +49,6 @@ export const transactionReducer = (state: TransactionState, action: ActionType):
         categories: [...state.categories, action.payload],
       };
     case "DELETE_CATEGORY":
-      // Check if any transactions are using this category
       const hasTransactions = state.transactions.some(
         (transaction) => transaction.categoryId === action.payload
       );
@@ -41,6 +61,11 @@ export const transactionReducer = (state: TransactionState, action: ActionType):
       return {
         ...state,
         categories: state.categories.filter((category) => category.id !== action.payload),
+      };
+    case "IMPORT_TRANSACTIONS":
+      return {
+        ...state,
+        transactions: [...state.transactions, ...action.payload],
       };
     case "SET_LOADING":
       return {
@@ -55,4 +80,4 @@ export const transactionReducer = (state: TransactionState, action: ActionType):
     default:
       return state;
   }
-};
+}

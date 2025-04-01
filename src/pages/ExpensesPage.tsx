@@ -7,16 +7,20 @@ import TransactionForm from "@/components/TransactionForm";
 import TransactionList from "@/components/TransactionList";
 import { Card } from "@/components/ui/card";
 import LocalStorageInfo from "@/components/LocalStorageInfo";
+import SpendingRecommendations from "@/components/SpendingRecommendations";
+import DataExportImport from "@/components/DataExportImport";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const ExpensesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
+  const isMobile = useIsMobile();
 
   return (
-    <div className="container py-6 max-w-7xl">
-      <h1 className="text-3xl font-bold mb-6">Expenses</h1>
+    <div className="container py-6 max-w-7xl mx-auto px-4">
+      <h1 className="text-3xl font-bold mb-6 text-center sm:text-left">Expenses</h1>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
@@ -24,20 +28,28 @@ const ExpensesPage: React.FC = () => {
         
         <TabsContent value="dashboard" className="pt-4">
           <Dashboard type="expense" />
+          <SpendingRecommendations />
           <LocalStorageInfo />
+          <DataExportImport />
         </TabsContent>
         
         <TabsContent value="categories" className="pt-4">
           <CategoryList type="expense" />
           <LocalStorageInfo />
+          <DataExportImport />
         </TabsContent>
         
         <TabsContent value="transactions" className="pt-4">
-          <div className="grid md:grid-cols-2 gap-6">
-            <TransactionForm type="expense" />
-            <TransactionList type="expense" />
+          <div className={`grid ${isMobile ? 'grid-cols-1 gap-8' : 'md:grid-cols-2 gap-6'}`}>
+            <div className="w-full max-w-lg mx-auto md:mx-0">
+              <TransactionForm type="expense" />
+            </div>
+            <div className="w-full">
+              <TransactionList type="expense" />
+            </div>
           </div>
           <LocalStorageInfo />
+          <DataExportImport />
         </TabsContent>
       </Tabs>
     </div>
