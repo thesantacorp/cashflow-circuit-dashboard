@@ -17,12 +17,12 @@ const Dashboard: React.FC<DashboardProps> = ({ type }) => {
 
   return (
     <div className="grid gap-6">
-      <Card className="bg-primary text-primary-foreground">
-        <CardHeader>
+      <Card className="bg-primary text-primary-foreground overflow-hidden">
+        <CardHeader className="pb-2">
           <CardTitle>Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold">
+        <CardContent className="break-words">
+          <div className="text-3xl font-bold overflow-x-auto">
             {currencySymbol}{total.toFixed(2)}
           </div>
         </CardContent>

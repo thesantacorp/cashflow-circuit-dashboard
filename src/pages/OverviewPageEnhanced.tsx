@@ -20,7 +20,6 @@ const OverviewPageEnhanced: React.FC = () => {
         <EmotionInsightsEnhanced />
         <TransactionList 
           type="expense"
-          limit={5}
           showViewAll={true}
         />
       </div>

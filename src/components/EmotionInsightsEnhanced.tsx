@@ -18,7 +18,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, XAxis, YAxis, Bar, Tooltip, ResponsiveContainer, Cell, Legend } from "recharts";
 import { useTransactions } from "@/context/transaction";
 import { EmotionInsight, EmotionalState, TimePeriod } from "@/types";
-import { AlertCircle, TrendingUp } from "lucide-react";
+import { AlertCircle, TrendingUp, Info } from "lucide-react";
+import { getEmotionTrends } from "@/utils/emotionTrendAnalysis";
+import { getEmotionTimelineTrends } from "@/utils/emotionTimelineAnalysis";
 
 const emotionColors = {
   happy: "#4CAF50",
@@ -29,18 +31,8 @@ const emotionColors = {
   neutral: "#FF9800"
 };
 
-// Helper functions since they're missing from the utils
+// Helper function for insights
 const getEmotionInsights = (transactions: any[]): EmotionInsight[] => {
-  // Basic implementation that returns empty array for now
-  return [];
-};
-
-const getEmotionTrends = (transactions: any[], period?: TimePeriod) => {
-  // Basic implementation that returns empty array for now
-  return [];
-};
-
-const getEmotionTimelineTrends = (transactions: any[], period: TimePeriod) => {
   // Basic implementation that returns empty array for now
   return [];
 };
@@ -50,7 +42,7 @@ const EmotionInsightsEnhanced: React.FC = () => {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("month");
   
   const insights = getEmotionInsights(state.transactions);
-  const trends = getEmotionTrends(state.transactions);
+  const trends = getEmotionTrends(state.transactions, timePeriod);
   const timelineTrends = getEmotionTimelineTrends(state.transactions, timePeriod);
   
   // Filter out emotions with zero values
@@ -58,6 +50,15 @@ const EmotionInsightsEnhanced: React.FC = () => {
   
   // Check if there are any transactions with emotions
   const hasEmotionData = state.transactions.some(tx => tx.emotionalState);
+  
+  // Check if we have enough data for the selected time period
+  const hasEnoughData = {
+    timeline: timelineTrends.length > 0 && timelineTrends.some(trend => 
+      Object.keys(trend).some(key => key !== 'period' && trend[key] !== 0)
+    ),
+    distribution: filteredTrends.length > 0,
+    insights: insights.length > 0
+  };
   
   const handleTimePeriodChange = (value: string) => {
     setTimePeriod(value as TimePeriod);
@@ -112,63 +113,85 @@ const EmotionInsightsEnhanced: React.FC = () => {
           </TabsList>
           
           <TabsContent value="timeline">
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={timelineTrends}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
-                >
-                  <XAxis dataKey="period" />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
-                    labelFormatter={(label: string) => `Period: ${label}`}
-                  />
-                  <Legend />
-                  {Object.keys(emotionColors).map((emotion) => (
-                    <Bar 
-                      key={emotion}
-                      dataKey={emotion}
-                      name={emotion.charAt(0).toUpperCase() + emotion.slice(1)}
-                      fill={emotionColors[emotion as EmotionalState]}
-                      stackId="a"
+            {hasEnoughData.timeline ? (
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={timelineTrends}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
+                  >
+                    <XAxis dataKey="period" />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
+                      labelFormatter={(label: string) => `Period: ${label}`}
                     />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+                    <Legend />
+                    {Object.keys(emotionColors).map((emotion) => (
+                      <Bar 
+                        key={emotion}
+                        dataKey={emotion}
+                        name={emotion.charAt(0).toUpperCase() + emotion.slice(1)}
+                        fill={emotionColors[emotion as EmotionalState]}
+                        stackId="a"
+                      />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Info className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Not enough data</h3>
+                <p className="text-muted-foreground max-w-md">
+                  There isn't enough emotional spending data for the selected {timePeriod} time period. 
+                  Try selecting a different time period or add more transactions with emotional states.
+                </p>
+              </div>
+            )}
             <p className="text-sm text-muted-foreground mt-4 text-center">
               Spending distribution across different emotions over {timePeriod === "week" ? "weeks" : timePeriod === "month" ? "months" : "years"}
             </p>
           </TabsContent>
           
           <TabsContent value="distribution">
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={filteredTrends}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                >
-                  <XAxis 
-                    dataKey="emotion" 
-                    tickFormatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
-                  />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value: number, name: string) => {
-                      if (name === "percentage") return [`${value.toFixed(1)}%`, "Percentage"];
-                      if (name === "averageSpent") return [`$${value.toFixed(2)}`, "Avg. Spent"];
-                      return [value, name];
-                    }}
-                  />
-                  <Bar dataKey="percentage" fill="#8884d8" name="Percentage">
-                    {filteredTrends.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={emotionColors[entry.emotion]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {hasEnoughData.distribution ? (
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={filteredTrends}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <XAxis 
+                      dataKey="emotion" 
+                      tickFormatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
+                    />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value: number, name: string) => {
+                        if (name === "percentage") return [`${value.toFixed(1)}%`, "Percentage"];
+                        if (name === "averageSpent") return [`$${value.toFixed(2)}`, "Avg. Spent"];
+                        return [value, name];
+                      }}
+                    />
+                    <Bar dataKey="percentage" fill="#8884d8" name="Percentage">
+                      {filteredTrends.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={emotionColors[entry.emotion]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Info className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Not enough data</h3>
+                <p className="text-muted-foreground max-w-md">
+                  There isn't enough emotional spending data for the selected {timePeriod} time period. 
+                  Try selecting a different time period or add more transactions with emotional states.
+                </p>
+              </div>
+            )}
             <p className="text-sm text-muted-foreground mt-4 text-center">
               Percentage of transactions associated with each emotion
             </p>
@@ -194,9 +217,14 @@ const EmotionInsightsEnhanced: React.FC = () => {
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground text-center py-6">
-                  Not enough data to generate meaningful insights yet.
-                </p>
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <Info className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Not enough data</h3>
+                  <p className="text-muted-foreground max-w-md">
+                    There isn't enough emotional spending data to generate insights for the selected {timePeriod} time period.
+                    Try selecting a different time period or add more transactions with emotional states.
+                  </p>
+                </div>
               )}
             </div>
           </TabsContent>

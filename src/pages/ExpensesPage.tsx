@@ -6,6 +6,7 @@ import CategoryList from "@/components/CategoryList";
 import TransactionForm from "@/components/TransactionForm";
 import TransactionList from "@/components/TransactionList";
 import { Card } from "@/components/ui/card";
+import LocalStorageInfo from "@/components/LocalStorageInfo";
 
 const ExpensesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
@@ -23,10 +24,12 @@ const ExpensesPage: React.FC = () => {
         
         <TabsContent value="dashboard" className="pt-4">
           <Dashboard type="expense" />
+          <LocalStorageInfo />
         </TabsContent>
         
         <TabsContent value="categories" className="pt-4">
           <CategoryList type="expense" />
+          <LocalStorageInfo />
         </TabsContent>
         
         <TabsContent value="transactions" className="pt-4">
@@ -34,6 +37,7 @@ const ExpensesPage: React.FC = () => {
             <TransactionForm type="expense" />
             <TransactionList type="expense" />
           </div>
+          <LocalStorageInfo />
         </TabsContent>
       </Tabs>
     </div>

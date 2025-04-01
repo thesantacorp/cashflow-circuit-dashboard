@@ -6,7 +6,7 @@ const CommunityLink: React.FC = () => {
   return (
     <div className="py-3 text-center border-t mt-auto">
       <a 
-        href="https://community.cashflow.app" 
+        href="https://stackdhq.com/join/" 
         target="_blank" 
         rel="noopener noreferrer"
         className="text-sm text-orange-600 hover:text-orange-800 transition-colors flex items-center justify-center gap-1"

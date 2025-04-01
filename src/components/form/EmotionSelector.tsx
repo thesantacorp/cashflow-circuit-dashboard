@@ -30,12 +30,12 @@ const EmotionSelector: React.FC<EmotionSelectorProps> = ({ emotionalState, onCha
       <RadioGroup
         value={emotionalState}
         onValueChange={(value) => onChange(value as EmotionalState)}
-        className="grid grid-cols-3 gap-2"
+        className="grid grid-cols-2 sm:grid-cols-3 gap-3"
       >
         {emotionOptions.map((emotion) => (
           <div key={emotion.value} className="flex items-center space-x-2">
             <RadioGroupItem value={emotion.value} id={`emotion-${emotion.value}`} />
-            <Label htmlFor={`emotion-${emotion.value}`} className="cursor-pointer">
+            <Label htmlFor={`emotion-${emotion.value}`} className="cursor-pointer whitespace-nowrap">
               {emotion.label}
             </Label>
           </div>
