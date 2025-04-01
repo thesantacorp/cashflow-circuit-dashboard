@@ -1,14 +1,15 @@
-
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, ArrowDownIcon, ArrowUpIcon } from "lucide-react";
+import { Menu, ArrowDownIcon, ArrowUpIcon, FileArchive } from "lucide-react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import BackupManager from "./BackupManager";
+import DataExportImport from "./DataExportImport";
 import CurrencySelector from "./CurrencySelector";
 import AppLogo from "./AppLogo";
+import { createRoot } from "react-dom/client";
 
 const MobileNav: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -94,8 +95,49 @@ const MobileNav: React.FC = () => {
 
           <div className="mt-auto p-4 flex flex-col gap-3">
             <CurrencySelector />
-            <div className="flex justify-center">
+            <div className="flex justify-between gap-2">
               <BackupManager />
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-black bg-white flex items-center gap-2 flex-1"
+                onClick={() => {
+                  const dialog = document.createElement('dialog');
+                  dialog.className = 'p-4 rounded-lg shadow-lg bg-white';
+                  dialog.style.position = 'fixed';
+                  dialog.style.top = '50%';
+                  dialog.style.left = '50%';
+                  dialog.style.transform = 'translate(-50%, -50%)';
+                  dialog.style.zIndex = '1000';
+                  dialog.style.width = '80vw';
+                  dialog.style.maxWidth = '400px';
+                  
+                  const dialogContent = document.createElement('div');
+                  dialogContent.id = 'export-import-dialog';
+                  dialog.appendChild(dialogContent);
+                  
+                  const closeButton = document.createElement('button');
+                  closeButton.textContent = 'Close';
+                  closeButton.className = 'mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300';
+                  closeButton.onclick = () => dialog.close();
+                  dialog.appendChild(closeButton);
+                  
+                  document.body.appendChild(dialog);
+                  dialog.showModal();
+                  
+                  // Render the DataExportImport component inside the dialog
+                  const root = createRoot(dialogContent);
+                  root.render(<DataExportImport />);
+                  
+                  dialog.addEventListener('close', () => {
+                    root.unmount();
+                    document.body.removeChild(dialog);
+                  });
+                }}
+              >
+                <FileArchive size={16} />
+                <span>Export/Import</span>
+              </Button>
             </div>
           </div>
         </div>

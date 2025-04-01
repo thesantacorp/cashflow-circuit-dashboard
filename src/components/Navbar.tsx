@@ -1,8 +1,8 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, FileArchive } from "lucide-react";
 import { useTransactions } from "@/context/transaction";
 import CurrencySelector from "./CurrencySelector";
 import BackupManager from "./BackupManager";
@@ -10,6 +10,8 @@ import { useCurrency } from "@/context/CurrencyContext";
 import MobileNav from "./MobileNav";
 import { useIsMobile } from "@/hooks/use-mobile";
 import AppLogo from "./AppLogo";
+import { createRoot } from "react-dom/client";
+import DataExportImport from "./DataExportImport";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -20,6 +22,40 @@ const Navbar: React.FC = () => {
   const totalExpenses = getTotalByType("expense");
   const totalIncome = getTotalByType("income");
   const balance = totalIncome - totalExpenses;
+  
+  const openExportImportDialog = () => {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'p-4 rounded-lg shadow-lg bg-white';
+    dialog.style.position = 'fixed';
+    dialog.style.top = '50%';
+    dialog.style.left = '50%';
+    dialog.style.transform = 'translate(-50%, -50%)';
+    dialog.style.zIndex = '1000';
+    dialog.style.width = '80vw';
+    dialog.style.maxWidth = '500px';
+    
+    const dialogContent = document.createElement('div');
+    dialogContent.id = 'export-import-dialog';
+    dialog.appendChild(dialogContent);
+    
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'Close';
+    closeButton.className = 'mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300';
+    closeButton.onclick = () => dialog.close();
+    dialog.appendChild(closeButton);
+    
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    
+    // Render the DataExportImport component inside the dialog
+    const root = createRoot(dialogContent);
+    root.render(<DataExportImport />);
+    
+    dialog.addEventListener('close', () => {
+      root.unmount();
+      document.body.removeChild(dialog);
+    });
+  };
   
   return (
     <nav className="border-b bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md">
@@ -62,6 +98,15 @@ const Navbar: React.FC = () => {
           {!isMobile && (
             <>
               <BackupManager />
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="text-black bg-white flex items-center gap-2"
+                onClick={openExportImportDialog}
+              >
+                <FileArchive size={16} />
+                <span>Export/Import</span>
+              </Button>
               <CurrencySelector />
             </>
           )}
