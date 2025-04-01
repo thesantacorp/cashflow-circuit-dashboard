@@ -16,8 +16,8 @@ const Dashboard: React.FC<DashboardProps> = ({ type }) => {
   const total = getTotalByType(type);
 
   return (
-    <div className="grid gap-6">
-      <Card className="bg-primary text-primary-foreground overflow-hidden">
+    <div className="grid gap-6 w-full overflow-x-visible">
+      <Card className="bg-primary text-primary-foreground overflow-hidden w-full max-w-full">
         <CardHeader className="pb-2">
           <CardTitle>Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
         </CardHeader>

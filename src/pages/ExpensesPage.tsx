@@ -5,7 +5,6 @@ import Dashboard from "@/components/Dashboard";
 import CategoryList from "@/components/CategoryList";
 import TransactionForm from "@/components/TransactionForm";
 import TransactionList from "@/components/TransactionList";
-import { Card } from "@/components/ui/card";
 import LocalStorageInfo from "@/components/LocalStorageInfo";
 import SpendingRecommendations from "@/components/SpendingRecommendations";
 import DataExportImport from "@/components/DataExportImport";
@@ -16,7 +15,7 @@ const ExpensesPage: React.FC = () => {
   const isMobile = useIsMobile();
 
   return (
-    <div className="container py-6 max-w-7xl mx-auto px-4">
+    <div className="container py-6 max-w-7xl mx-auto px-4 w-full overflow-x-hidden">
       <h1 className="text-3xl font-bold mb-6 text-center sm:text-left">Expenses</h1>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
@@ -26,11 +25,13 @@ const ExpensesPage: React.FC = () => {
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="dashboard" className="pt-4">
-          <Dashboard type="expense" />
-          <SpendingRecommendations />
-          <LocalStorageInfo />
-          <DataExportImport />
+        <TabsContent value="dashboard" className="pt-4 max-w-full overflow-x-hidden">
+          <div className="max-w-full mx-auto">
+            <Dashboard type="expense" />
+            <SpendingRecommendations />
+            <LocalStorageInfo />
+            <DataExportImport />
+          </div>
         </TabsContent>
         
         <TabsContent value="categories" className="pt-4">
