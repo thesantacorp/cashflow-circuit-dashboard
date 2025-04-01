@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -115,10 +116,3 @@
     @apply bg-orange-500 hover:bg-orange-600 text-white transition-colors;
   }
 }
-
-(function() {
-  const meta = document.createElement('meta');
-  meta.name = 'viewport';
-  meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-  document.getElementsByTagName('head')[0].appendChild(meta);
-})();

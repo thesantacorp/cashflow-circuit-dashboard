@@ -4,6 +4,26 @@ import App from './App.tsx';
 import './index.css';
 import React from 'react';
 
+// Set viewport meta tag to prevent zooming on mobile
+const setViewportMeta = () => {
+  // Check if the meta tag already exists
+  const existingMeta = document.querySelector('meta[name="viewport"]');
+  
+  if (existingMeta) {
+    // Update existing meta tag
+    existingMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+  } else {
+    // Create new meta tag if it doesn't exist
+    const meta = document.createElement('meta');
+    meta.name = 'viewport';
+    meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+    document.head.appendChild(meta);
+  }
+};
+
+// Set viewport meta before rendering
+setViewportMeta();
+
 // Google API type definitions
 declare global {
   interface Window {
