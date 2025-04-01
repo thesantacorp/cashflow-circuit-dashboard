@@ -1,24 +1,12 @@
+
 import { Transaction, Category } from "@/types";
-import { DEFAULT_CATEGORIES } from "./defaultCategories";
+import { allDefaultCategories } from "./defaultCategories";
 import { toast } from "sonner";
-
-export interface TransactionState {
-  transactions: Transaction[];
-  categories: Category[];
-}
-
-export type TransactionAction =
-  | { type: "ADD_TRANSACTION"; payload: Transaction }
-  | { type: "UPDATE_TRANSACTION"; payload: { id: string; transaction: Partial<Transaction> } }
-  | { type: "DELETE_TRANSACTION"; payload: { id: string } }
-  | { type: "ADD_CATEGORY"; payload: Category }
-  | { type: "UPDATE_CATEGORY"; payload: { id: string; category: Partial<Category> } }
-  | { type: "DELETE_CATEGORY"; payload: { id: string } }
-  | { type: "IMPORT_TRANSACTIONS"; payload: Transaction[] };
+import { TransactionAction, TransactionState } from "./types";
 
 export const initialState: TransactionState = {
   transactions: [],
-  categories: DEFAULT_CATEGORIES,
+  categories: allDefaultCategories,
 };
 
 export function transactionReducer(
@@ -66,16 +54,6 @@ export function transactionReducer(
       return {
         ...state,
         transactions: [...state.transactions, ...action.payload],
-      };
-    case "SET_LOADING":
-      return {
-        ...state,
-        loading: action.payload,
-      };
-    case "SET_ERROR":
-      return {
-        ...state,
-        error: action.payload,
       };
     default:
       return state;

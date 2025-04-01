@@ -5,17 +5,8 @@ import { toast } from "sonner";
 import { Category, Transaction, TransactionType } from "@/types";
 
 import { TransactionContext } from "./context";
-import { transactionReducer } from "./reducer";
-import { TransactionState } from "./types";
-import { allDefaultCategories } from "./defaultCategories";
-
-// Define initial state
-const initialState: TransactionState = {
-  transactions: [],
-  categories: allDefaultCategories,
-  loading: false,
-  error: null,
-};
+import { transactionReducer, initialState } from "./reducer";
+import { TransactionState, TransactionAction } from "./types";
 
 // Create provider
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -42,13 +33,19 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Update a transaction
   const updateTransaction = (transaction: Transaction) => {
-    dispatch({ type: "UPDATE_TRANSACTION", payload: transaction });
+    dispatch({ 
+      type: "UPDATE_TRANSACTION", 
+      payload: transaction 
+    });
     toast.success("Transaction updated successfully");
   };
 
   // Delete a transaction
   const deleteTransaction = (id: string) => {
-    dispatch({ type: "DELETE_TRANSACTION", payload: id });
+    dispatch({ 
+      type: "DELETE_TRANSACTION", 
+      payload: id 
+    });
     toast.success("Transaction deleted successfully");
   };
 
@@ -63,7 +60,19 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Delete a category
   const deleteCategory = (id: string) => {
-    dispatch({ type: "DELETE_CATEGORY", payload: id });
+    dispatch({ 
+      type: "DELETE_CATEGORY", 
+      payload: id 
+    });
+  };
+  
+  // Import transactions
+  const importData = (transactions: Transaction[]) => {
+    dispatch({
+      type: "IMPORT_TRANSACTIONS",
+      payload: transactions
+    });
+    toast.success(`${transactions.length} transactions imported successfully`);
   };
 
   // Get transactions by type
@@ -92,6 +101,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     <TransactionContext.Provider
       value={{
         state,
+        dispatch,
         addTransaction,
         updateTransaction,
         deleteTransaction,
@@ -101,6 +111,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         getCategoriesByType,
         getCategoryById,
         getTotalByType,
+        importData,
       }}
     >
       {children}
