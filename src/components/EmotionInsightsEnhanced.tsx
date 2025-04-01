@@ -21,6 +21,7 @@ import { EmotionInsight, EmotionalState, TimePeriod } from "@/types";
 import { AlertCircle, TrendingUp, Info } from "lucide-react";
 import { getEmotionTrends } from "@/utils/emotionTrendAnalysis";
 import { getEmotionTimelineTrends } from "@/utils/emotionTimelineAnalysis";
+import { useCurrency } from "@/context/CurrencyContext";
 
 const emotionColors = {
   happy: "#4CAF50",
@@ -40,6 +41,7 @@ const getEmotionInsights = (transactions: any[]): EmotionInsight[] => {
 const EmotionInsightsEnhanced: React.FC = () => {
   const { state } = useTransactions();
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("month");
+  const { currencySymbol } = useCurrency();
   
   const insights = getEmotionInsights(state.transactions);
   const trends = getEmotionTrends(state.transactions, timePeriod);
@@ -123,7 +125,7 @@ const EmotionInsightsEnhanced: React.FC = () => {
                     <XAxis dataKey="period" />
                     <YAxis />
                     <Tooltip 
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
+                      formatter={(value: number) => [`${currencySymbol}${value.toFixed(2)}`, '']}
                       labelFormatter={(label: string) => `Period: ${label}`}
                     />
                     <Legend />
@@ -170,7 +172,7 @@ const EmotionInsightsEnhanced: React.FC = () => {
                     <Tooltip 
                       formatter={(value: number, name: string) => {
                         if (name === "percentage") return [`${value.toFixed(1)}%`, "Percentage"];
-                        if (name === "averageSpent") return [`$${value.toFixed(2)}`, "Avg. Spent"];
+                        if (name === "averageSpent") return [`${currencySymbol}${value.toFixed(2)}`, "Avg. Spent"];
                         return [value, name];
                       }}
                     />

@@ -4,11 +4,11 @@ import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Button } from "@/components/ui/button";
 import { Download, Upload } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 
 const DataExportImport: React.FC = () => {
   const { state, importData } = useTransactions();
-  const { currencySymbol } = useCurrency();
+  const { currency } = useCurrency();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -23,7 +23,8 @@ const DataExportImport: React.FC = () => {
           amount: t.amount,
           description: t.description || "",
           date: new Date(t.date).toISOString().split('T')[0],
-          emotion: t.emotionalState || "neutral"
+          emotion: t.emotionalState || "neutral",
+          currency
         };
       });
 
@@ -40,9 +41,11 @@ const DataExportImport: React.FC = () => {
       const headers = Object.keys(transactions[0]).join(',');
       
       // Create CSV rows
-      const csvRows = transactions.map(t => 
-        `${t.type},${t.category},${t.amount},${t.description.replace(/,/g, ';')},${t.date},${t.emotion}`
-      );
+      const csvRows = transactions.map(t => {
+        // Make sure to properly escape description to handle commas
+        const safeDescription = t.description ? `"${t.description.replace(/"/g, '""')}"` : "";
+        return `${t.type},${t.category},${t.amount},${safeDescription},${t.date},${t.emotion},${t.currency}`;
+      });
       
       // Combine headers and rows
       const csvContent = [headers, ...csvRows].join('\n');
@@ -104,11 +107,40 @@ const DataExportImport: React.FC = () => {
           categoryMap.set(c.name.toLowerCase(), c.id);
         });
         
+        // Create a function to parse CSV row considering quoted fields
+        const parseCSVRow = (row: string) => {
+          const values = [];
+          let insideQuotes = false;
+          let currentValue = '';
+          
+          for (let i = 0; i < row.length; i++) {
+            const char = row[i];
+            
+            if (char === '"') {
+              insideQuotes = !insideQuotes;
+            } else if (char === ',' && !insideQuotes) {
+              values.push(currentValue);
+              currentValue = '';
+            } else {
+              currentValue += char;
+            }
+          }
+          
+          // Push the last value
+          values.push(currentValue);
+          return values;
+        };
+        
         // Start from index 1 to skip headers
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           
-          const values = lines[i].split(',');
+          const values = parseCSVRow(lines[i]);
+          if (values.length !== headers.length) {
+            console.warn(`Skipping row ${i}: column count mismatch`);
+            continue;
+          }
+          
           const rowData: any = {};
           
           // Map CSV values to object properties
