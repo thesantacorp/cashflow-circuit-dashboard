@@ -1,8 +1,6 @@
-import { Transaction, EmotionalState, Category, EmotionTrend } from "@/types";
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from "date-fns";
 
-// Time period types
-export type TimePeriod = "week" | "month" | "year";
+import { Transaction, EmotionalState, Category, EmotionTrend, TimePeriod } from "@/types";
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from "date-fns";
 
 // Get transactions for a specific time period
 export function getTransactionsForPeriod(
@@ -26,6 +24,14 @@ export function getTransactionsForPeriod(
       startDate = startOfYear(date);
       endDate = endOfYear(date);
       break;
+    case "all":
+      // For "all", use a very wide date range to include all transactions
+      startDate = new Date(0); // Beginning of time (1970)
+      endDate = new Date(8640000000000000); // End of time per ECMAScript
+      break;
+    default:
+      startDate = startOfWeek(date, { weekStartsOn: 1 });
+      endDate = endOfWeek(date, { weekStartsOn: 1 });
   }
   
   return transactions.filter(t => {
@@ -153,6 +159,6 @@ export function compareEmotionTrends(
 }
 
 // Add the missing exported function
-export const getEmotionTrends = (transactions: any[], period: TimePeriod = "month") => {
+export const getEmotionTrends = (transactions: Transaction[], period: TimePeriod = "month") => {
   return analyzeEmotionTrends(transactions, period);
 };

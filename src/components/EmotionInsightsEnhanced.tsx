@@ -150,7 +150,7 @@ const EmotionInsightsEnhanced: React.FC = () => {
               </div>
             )}
             <p className="text-sm text-muted-foreground mt-4 text-center">
-              Spending distribution across different emotions over {timePeriod === "week" ? "weeks" : timePeriod === "month" ? "months" : "years"}
+              Spending distribution across different emotions over {timePeriod === "week" ? "weeks" : timePeriod === "month" ? "months" : timePeriod === "year" ? "years" : "all time"}
             </p>
           </TabsContent>
           

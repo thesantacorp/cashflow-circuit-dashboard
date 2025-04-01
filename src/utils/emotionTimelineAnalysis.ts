@@ -53,6 +53,32 @@ const getTimePeriods = (transactions: Transaction[], period: TimePeriod): Emotio
     return aggregateEmotionsByPeriods(transactions, periods);
   }
 
+  // Handle "all" time period - show yearly aggregation for all years with data
+  if (period === "all") {
+    // Get all years from transactions
+    const years = new Set<number>();
+    transactions.forEach(tx => {
+      const txDate = new Date(tx.date);
+      years.add(getYear(txDate));
+    });
+    
+    // Sort years and create periods
+    const sortedYears = Array.from(years).sort();
+    const periods = sortedYears.map(year => {
+      const yearStart = new Date(year, 0, 1);
+      const yearEnd = new Date(year, 11, 31);
+      return {
+        start: yearStart,
+        end: yearEnd,
+        label: year.toString()
+      };
+    });
+    
+    return periods.length > 0 
+      ? aggregateEmotionsByPeriods(transactions, periods)
+      : aggregateAllTimeEmotions(transactions);
+  }
+
   // Default to all time (simple aggregation)
   return aggregateAllTimeEmotions(transactions);
 };
