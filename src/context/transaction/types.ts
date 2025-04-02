@@ -8,7 +8,8 @@ export type TransactionAction =
   | { type: "DELETE_TRANSACTION"; payload: string }
   | { type: "ADD_CATEGORY"; payload: Category }
   | { type: "DELETE_CATEGORY"; payload: string }
-  | { type: "IMPORT_TRANSACTIONS"; payload: Transaction[] };
+  | { type: "IMPORT_TRANSACTIONS"; payload: Transaction[] }
+  | { type: "REPLACE_ALL_DATA"; payload: Transaction[] };
 
 // Define state type
 export interface TransactionState {
@@ -30,4 +31,5 @@ export interface TransactionContextProps {
   getCategoryById: (id: string) => Category | undefined;
   getTotalByType: (type: TransactionType) => number;
   importData: (transactions: Transaction[]) => void;
+  replaceAllData: (transactions: Transaction[]) => void;
 }

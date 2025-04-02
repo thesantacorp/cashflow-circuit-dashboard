@@ -55,6 +55,11 @@ export function transactionReducer(
         ...state,
         transactions: [...state.transactions, ...action.payload],
       };
+    case "REPLACE_ALL_DATA":
+      return {
+        ...state,
+        transactions: action.payload,
+      };
     default:
       return state;
   }

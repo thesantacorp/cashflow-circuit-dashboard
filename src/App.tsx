@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { TransactionProvider } from "@/context/transaction/provider";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import { BackupProvider } from "@/context/BackupContext";
+import { NotificationProvider } from "@/context/NotificationContext";
 import { useEffect, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
@@ -16,6 +17,7 @@ import OverviewPageEnhanced from "@/pages/OverviewPageEnhanced";
 import ExpensesPage from "@/pages/ExpensesPage";
 import IncomePage from "@/pages/IncomePage";
 import NotFound from "./pages/NotFound";
+import AdminNotificationDashboard from "./pages/AdminNotificationDashboard";
 
 const queryClient = new QueryClient();
 
@@ -36,29 +38,39 @@ function App() {
       <TransactionProvider>
         <CurrencyProvider>
           <BackupProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <AnimatePresence>
-                  {isLoading && <LoadingScreen />}
-                </AnimatePresence>
-                <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white overflow-x-hidden">
-                  <Navbar />
-                  <main className="flex-1 py-6 px-4 sm:px-6 w-full">
-                    <div className="max-w-7xl mx-auto w-full">
-                      <Routes>
-                        <Route path="/" element={<OverviewPageEnhanced />} />
-                        <Route path="/expenses" element={<ExpensesPage />} />
-                        <Route path="/income" element={<IncomePage />} />
-                        <Route path="*" element={<NotFound />} />
-                      </Routes>
-                    </div>
-                  </main>
-                  <CommunityLink />
-                </div>
-              </BrowserRouter>
-            </TooltipProvider>
+            <NotificationProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                  <AnimatePresence>
+                    {isLoading && <LoadingScreen />}
+                  </AnimatePresence>
+                  <Routes>
+                    <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />
+                    <Route
+                      path="*"
+                      element={
+                        <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white overflow-x-hidden">
+                          <Navbar />
+                          <main className="flex-1 py-6 px-4 sm:px-6 w-full">
+                            <div className="max-w-7xl mx-auto w-full">
+                              <Routes>
+                                <Route path="/" element={<OverviewPageEnhanced />} />
+                                <Route path="/expenses" element={<ExpensesPage />} />
+                                <Route path="/income" element={<IncomePage />} />
+                                <Route path="*" element={<NotFound />} />
+                              </Routes>
+                            </div>
+                          </main>
+                          <CommunityLink />
+                        </div>
+                      }
+                    />
+                  </Routes>
+                </BrowserRouter>
+              </TooltipProvider>
+            </NotificationProvider>
           </BackupProvider>
         </CurrencyProvider>
       </TransactionProvider>

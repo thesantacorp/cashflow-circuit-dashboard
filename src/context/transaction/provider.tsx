@@ -75,6 +75,15 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     toast.success(`${transactions.length} transactions imported successfully`);
   };
 
+  // Replace all transactions
+  const replaceAllData = (transactions: Transaction[]) => {
+    dispatch({
+      type: "REPLACE_ALL_DATA",
+      payload: transactions
+    });
+    toast.success(`All data replaced with ${transactions.length} imported transactions`);
+  };
+
   // Get transactions by type
   const getTransactionsByType = (type: TransactionType) => {
     return state.transactions.filter((transaction) => transaction.type === type);
@@ -112,6 +121,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         getCategoryById,
         getTotalByType,
         importData,
+        replaceAllData,
       }}
     >
       {children}

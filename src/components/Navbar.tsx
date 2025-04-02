@@ -1,8 +1,14 @@
 
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowDownIcon, ArrowUpIcon, FileArchive } from "lucide-react";
+import { 
+  ArrowDownIcon, 
+  ArrowUpIcon, 
+  FileArchive, 
+  Bell, 
+  BellOff 
+} from "lucide-react";
 import { useTransactions } from "@/context/transaction";
 import CurrencySelector from "./CurrencySelector";
 import BackupManager from "./BackupManager";
@@ -12,18 +18,22 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import AppLogo from "./AppLogo";
 import { createRoot } from "react-dom/client";
 import DataExportImport from "./DataExportImport";
+import NotificationSettings from "./NotificationSettings";
+import { useNotifications } from "@/context/NotificationContext";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { getTotalByType } = useTransactions();
   const { currencySymbol } = useCurrency();
   const isMobile = useIsMobile();
+  const { permission, isSupported } = useNotifications();
   
   const totalExpenses = getTotalByType("expense");
   const totalIncome = getTotalByType("income");
   const balance = totalIncome - totalExpenses;
   
-  const openExportImportDialog = () => {
+  const openDialog = (component: React.ReactNode, title: string) => {
     const dialog = document.createElement('dialog');
     dialog.className = 'p-4 rounded-lg shadow-lg bg-white';
     dialog.style.position = 'fixed';
@@ -34,22 +44,32 @@ const Navbar: React.FC = () => {
     dialog.style.width = '80vw';
     dialog.style.maxWidth = '500px';
     
-    const dialogContent = document.createElement('div');
-    dialogContent.id = 'export-import-dialog';
-    dialog.appendChild(dialogContent);
+    const header = document.createElement('div');
+    header.className = 'flex justify-between items-center mb-4';
+    
+    const titleElement = document.createElement('h3');
+    titleElement.className = 'font-semibold text-lg';
+    titleElement.textContent = title;
     
     const closeButton = document.createElement('button');
-    closeButton.textContent = 'Close';
-    closeButton.className = 'mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300';
+    closeButton.textContent = '×';
+    closeButton.className = 'text-2xl leading-none';
     closeButton.onclick = () => dialog.close();
-    dialog.appendChild(closeButton);
+    
+    header.appendChild(titleElement);
+    header.appendChild(closeButton);
+    dialog.appendChild(header);
+    
+    const dialogContent = document.createElement('div');
+    dialogContent.id = 'modal-content';
+    dialog.appendChild(dialogContent);
     
     document.body.appendChild(dialog);
     dialog.showModal();
     
-    // Render the DataExportImport component inside the dialog
+    // Render the component inside the dialog
     const root = createRoot(dialogContent);
-    root.render(<DataExportImport />);
+    root.render(component);
     
     dialog.addEventListener('close', () => {
       root.unmount();
@@ -97,16 +117,32 @@ const Navbar: React.FC = () => {
         <div className="ml-auto flex items-center gap-4">
           {!isMobile && (
             <>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-white bg-white/10 border-white/20 hover:bg-white/20"
+                onClick={() => openDialog(<NotificationSettings />, "Notification Settings")}
+              >
+                {isSupported && permission === 'granted' ? (
+                  <Bell size={16} className="mr-2" />
+                ) : (
+                  <BellOff size={16} className="mr-2" />
+                )}
+                <span>Notifications</span>
+              </Button>
+              
               <BackupManager />
+              
               <Button 
                 size="sm" 
                 variant="outline" 
-                className="text-black bg-white flex items-center gap-2"
-                onClick={openExportImportDialog}
+                className="text-white bg-white/10 border-white/20 hover:bg-white/20 flex items-center gap-2"
+                onClick={() => openDialog(<DataExportImport />, "Export & Import Data")}
               >
                 <FileArchive size={16} />
                 <span>Export/Import</span>
               </Button>
+              
               <CurrencySelector />
             </>
           )}

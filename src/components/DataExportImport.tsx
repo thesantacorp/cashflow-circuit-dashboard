@@ -1,16 +1,28 @@
 
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Button } from "@/components/ui/button";
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const DataExportImport: React.FC = () => {
-  const { state, importData } = useTransactions();
+  const { state, importData, replaceAllData } = useTransactions();
   const { currency } = useCurrency();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showReplaceDialog, setShowReplaceDialog] = useState(false);
+  const [importedData, setImportedData] = useState<any[]>([]);
 
   const handleExportCSV = () => {
     try {
@@ -18,6 +30,7 @@ const DataExportImport: React.FC = () => {
       const transactions = state.transactions.map(t => {
         const category = state.categories.find(c => c.id === t.categoryId);
         return {
+          id: t.id,
           type: t.type,
           category: category?.name || "Unknown",
           amount: t.amount,
@@ -44,7 +57,7 @@ const DataExportImport: React.FC = () => {
       const csvRows = transactions.map(t => {
         // Make sure to properly escape description to handle commas
         const safeDescription = t.description ? `"${t.description.replace(/"/g, '""')}"` : "";
-        return `${t.type},${t.category},${t.amount},${safeDescription},${t.date},${t.emotion},${t.currency}`;
+        return `${t.id},${t.type},${t.category},${t.amount},${safeDescription},${t.date},${t.emotion},${t.currency}`;
       });
       
       // Combine headers and rows
@@ -83,6 +96,29 @@ const DataExportImport: React.FC = () => {
     fileInputRef.current?.click();
   };
 
+  const parseCSVRow = (row: string) => {
+    const values = [];
+    let insideQuotes = false;
+    let currentValue = '';
+    
+    for (let i = 0; i < row.length; i++) {
+      const char = row[i];
+      
+      if (char === '"') {
+        insideQuotes = !insideQuotes;
+      } else if (char === ',' && !insideQuotes) {
+        values.push(currentValue);
+        currentValue = '';
+      } else {
+        currentValue += char;
+      }
+    }
+    
+    // Push the last value
+    values.push(currentValue);
+    return values;
+  };
+
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -106,30 +142,6 @@ const DataExportImport: React.FC = () => {
         state.categories.forEach(c => {
           categoryMap.set(c.name.toLowerCase(), c.id);
         });
-        
-        // Create a function to parse CSV row considering quoted fields
-        const parseCSVRow = (row: string) => {
-          const values = [];
-          let insideQuotes = false;
-          let currentValue = '';
-          
-          for (let i = 0; i < row.length; i++) {
-            const char = row[i];
-            
-            if (char === '"') {
-              insideQuotes = !insideQuotes;
-            } else if (char === ',' && !insideQuotes) {
-              values.push(currentValue);
-              currentValue = '';
-            } else {
-              currentValue += char;
-            }
-          }
-          
-          // Push the last value
-          values.push(currentValue);
-          return values;
-        };
         
         // Start from index 1 to skip headers
         for (let i = 1; i < lines.length; i++) {
@@ -164,13 +176,13 @@ const DataExportImport: React.FC = () => {
           }
           
           transactions.push({
+            id: rowData.id || `imported-${Date.now()}-${i}`,
             type: rowData.type,
             amount: parseFloat(rowData.amount),
             description: rowData.description || '',
             date: new Date(rowData.date).toISOString(),
             categoryId,
-            emotionalState: rowData.emotion || 'neutral',
-            id: `imported-${Date.now()}-${i}`
+            emotionalState: rowData.emotion || 'neutral'
           });
         }
         
@@ -178,13 +190,8 @@ const DataExportImport: React.FC = () => {
           throw new Error("No valid transactions found in the CSV file");
         }
         
-        // Import the data
-        importData(transactions);
-        
-        toast({
-          title: "Import successful",
-          description: `${transactions.length} transactions have been imported.`
-        });
+        setImportedData(transactions);
+        setShowReplaceDialog(true);
       } catch (error) {
         console.error("Import error:", error);
         toast({
@@ -203,33 +210,85 @@ const DataExportImport: React.FC = () => {
     reader.readAsText(file);
   };
 
+  const handleImportConfirm = (replace: boolean) => {
+    if (replace) {
+      replaceAllData(importedData);
+      toast({
+        title: "Data replaced",
+        description: `${importedData.length} transactions have replaced your existing data.`
+      });
+    } else {
+      importData(importedData);
+      toast({
+        title: "Import successful",
+        description: `${importedData.length} transactions have been added to your existing data.`
+      });
+    }
+    setShowReplaceDialog(false);
+    setImportedData([]);
+  };
+
   return (
-    <div className="flex flex-col sm:flex-row gap-2 mt-4">
-      <Button 
-        variant="outline" 
-        className="flex items-center gap-2" 
-        onClick={handleExportCSV}
-      >
-        <Download className="h-4 w-4" />
-        Export as CSV
-      </Button>
-      
-      <Button 
-        variant="outline" 
-        className="flex items-center gap-2" 
-        onClick={handleImportClick}
-      >
-        <Upload className="h-4 w-4" />
-        Import CSV
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleImportCSV}
-          accept=".csv"
-          className="hidden"
-        />
-      </Button>
-    </div>
+    <>
+      <div className="flex flex-col sm:flex-row gap-2 mt-4">
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-2" 
+          onClick={handleExportCSV}
+        >
+          <Download className="h-4 w-4" />
+          Export as CSV
+        </Button>
+        
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-2" 
+          onClick={handleImportClick}
+        >
+          <Upload className="h-4 w-4" />
+          Import CSV
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImportCSV}
+            accept=".csv"
+            className="hidden"
+          />
+        </Button>
+      </div>
+
+      <AlertDialog open={showReplaceDialog} onOpenChange={setShowReplaceDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              Import Options
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Do you want to replace all your existing data with the imported data, 
+              or add the imported data to your existing data?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowReplaceDialog(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleImportConfirm(false)}
+              className="bg-blue-500 hover:bg-blue-600"
+            >
+              Add to Existing
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => handleImportConfirm(true)}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              Replace All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
