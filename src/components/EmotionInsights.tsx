@@ -104,7 +104,8 @@ const EmotionInsights: React.FC = () => {
     }
   };
   
-  const hasData = insights.length > 0 || trends.length > 0;
+  // Fix: Check if insights.emotionInsights array has items or trends has items
+  const hasData = insights.emotionInsights.length > 0 || trends.length > 0;
 
   if (!hasData) {
     return (
@@ -264,7 +265,8 @@ const EmotionInsights: React.FC = () => {
           
           <TabsContent value="insights">
             <div className="space-y-4">
-              {insights.slice(0, 5).map((insight, index) => (
+              {/* Fix: Access the emotionInsights property from the insights object */}
+              {insights.emotionInsights.slice(0, 5).map((insight, index) => (
                 <div 
                   key={index} 
                   className="p-3 border rounded-lg"
