@@ -8,6 +8,7 @@ import TransactionList from "@/components/TransactionList";
 import CurrencySelector from "@/components/CurrencySelector";
 import { Card } from "@/components/ui/card";
 import LocalStorageInfo from "@/components/LocalStorageInfo";
+import DataExportImport from "@/components/DataExportImport";
 
 const IncomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
@@ -29,11 +30,13 @@ const IncomePage: React.FC = () => {
         <TabsContent value="dashboard" className="pt-4">
           <Dashboard type="income" />
           <LocalStorageInfo />
+          <DataExportImport />
         </TabsContent>
         
         <TabsContent value="categories" className="pt-4">
           <CategoryList type="income" />
           <LocalStorageInfo />
+          <DataExportImport />
         </TabsContent>
         
         <TabsContent value="transactions" className="pt-4">
@@ -42,6 +45,7 @@ const IncomePage: React.FC = () => {
             <TransactionList type="income" />
           </div>
           <LocalStorageInfo />
+          <DataExportImport />
         </TabsContent>
       </Tabs>
     </div>

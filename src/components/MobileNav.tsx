@@ -3,11 +3,10 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, ArrowDownIcon, ArrowUpIcon, FileArchive, Bell, Settings } from "lucide-react";
+import { Menu, ArrowDownIcon, ArrowUpIcon, Bell, Settings } from "lucide-react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import BackupManager from "./BackupManager";
-import DataExportImport from "./DataExportImport";
 import CurrencySelector from "./CurrencySelector";
 import AppLogo from "./AppLogo";
 import { createRoot } from "react-dom/client";
@@ -139,59 +138,6 @@ const MobileNav: React.FC = () => {
               >
                 <Settings className="mr-2 h-4 w-4" />
                 Backup & Restore
-              </Button>
-              
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-white hover:bg-white/10"
-                onClick={() => {
-                  const dialog = document.createElement('dialog');
-                  dialog.className = 'p-4 rounded-lg shadow-lg bg-white fixed z-50';
-                  dialog.style.position = 'fixed';
-                  dialog.style.top = '50%';
-                  dialog.style.left = '50%';
-                  dialog.style.transform = 'translate(-50%, -50%)';
-                  dialog.style.width = '90vw';
-                  dialog.style.maxWidth = '400px';
-                  dialog.style.maxHeight = '90vh';
-                  dialog.style.overflow = 'auto';
-                  
-                  const header = document.createElement('div');
-                  header.className = 'flex justify-between items-center mb-4';
-                  
-                  const titleElement = document.createElement('h3');
-                  titleElement.className = 'font-semibold text-lg';
-                  titleElement.textContent = "Export/Import Data";
-                  
-                  const closeButton = document.createElement('button');
-                  closeButton.textContent = '×';
-                  closeButton.className = 'text-2xl leading-none';
-                  closeButton.onclick = () => dialog.close();
-                  
-                  header.appendChild(titleElement);
-                  header.appendChild(closeButton);
-                  dialog.appendChild(header);
-                  
-                  const dialogContent = document.createElement('div');
-                  dialogContent.className = 'mt-2';
-                  dialogContent.id = 'modal-content';
-                  dialog.appendChild(dialogContent);
-                  
-                  document.body.appendChild(dialog);
-                  dialog.showModal();
-                  
-                  // Render the component inside the dialog
-                  const root = createRoot(dialogContent);
-                  root.render(<DataExportImport />);
-                  
-                  dialog.addEventListener('close', () => {
-                    root.unmount();
-                    document.body.removeChild(dialog);
-                  });
-                }}
-              >
-                <FileArchive className="mr-2 h-4 w-4" />
-                Export/Import Data
               </Button>
               
               <Button

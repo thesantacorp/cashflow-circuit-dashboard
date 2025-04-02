@@ -1,19 +1,30 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useNotifications } from "@/context/NotificationContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Bell, BellOff } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 const NotificationSettings: React.FC = () => {
   const { permission, requestPermission, isSupported } = useNotifications();
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
+  
+  // When the component mounts, if the user hasn't made a decision yet, prompt them
+  useEffect(() => {
+    if (isSupported && permission === 'default') {
+      // Auto-request permission when component opens
+      setTimeout(() => {
+        handleTogglePermission();
+      }, 500);
+    }
+  }, []);
   
   const handleTogglePermission = async () => {
     if (permission === 'granted') {
-      toast({
+      uiToast({
         title: "Permission already granted",
         description: "You have already enabled notifications for this app. To disable, use your browser settings.",
       });

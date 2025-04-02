@@ -1,238 +1,164 @@
 
-import React, { useState } from "react";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart, XAxis, YAxis, Bar, Tooltip, ResponsiveContainer, Cell, Legend } from "recharts";
+import React, { useMemo } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTransactions } from "@/context/transaction";
-import { EmotionInsight, EmotionalState, TimePeriod } from "@/types";
-import { AlertCircle, TrendingUp, Info } from "lucide-react";
-import { getEmotionTrends } from "@/utils/emotionTrendAnalysis";
-import { getEmotionTimelineTrends } from "@/utils/emotionTimelineAnalysis";
+import { Doughnut, Line } from "react-chartjs-2";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
+import { generateEmotionTimelineData } from "@/utils/emotionTimelineAnalysis";
+import { generateEmotionTrendData } from "@/utils/emotionTrendAnalysis";
+import { analyzeEmotionalSpending } from "@/utils/emotionAnalysis";
 import { useCurrency } from "@/context/CurrencyContext";
 
-const emotionColors = {
-  happy: "#4CAF50",
-  stressed: "#F44336",
-  bored: "#9E9E9E",
-  excited: "#2196F3",
-  sad: "#673AB7",
-  neutral: "#FF9800"
-};
+interface EmotionInsightsEnhancedProps {
+  currencySymbol?: string;
+}
 
-// Helper function for insights
-const getEmotionInsights = (transactions: any[]): EmotionInsight[] => {
-  // Basic implementation that returns empty array for now
-  return [];
-};
-
-const EmotionInsightsEnhanced: React.FC = () => {
+const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = () => {
   const { state } = useTransactions();
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>("month");
   const { currencySymbol } = useCurrency();
   
-  const insights = getEmotionInsights(state.transactions);
-  const trends = getEmotionTrends(state.transactions, timePeriod);
-  const timelineTrends = getEmotionTimelineTrends(state.transactions, timePeriod);
+  // Use the passed currencySymbol or the default value
+  const currency = currencySymbol;
   
-  // Filter out emotions with zero values
-  const filteredTrends = trends.filter(trend => trend.count > 0);
+  const emotionTransactions = useMemo(() => {
+    return state.transactions.filter(t => t.emotionalState && t.emotionalState !== "neutral");
+  }, [state.transactions]);
   
-  // Check if there are any transactions with emotions
-  const hasEmotionData = state.transactions.some(tx => tx.emotionalState);
-  
-  // Check if we have enough data for the selected time period
-  const hasEnoughData = {
-    timeline: timelineTrends.length > 0 && timelineTrends.some(trend => 
-      Object.keys(trend).some(key => key !== 'period' && trend[key] !== 0)
-    ),
-    distribution: filteredTrends.length > 0,
-    insights: insights.length > 0
-  };
-  
-  const handleTimePeriodChange = (value: string) => {
-    setTimePeriod(value as TimePeriod);
+  // Get emotion analysis data
+  const { emotionDistribution, emotionSpending, averageSpending } = useMemo(() => {
+    return analyzeEmotionalSpending(state.transactions);
+  }, [state.transactions]);
+
+  // Prepare emotion timeline data
+  const { labels: timelineLabels, datasets: timelineDatasets } = useMemo(() => {
+    return generateEmotionTimelineData(emotionTransactions);
+  }, [emotionTransactions]);
+
+  // Prepare emotion trend data
+  const { labels: trendLabels, datasets: trendDatasets } = useMemo(() => {
+    return generateEmotionTrendData(emotionTransactions);
+  }, [emotionTransactions]);
+
+  // Doughnut chart data for emotion distribution
+  const distributionData = {
+    labels: Object.keys(emotionDistribution),
+    datasets: [
+      {
+        data: Object.values(emotionDistribution),
+        backgroundColor: [
+          'rgba(255, 99, 132, 0.7)',
+          'rgba(54, 162, 235, 0.7)',
+          'rgba(255, 206, 86, 0.7)',
+          'rgba(75, 192, 192, 0.7)',
+          'rgba(153, 102, 255, 0.7)',
+        ],
+        borderWidth: 1,
+      },
+    ],
   };
 
-  if (!hasEmotionData) {
+  // Line chart data for emotion spending over time
+  const timelineData = {
+    labels: timelineLabels,
+    datasets: timelineDatasets,
+  };
+
+  // Line chart data for emotion trends
+  const trendData = {
+    labels: trendLabels,
+    datasets: trendDatasets,
+  };
+
+  // Chart options
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+      },
+    },
+  };
+
+  // If there is no emotional data, display an info message
+  if (emotionTransactions.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-black">
-            <AlertCircle size={18} />
-            Emotional Spending Insights
-          </CardTitle>
-          <CardDescription>
-            Add emotions to your expenses to see how your mood affects your spending.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <Alert className="mb-6">
+        <InfoIcon className="h-4 w-4" />
+        <AlertTitle>No emotional data available</AlertTitle>
+        <AlertDescription>
+          Start recording your emotional state when adding transactions to see insights.
+        </AlertDescription>
+      </Alert>
     );
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle className="flex items-center gap-2 text-black">
-            <TrendingUp size={18} />
-            Emotional Spending Insights
-          </CardTitle>
-          <Select value={timePeriod} onValueChange={handleTimePeriodChange}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Select period" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="week">Weekly</SelectItem>
-              <SelectItem value="month">Monthly</SelectItem>
-              <SelectItem value="year">Yearly</SelectItem>
-              <SelectItem value="all">All Time</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <CardDescription>
-          Track how your emotions impact your spending habits
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="timeline" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="timeline">Timeline</TabsTrigger>
-            <TabsTrigger value="distribution">Distribution</TabsTrigger>
-            <TabsTrigger value="insights">Insights</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="timeline">
-            {hasEnoughData.timeline ? (
-              <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={timelineTrends}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
-                  >
-                    <XAxis dataKey="period" />
-                    <YAxis />
-                    <Tooltip 
-                      formatter={(value: number) => [`${currencySymbol}${value.toFixed(2)}`, '']}
-                      labelFormatter={(label: string) => `Period: ${label}`}
-                    />
-                    <Legend />
-                    {Object.keys(emotionColors).map((emotion) => (
-                      <Bar 
-                        key={emotion}
-                        dataKey={emotion}
-                        name={emotion.charAt(0).toUpperCase() + emotion.slice(1)}
-                        fill={emotionColors[emotion as EmotionalState]}
-                        stackId="a"
-                      />
-                    ))}
-                  </BarChart>
-                </ResponsiveContainer>
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {/* Emotion Distribution */}
+      <Card className="col-span-1">
+        <CardHeader>
+          <CardTitle>Emotion Distribution</CardTitle>
+          <CardDescription>How often you feel different emotions when spending</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[250px] flex items-center justify-center">
+            <Doughnut data={distributionData} options={chartOptions} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Emotional Spending Summary */}
+      <Card className="col-span-1">
+        <CardHeader>
+          <CardTitle>Emotional Spending</CardTitle>
+          <CardDescription>How emotions influence your spending</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {Object.entries(emotionSpending).map(([emotion, amount]) => (
+              <div key={emotion} className="flex justify-between items-center">
+                <span className="capitalize">{emotion}</span>
+                <span className="font-semibold">{currency}{amount.toFixed(2)}</span>
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <Info className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Not enough data</h3>
-                <p className="text-muted-foreground max-w-md">
-                  There isn't enough emotional spending data for the selected {timePeriod} time period. 
-                  Try selecting a different time period or add more transactions with emotional states.
-                </p>
+            ))}
+            <div className="pt-2 border-t">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Avg. per transaction</span>
+                <span className="font-semibold">{currency}{averageSpending.toFixed(2)}</span>
               </div>
-            )}
-            <p className="text-sm text-muted-foreground mt-4 text-center">
-              Spending distribution across different emotions over {timePeriod === "week" ? "weeks" : timePeriod === "month" ? "months" : timePeriod === "year" ? "years" : "all time"}
-            </p>
-          </TabsContent>
-          
-          <TabsContent value="distribution">
-            {hasEnoughData.distribution ? (
-              <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={filteredTrends}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <XAxis 
-                      dataKey="emotion" 
-                      tickFormatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
-                    />
-                    <YAxis />
-                    <Tooltip 
-                      formatter={(value: number, name: string) => {
-                        if (name === "percentage") return [`${value.toFixed(1)}%`, "Percentage"];
-                        if (name === "averageSpent") return [`${currencySymbol}${value.toFixed(2)}`, "Avg. Spent"];
-                        return [value, name];
-                      }}
-                    />
-                    <Bar dataKey="percentage" fill="#8884d8" name="Percentage">
-                      {filteredTrends.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={emotionColors[entry.emotion]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <Info className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Not enough data</h3>
-                <p className="text-muted-foreground max-w-md">
-                  There isn't enough emotional spending data for the selected {timePeriod} time period. 
-                  Try selecting a different time period or add more transactions with emotional states.
-                </p>
-              </div>
-            )}
-            <p className="text-sm text-muted-foreground mt-4 text-center">
-              Percentage of transactions associated with each emotion
-            </p>
-          </TabsContent>
-          
-          <TabsContent value="insights">
-            <div className="grid gap-4">
-              {insights.length > 0 ? (
-                insights.map((insight: EmotionInsight, index: number) => (
-                  <div 
-                    key={index} 
-                    className="p-4 rounded-lg border"
-                    style={{ borderLeftColor: emotionColors[insight.emotion], borderLeftWidth: 4 }}
-                  >
-                    <h4 className="text-sm font-semibold flex items-center gap-2">
-                      <span 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: emotionColors[insight.emotion] }}
-                      ></span>
-                      {insight.emotion.charAt(0).toUpperCase() + insight.emotion.slice(1)} with {insight.category}
-                    </h4>
-                    <p className="text-sm text-muted-foreground mt-1">{insight.message}</p>
-                  </div>
-                ))
-              ) : (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <Info className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Not enough data</h3>
-                  <p className="text-muted-foreground max-w-md">
-                    There isn't enough emotional spending data to generate insights for the selected {timePeriod} time period.
-                    Try selecting a different time period or add more transactions with emotional states.
-                  </p>
-                </div>
-              )}
             </div>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Emotion Spending Over Time */}
+      <Card className="md:col-span-2 lg:col-span-1">
+        <CardHeader>
+          <CardTitle>Emotional Spending Trends</CardTitle>
+          <CardDescription>How your emotional spending changes over time</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[250px]">
+            <Line data={trendData} options={chartOptions} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Emotion Timeline */}
+      <Card className="col-span-full">
+        <CardHeader>
+          <CardTitle>Emotion Timeline</CardTitle>
+          <CardDescription>Your emotional spending patterns over time</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px]">
+            <Line data={timelineData} options={chartOptions} />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
