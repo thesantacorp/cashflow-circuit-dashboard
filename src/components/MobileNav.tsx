@@ -144,10 +144,10 @@ const MobileNav: React.FC = () => {
               <Button
                 variant="ghost"
                 className="w-full justify-start text-white hover:bg-white/10"
-                onClick={() => openDialog(<DataExportImport />, "Export & Import")}
+                onClick={() => openDialog(<DataExportImport showDialog={false} />, "Export/Import Data")}
               >
                 <FileArchive className="mr-2 h-4 w-4" />
-                Export & Import
+                Export/Import Data
               </Button>
               
               <Button

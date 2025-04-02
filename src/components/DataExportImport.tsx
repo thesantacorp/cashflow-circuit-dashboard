@@ -1,5 +1,5 @@
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const DataExportImport: React.FC = () => {
+interface DataExportImportProps {
+  showDialog?: boolean;
+}
+
+const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }) => {
   const { state, importData, replaceAllData } = useTransactions();
   const { currency } = useCurrency();
   const { toast } = useToast();
@@ -257,7 +261,7 @@ const DataExportImport: React.FC = () => {
         </Button>
       </div>
 
-      <AlertDialog open={showReplaceDialog} onOpenChange={setShowReplaceDialog}>
+      <AlertDialog open={showReplaceDialog && showDialog} onOpenChange={setShowReplaceDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">

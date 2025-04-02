@@ -46,12 +46,11 @@ function App() {
                   <AnimatePresence>
                     {isLoading && <LoadingScreen />}
                   </AnimatePresence>
-                  <Routes>
-                    <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />
-                    <Route
-                      path="*"
-                      element={
-                        <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white overflow-x-hidden">
+                  <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white overflow-x-hidden">
+                    <Routes>
+                      <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />
+                      <Route path="/*" element={
+                        <>
                           <Navbar />
                           <main className="flex-1 py-6 px-4 sm:px-6 w-full">
                             <div className="max-w-7xl mx-auto w-full">
@@ -64,10 +63,10 @@ function App() {
                             </div>
                           </main>
                           <CommunityLink />
-                        </div>
-                      }
-                    />
-                  </Routes>
+                        </>
+                      } />
+                    </Routes>
+                  </div>
                 </BrowserRouter>
               </TooltipProvider>
             </NotificationProvider>

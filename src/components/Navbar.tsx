@@ -137,10 +137,10 @@ const Navbar: React.FC = () => {
                 size="sm" 
                 variant="outline" 
                 className="text-white bg-white/10 border-white/20 hover:bg-white/20 flex items-center gap-2"
-                onClick={() => openDialog(<DataExportImport />, "Export & Import Data")}
+                onClick={() => openDialog(<DataExportImport showDialog={false} />, "Export & Import Data")}
               >
                 <FileArchive size={16} />
-                <span>Export/Import</span>
+                <span>Export/Import Data</span>
               </Button>
               
               <CurrencySelector />
