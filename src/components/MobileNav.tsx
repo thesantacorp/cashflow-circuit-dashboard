@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, ArrowDownIcon, ArrowUpIcon, Bell, Settings } from "lucide-react";
@@ -15,6 +15,7 @@ import NotificationSettings from "./NotificationSettings";
 const MobileNav: React.FC = () => {
   const [open, setOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { getTotalByType } = useTransactions();
   const { currencySymbol } = useCurrency();
   
@@ -134,7 +135,22 @@ const MobileNav: React.FC = () => {
               <Button
                 variant="ghost"
                 className="w-full justify-start text-white hover:bg-white/10"
-                onClick={() => openDialog(<BackupManager />, "Backup & Restore")}
+                onClick={() => {
+                  const dialogContent = document.createElement('div');
+                  dialogContent.className = 'w-full max-w-md mx-auto';
+                  const root = createRoot(dialogContent);
+                  root.render(<BackupManager onClose={() => {
+                    // Find and close the dialog that contains this component
+                    const dialogs = document.querySelectorAll('dialog');
+                    dialogs.forEach(dialog => {
+                      if (dialog.contains(dialogContent)) {
+                        dialog.close();
+                      }
+                    });
+                  }} />);
+                  
+                  openDialog(dialogContent, "Backup & Restore");
+                }}
               >
                 <Settings className="mr-2 h-4 w-4" />
                 Backup & Restore

@@ -30,7 +30,11 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-const BackupManager: React.FC = () => {
+interface BackupManagerProps {
+  onClose?: () => void;
+}
+
+const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
   const { 
     settings, 
     enableBackup, 
@@ -104,6 +108,9 @@ const BackupManager: React.FC = () => {
     setIsBackingUp(true);
     try {
       await performBackup();
+      if (onClose) {
+        setTimeout(onClose, 1000);
+      }
     } finally {
       setIsBackingUp(false);
     }
@@ -113,10 +120,151 @@ const BackupManager: React.FC = () => {
     setIsRestoring(true);
     try {
       await restoreBackup();
+      if (onClose) {
+        setTimeout(onClose, 1000);
+      }
     } finally {
       setIsRestoring(false);
     }
   };
+
+  // If we're using this component in a modal context (from mobile menu)
+  if (onClose) {
+    return (
+      <div className="max-w-md mx-auto">
+        <div className="grid gap-4 py-4">
+          {!isAuthenticated ? (
+            <div className="flex flex-col gap-4 items-center justify-center p-4">
+              <p className="text-center text-black">Sign in with your Google account to enable backups</p>
+              <Button onClick={handleGoogleSignIn} className="w-full" variant="outline">
+                <LogInIcon className="mr-2 h-4 w-4" />
+                Sign in with Google
+              </Button>
+              
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="google-setup">
+                  <AccordionTrigger className="text-sm text-blue-600 flex items-center gap-1">
+                    <HelpCircle size={14} />
+                    <span>Getting an error with Google Sign In?</span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="text-sm space-y-2">
+                      <p>If you're getting a <strong>"redirect_uri_mismatch"</strong> error, follow these steps:</p>
+                      <ol className="list-decimal pl-5 space-y-1">
+                        <li>Go to the <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Google Cloud Console</a></li>
+                        <li>Select your project</li>
+                        <li>Go to "Credentials" and find the OAuth 2.0 Client ID being used</li>
+                        <li>Add the following URLs to the "Authorized redirect URIs":
+                          <ul className="list-disc pl-5 mt-1">
+                            <li><code className="bg-gray-100 px-1 rounded">http://localhost:5173</code></li>
+                            <li><code className="bg-gray-100 px-1 rounded">http://localhost:4173</code></li>
+                            <li>Your deployed app URL (if applicable)</li>
+                          </ul>
+                        </li>
+                        <li>Click "Save" and try again</li>
+                      </ol>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-black">Signed in to Google Drive</span>
+                <Button onClick={handleGoogleSignOut} variant="ghost" size="sm">
+                  <LogOutIcon className="mr-2 h-4 w-4" />
+                  Sign out
+                </Button>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <Label htmlFor="backup-enabled" className="text-right text-black">
+                  Enable Automatic Backup
+                </Label>
+                <input
+                  id="backup-enabled"
+                  type="checkbox"
+                  checked={settings.enabled}
+                  onChange={(e) => enableBackup(e.target.checked)}
+                  className="h-4 w-4"
+                />
+              </div>
+              
+              {settings.enabled && (
+                <div className="grid gap-2">
+                  <Label htmlFor="backup-frequency" className="text-black">Backup Frequency</Label>
+                  <Select
+                    value={settings.frequency}
+                    onValueChange={(value) => setBackupFrequency(value as BackupFrequency)}
+                  >
+                    <SelectTrigger id="backup-frequency">
+                      <SelectValue placeholder="Select frequency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {frequencyOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
+              {settings.lastBackup && (
+                <p className="text-sm text-muted-foreground">
+                  Last backup: {new Date(settings.lastBackup).toLocaleString()}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-2 mt-4">
+          <Button 
+            onClick={handleBackupNow} 
+            className="w-full sm:w-auto"
+            disabled={!isAuthenticated || isBackingUp}
+          >
+            {isBackingUp ? (
+              <>
+                <span className="animate-spin mr-2">
+                  <RefreshCwIcon className="h-4 w-4" />
+                </span>
+                Backing up...
+              </>
+            ) : (
+              <>
+                <CloudUploadIcon className="mr-2 h-4 w-4" />
+                Backup Now
+              </>
+            )}
+          </Button>
+          <Button 
+            onClick={handleRestoreBackup} 
+            variant="outline" 
+            className="w-full sm:w-auto"
+            disabled={!isAuthenticated || isRestoring}
+          >
+            {isRestoring ? (
+              <>
+                <span className="animate-spin mr-2">
+                  <RefreshCwIcon className="h-4 w-4" />
+                </span>
+                Restoring...
+              </>
+            ) : (
+              <>
+                <RefreshCwIcon className="mr-2 h-4 w-4" />
+                Restore Backup
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

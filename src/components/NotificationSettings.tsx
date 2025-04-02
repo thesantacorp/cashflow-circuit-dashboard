@@ -9,7 +9,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { toast } from "sonner";
 
 const NotificationSettings: React.FC = () => {
-  const { permission, requestPermission, isSupported } = useNotifications();
+  const { permission, requestPermission, isSupported, sendNotification } = useNotifications();
   const { toast: uiToast } = useToast();
   
   // When the component mounts, if the user hasn't made a decision yet, prompt them
@@ -21,7 +21,8 @@ const NotificationSettings: React.FC = () => {
       }, 500);
     }
   }, []);
-  
+
+  // Function to directly request browser notification permission
   const handleTogglePermission = async () => {
     if (permission === 'granted') {
       uiToast({
@@ -31,14 +32,29 @@ const NotificationSettings: React.FC = () => {
       return;
     }
     
-    const result = await requestPermission();
-    
-    if (result === 'granted') {
-      // Send a test notification
-      new Notification("Stack'd Notifications Enabled", {
-        body: "You will now receive notifications from Stack'd",
-        icon: "/favicon.ico"
-      });
+    try {
+      // Directly ask for Notification permission from the browser
+      const result = await Notification.requestPermission();
+      
+      if (result === 'granted') {
+        // Send a test notification
+        const notification = new Notification("Stack'd Notifications Enabled", {
+          body: "You will now receive notifications from Stack'd",
+          icon: "/favicon.ico"
+        });
+        
+        // Close the notification after 3 seconds
+        setTimeout(() => {
+          notification.close();
+        }, 3000);
+        
+        toast.success("Notifications enabled successfully!");
+      } else if (result === 'denied') {
+        toast.error("Notification permission denied");
+      }
+    } catch (error) {
+      console.error("Error requesting notification permission:", error);
+      toast.error("Could not request notification permission");
     }
   };
   
@@ -94,6 +110,22 @@ const NotificationSettings: React.FC = () => {
             className="mt-4 w-full bg-orange-500 hover:bg-orange-600"
           >
             Enable Notifications
+          </Button>
+        )}
+        
+        {permission === 'granted' && (
+          <Button 
+            onClick={() => {
+              sendNotification("Test Notification", { 
+                body: "This is a test notification to confirm notifications are working correctly.",
+                icon: "/favicon.ico"
+              });
+              toast.success("Test notification sent!");
+            }}
+            variant="outline" 
+            className="mt-4 w-full"
+          >
+            Send Test Notification
           </Button>
         )}
         

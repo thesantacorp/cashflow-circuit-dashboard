@@ -5,6 +5,7 @@ import { TransactionType } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrency } from "@/context/CurrencyContext";
 import EmotionInsights from "./EmotionInsights";
+import DataExportImport from "@/components/DataExportImport";
 
 interface DashboardProps {
   type: TransactionType;
@@ -16,7 +17,7 @@ const Dashboard: React.FC<DashboardProps> = ({ type }) => {
   const total = getTotalByType(type);
 
   return (
-    <div className="grid gap-6 w-full overflow-x-visible">
+    <div className="grid gap-6 w-full overflow-x-visible pb-6">
       <Card className="bg-primary text-primary-foreground overflow-hidden w-full max-w-full">
         <CardHeader className="pb-2">
           <CardTitle>Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
@@ -29,6 +30,15 @@ const Dashboard: React.FC<DashboardProps> = ({ type }) => {
       </Card>
 
       {type === "expense" && <EmotionInsights />}
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Data Management</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DataExportImport />
+        </CardContent>
+      </Card>
     </div>
   );
 };

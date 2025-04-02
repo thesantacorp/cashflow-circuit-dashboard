@@ -18,7 +18,7 @@ const ExpensesPage: React.FC = () => {
     <div className="container py-6 max-w-7xl mx-auto px-4 w-full overflow-x-hidden">
       <h1 className="text-3xl font-bold mb-6 text-center sm:text-left">Expenses</h1>
       
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
+      <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="mb-8">
         <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
@@ -30,14 +30,17 @@ const ExpensesPage: React.FC = () => {
             <Dashboard type="expense" />
             <SpendingRecommendations />
             <LocalStorageInfo />
-            <DataExportImport />
           </div>
         </TabsContent>
         
         <TabsContent value="categories" className="pt-4">
           <CategoryList type="expense" />
-          <LocalStorageInfo />
-          <DataExportImport />
+          <div className="mt-6">
+            <DataExportImport />
+          </div>
+          <div className="mt-6">
+            <LocalStorageInfo />
+          </div>
         </TabsContent>
         
         <TabsContent value="transactions" className="pt-4">
@@ -49,8 +52,12 @@ const ExpensesPage: React.FC = () => {
               <TransactionList type="expense" />
             </div>
           </div>
-          <LocalStorageInfo />
-          <DataExportImport />
+          <div className="mt-6">
+            <DataExportImport />
+          </div>
+          <div className="mt-6">
+            <LocalStorageInfo />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

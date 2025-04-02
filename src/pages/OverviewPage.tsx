@@ -8,6 +8,8 @@ import { Link } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format } from "date-fns";
 import { useCurrency } from "@/context/CurrencyContext";
+import DataExportImport from "@/components/DataExportImport";
+import LocalStorageInfo from "@/components/LocalStorageInfo";
 
 const OverviewPage: React.FC = () => {
   const { state, getTotalByType } = useTransactions();
@@ -215,7 +217,20 @@ const OverviewPage: React.FC = () => {
               </Link>
             </CardContent>
           </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Data Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DataExportImport />
+            </CardContent>
+          </Card>
         </div>
+      </div>
+      
+      <div className="mt-8">
+        <LocalStorageInfo />
       </div>
     </div>
   );
