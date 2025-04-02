@@ -1,18 +1,54 @@
+
 import { Transaction, EmotionalState, EmotionInsight, Category } from "@/types";
 
 // Calculate spending by category for a specific emotion vs. overall
 export function analyzeEmotionalSpending(
   transactions: Transaction[],
   categories: Category[]
-): EmotionInsight[] {
+): {
+  emotionInsights: EmotionInsight[];
+  emotionDistribution: Record<string, number>;
+  emotionSpending: Record<string, number>;
+  averageSpending: number;
+} {
   const insights: EmotionInsight[] = [];
-  const emotions: EmotionalState[] = ["happy", "stressed", "bored", "excited", "sad"];
+  const emotionDistribution: Record<string, number> = {};
+  const emotionSpending: Record<string, number> = {};
+  let totalEmotionalSpending = 0;
+  let totalEmotionalTransactions = 0;
 
   // Filter out transactions without emotional state
   const transactionsWithEmotion = transactions.filter(
-    (t) => t.type === "expense" && t.emotionalState
+    (t) => t.type === "expense" && t.emotionalState && t.emotionalState !== "neutral"
   );
-  if (transactionsWithEmotion.length < 5) return []; // Not enough data
+  
+  if (transactionsWithEmotion.length < 5) {
+    return { 
+      emotionInsights: [], 
+      emotionDistribution: {}, 
+      emotionSpending: {}, 
+      averageSpending: 0 
+    };
+  }
+
+  // Calculate emotion distribution and spending
+  transactionsWithEmotion.forEach(t => {
+    if (t.emotionalState) {
+      if (!emotionDistribution[t.emotionalState]) {
+        emotionDistribution[t.emotionalState] = 0;
+        emotionSpending[t.emotionalState] = 0;
+      }
+      emotionDistribution[t.emotionalState]++;
+      emotionSpending[t.emotionalState] += t.amount;
+      totalEmotionalSpending += t.amount;
+      totalEmotionalTransactions++;
+    }
+  });
+
+  // Calculate average spending per transaction
+  const averageSpending = totalEmotionalTransactions > 0 
+    ? totalEmotionalSpending / totalEmotionalTransactions 
+    : 0;
 
   // Calculate average spending by category
   const categorySpending: Record<string, number> = {};
@@ -39,6 +75,7 @@ export function analyzeEmotionalSpending(
   });
 
   // For each emotion, analyze spending patterns
+  const emotions: EmotionalState[] = ["happy", "stressed", "bored", "excited", "sad"];
   emotions.forEach((emotion) => {
     const emotionTransactions = transactionsWithEmotion.filter(
       (t) => t.emotionalState === emotion
@@ -89,7 +126,16 @@ export function analyzeEmotionalSpending(
   });
 
   // Sort insights by absolute percentage difference (descending)
-  return insights.sort((a, b) => Math.abs(b.percentageIncrease) - Math.abs(a.percentageIncrease));
+  const sortedInsights = insights.sort((a, b) => 
+    Math.abs(b.percentageIncrease) - Math.abs(a.percentageIncrease)
+  );
+
+  return {
+    emotionInsights: sortedInsights,
+    emotionDistribution,
+    emotionSpending,
+    averageSpending
+  };
 }
 
 export function getPurchaseWarning(
@@ -141,7 +187,7 @@ export function getPurchaseWarning(
   return null;
 }
 
-export const getEmotionInsights = (transactions: any[]) => {
+export const getEmotionInsights = (transactions: Transaction[]): EmotionInsight[] => {
   // Simple implementation that returns an empty array for now
   return [];
 };

@@ -2,13 +2,39 @@
 import React, { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTransactions } from "@/context/transaction";
-import { Doughnut, Line } from "react-chartjs-2";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
-import { generateEmotionTimelineData } from "@/utils/emotionTimelineAnalysis";
-import { generateEmotionTrendData } from "@/utils/emotionTrendAnalysis";
+import { EmotionTimelineTrend, EmotionTrend } from "@/types";
 import { analyzeEmotionalSpending } from "@/utils/emotionAnalysis";
+import { getEmotionTimelineTrends } from "@/utils/emotionTimelineAnalysis";
+import { getEmotionTrends } from "@/utils/emotionTrendAnalysis";
 import { useCurrency } from "@/context/CurrencyContext";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip as ChartTooltip,
+  Legend,
+} from 'chart.js';
+import { Doughnut, Line } from 'react-chartjs-2';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  ChartTooltip,
+  Legend
+);
 
 interface EmotionInsightsEnhancedProps {
   currencySymbol?: string;
@@ -18,7 +44,7 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = () => {
   const { state } = useTransactions();
   const { currencySymbol } = useCurrency();
   
-  // Use the passed currencySymbol or the default value
+  // Use the current currencySymbol
   const currency = currencySymbol;
   
   const emotionTransactions = useMemo(() => {
@@ -26,49 +52,103 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = () => {
   }, [state.transactions]);
   
   // Get emotion analysis data
-  const { emotionDistribution, emotionSpending, averageSpending } = useMemo(() => {
-    return analyzeEmotionalSpending(state.transactions);
-  }, [state.transactions]);
+  const { emotionInsights, emotionDistribution, emotionSpending, averageSpending } = useMemo(() => {
+    const insights = analyzeEmotionalSpending(state.transactions, state.categories);
+    
+    // Calculate emotion distribution
+    const distribution: Record<string, number> = {};
+    const spending: Record<string, number> = {};
+    let totalEmotionalSpending = 0;
+    let totalEmotionalTransactions = 0;
+    
+    emotionTransactions.forEach(t => {
+      if (t.emotionalState && t.type === "expense") {
+        if (!distribution[t.emotionalState]) {
+          distribution[t.emotionalState] = 0;
+          spending[t.emotionalState] = 0;
+        }
+        distribution[t.emotionalState]++;
+        spending[t.emotionalState] += t.amount;
+        totalEmotionalSpending += t.amount;
+        totalEmotionalTransactions++;
+      }
+    });
+    
+    const avgSpending = totalEmotionalTransactions > 0 
+      ? totalEmotionalSpending / totalEmotionalTransactions 
+      : 0;
+    
+    return { 
+      emotionInsights: insights,
+      emotionDistribution: distribution,
+      emotionSpending: spending,
+      averageSpending: avgSpending
+    };
+  }, [state.transactions, state.categories, emotionTransactions]);
 
   // Prepare emotion timeline data
-  const { labels: timelineLabels, datasets: timelineDatasets } = useMemo(() => {
-    return generateEmotionTimelineData(emotionTransactions);
+  const timelineData = useMemo(() => {
+    const timelineTrends: EmotionTimelineTrend[] = getEmotionTimelineTrends(emotionTransactions);
+    
+    const labels = timelineTrends.map(trend => trend.period);
+    const emotions = ["happy", "stressed", "bored", "excited", "sad", "neutral"];
+    
+    const datasets = emotions
+      .filter(emotion => timelineTrends.some(trend => trend[emotion] !== undefined))
+      .map(emotion => {
+        const color = getEmotionColor(emotion);
+        return {
+          label: emotion.charAt(0).toUpperCase() + emotion.slice(1),
+          data: timelineTrends.map(trend => trend[emotion] || 0),
+          borderColor: color,
+          backgroundColor: color.replace('1)', '0.2)'),
+          tension: 0.4,
+        };
+      });
+    
+    return { labels, datasets };
   }, [emotionTransactions]);
 
   // Prepare emotion trend data
-  const { labels: trendLabels, datasets: trendDatasets } = useMemo(() => {
-    return generateEmotionTrendData(emotionTransactions);
+  const trendData = useMemo(() => {
+    const trends: EmotionTrend[] = getEmotionTrends(emotionTransactions);
+    
+    const labels = trends.map(trend => 
+      trend.emotion.charAt(0).toUpperCase() + trend.emotion.slice(1)
+    );
+    
+    const datasets = [{
+      label: 'Spending',
+      data: trends.map(trend => trend.totalSpent),
+      backgroundColor: trends.map(trend => getEmotionColor(trend.emotion)),
+    }];
+    
+    return { labels, datasets };
   }, [emotionTransactions]);
 
   // Doughnut chart data for emotion distribution
-  const distributionData = {
-    labels: Object.keys(emotionDistribution),
-    datasets: [
-      {
-        data: Object.values(emotionDistribution),
-        backgroundColor: [
-          'rgba(255, 99, 132, 0.7)',
-          'rgba(54, 162, 235, 0.7)',
-          'rgba(255, 206, 86, 0.7)',
-          'rgba(75, 192, 192, 0.7)',
-          'rgba(153, 102, 255, 0.7)',
-        ],
-        borderWidth: 1,
-      },
-    ],
-  };
-
-  // Line chart data for emotion spending over time
-  const timelineData = {
-    labels: timelineLabels,
-    datasets: timelineDatasets,
-  };
-
-  // Line chart data for emotion trends
-  const trendData = {
-    labels: trendLabels,
-    datasets: trendDatasets,
-  };
+  const distributionData = useMemo(() => {
+    const labels = Object.keys(emotionDistribution).map(
+      emotion => emotion.charAt(0).toUpperCase() + emotion.slice(1)
+    );
+    
+    const data = Object.values(emotionDistribution);
+    
+    const backgroundColor = Object.keys(emotionDistribution).map(emotion => 
+      getEmotionColor(emotion)
+    );
+    
+    return {
+      labels,
+      datasets: [
+        {
+          data,
+          backgroundColor,
+          borderWidth: 1,
+        },
+      ],
+    };
+  }, [emotionDistribution]);
 
   // Chart options
   const chartOptions = {
@@ -78,8 +158,30 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = () => {
       legend: {
         position: 'bottom' as const,
       },
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            if (context.dataset.label === 'Spending') {
+              return `${currency}${context.raw.toFixed(2)}`;
+            }
+            return context.label;
+          }
+        }
+      }
     },
   };
+
+  // Helper function to get emotion color
+  function getEmotionColor(emotion: string): string {
+    switch(emotion) {
+      case 'happy': return 'rgba(74, 222, 128, 1)';
+      case 'excited': return 'rgba(96, 165, 250, 1)';
+      case 'stressed': return 'rgba(239, 68, 68, 1)';
+      case 'sad': return 'rgba(139, 92, 246, 1)';
+      case 'bored': return 'rgba(251, 191, 36, 1)';
+      default: return 'rgba(156, 163, 175, 1)';
+    }
+  }
 
   // If there is no emotional data, display an info message
   if (emotionTransactions.length === 0) {

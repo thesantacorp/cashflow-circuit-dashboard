@@ -30,13 +30,13 @@ const OverviewPageEnhanced: React.FC = () => {
         </TabsList>
         
         <TabsContent value="dashboard" className="pt-4">
-          <Dashboard type="all" />
+          <Dashboard type="expense" />
           <LocalStorageInfo />
           <DataExportImport />
         </TabsContent>
         
         <TabsContent value="emotions" className="pt-4">
-          <EmotionInsightsEnhanced currencySymbol={currencySymbol} />
+          <EmotionInsightsEnhanced />
           <LocalStorageInfo />
           <DataExportImport />
         </TabsContent>
