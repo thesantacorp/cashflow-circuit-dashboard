@@ -18,6 +18,7 @@ import ExpensesPage from "@/pages/ExpensesPage";
 import IncomePage from "@/pages/IncomePage";
 import NotFound from "./pages/NotFound";
 import AdminNotificationDashboard from "./pages/AdminNotificationDashboard";
+import { initSessionTracking } from "./utils/sessionTracking";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,9 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Initialize session tracking
+    initSessionTracking();
+    
     // Simulating app initialization time
     const timer = setTimeout(() => {
       setIsLoading(false);

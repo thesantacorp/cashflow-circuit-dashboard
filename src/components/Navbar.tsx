@@ -137,7 +137,49 @@ const Navbar: React.FC = () => {
                 size="sm" 
                 variant="outline" 
                 className="text-white bg-white/10 border-white/20 hover:bg-white/20 flex items-center gap-2"
-                onClick={() => openDialog(<DataExportImport showDialog={false} />, "Export & Import Data")}
+                onClick={() => {
+                  const dialog = document.createElement('dialog');
+                  dialog.className = 'p-4 rounded-lg shadow-lg bg-white';
+                  dialog.style.position = 'fixed';
+                  dialog.style.top = '50%';
+                  dialog.style.left = '50%';
+                  dialog.style.transform = 'translate(-50%, -50%)';
+                  dialog.style.zIndex = '1000';
+                  dialog.style.width = '80vw';
+                  dialog.style.maxWidth = '500px';
+                  
+                  const header = document.createElement('div');
+                  header.className = 'flex justify-between items-center mb-4';
+                  
+                  const titleElement = document.createElement('h3');
+                  titleElement.className = 'font-semibold text-lg';
+                  titleElement.textContent = "Export/Import Data";
+                  
+                  const closeButton = document.createElement('button');
+                  closeButton.textContent = '×';
+                  closeButton.className = 'text-2xl leading-none';
+                  closeButton.onclick = () => dialog.close();
+                  
+                  header.appendChild(titleElement);
+                  header.appendChild(closeButton);
+                  dialog.appendChild(header);
+                  
+                  const dialogContent = document.createElement('div');
+                  dialogContent.id = 'modal-content';
+                  dialog.appendChild(dialogContent);
+                  
+                  document.body.appendChild(dialog);
+                  dialog.showModal();
+                  
+                  // Render the component inside the dialog
+                  const root = createRoot(dialogContent);
+                  root.render(<DataExportImport />);
+                  
+                  dialog.addEventListener('close', () => {
+                    root.unmount();
+                    document.body.removeChild(dialog);
+                  });
+                }}
               >
                 <FileArchive size={16} />
                 <span>Export/Import Data</span>

@@ -1,3 +1,4 @@
+
 import React, { useMemo, useEffect, useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { analyzeEmotionTrends } from "@/utils/emotionTrendAnalysis";
 import { format, addDays, isSaturday, nextSaturday, isAfter } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { TimePeriod } from "@/types";
+import { useCurrency } from "@/context/CurrencyContext";
 
 const EMOTION_COLORS = {
   happy: "#4ade80", // green
@@ -19,6 +21,7 @@ const EMOTION_COLORS = {
 
 const EmotionInsights: React.FC = () => {
   const { state } = useTransactions();
+  const { currencySymbol } = useCurrency();
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [nextUpdate, setNextUpdate] = useState<Date | null>(null);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("week");
@@ -84,7 +87,7 @@ const EmotionInsights: React.FC = () => {
         <div className="bg-white p-3 border rounded-md shadow-lg">
           <p className="font-semibold">{data.name}</p>
           <p>Transactions: {data.count}</p>
-          <p>Total spent: ${data.amount.toFixed(2)}</p>
+          <p>Total spent: {currencySymbol}{data.amount.toFixed(2)}</p>
           <p>Percentage: {data.value}%</p>
         </div>
       );
@@ -246,9 +249,9 @@ const EmotionInsights: React.FC = () => {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold">${trend.totalSpent.toFixed(2)}</p>
+                          <p className="font-semibold">{currencySymbol}{trend.totalSpent.toFixed(2)}</p>
                           <p className="text-sm text-muted-foreground">
-                            Avg: ${trend.averageSpent.toFixed(2)}/purchase
+                            Avg: {currencySymbol}{trend.averageSpent.toFixed(2)}/purchase
                           </p>
                         </div>
                       </div>
