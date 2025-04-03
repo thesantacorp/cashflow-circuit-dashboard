@@ -5,7 +5,7 @@ import { TransactionType } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrency } from "@/context/CurrencyContext";
 import EmotionInsights from "./EmotionInsights";
-import DataExportImport from "@/components/DataExportImport";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface DashboardProps {
   type: TransactionType;
@@ -14,31 +14,25 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ type }) => {
   const { getTotalByType } = useTransactions();
   const { currencySymbol } = useCurrency();
+  const isMobile = useIsMobile();
   const total = getTotalByType(type);
 
   return (
     <div className="grid gap-6 w-full overflow-x-visible pb-6">
-      <Card className="bg-primary text-primary-foreground overflow-hidden w-full max-w-full">
-        <CardHeader className="pb-2">
-          <CardTitle>Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
-        </CardHeader>
-        <CardContent className="break-words">
-          <div className="text-3xl font-bold overflow-x-auto">
-            {currencySymbol}{total.toFixed(2)}
-          </div>
-        </CardContent>
-      </Card>
+      {!isMobile && (
+        <Card className="bg-primary text-primary-foreground overflow-hidden w-full max-w-full">
+          <CardHeader className="pb-2">
+            <CardTitle>Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
+          </CardHeader>
+          <CardContent className="break-words">
+            <div className="text-3xl font-bold overflow-x-auto">
+              {currencySymbol}{total.toFixed(2)}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {type === "expense" && <EmotionInsights />}
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Data Management</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DataExportImport />
-        </CardContent>
-      </Card>
     </div>
   );
 };

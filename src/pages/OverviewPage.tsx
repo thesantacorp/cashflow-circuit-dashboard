@@ -10,11 +10,13 @@ import { format } from "date-fns";
 import { useCurrency } from "@/context/CurrencyContext";
 import DataExportImport from "@/components/DataExportImport";
 import LocalStorageInfo from "@/components/LocalStorageInfo";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const OverviewPage: React.FC = () => {
   const { state, getTotalByType } = useTransactions();
   const { transactions, categories } = state;
   const { currencySymbol } = useCurrency();
+  const isMobile = useIsMobile();
   
   const totalExpenses = getTotalByType("expense");
   const totalIncome = getTotalByType("income");
@@ -218,20 +220,24 @@ const OverviewPage: React.FC = () => {
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader>
-              <CardTitle>Data Management</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DataExportImport />
-            </CardContent>
-          </Card>
+          {!isMobile && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Data Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DataExportImport />
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
       
-      <div className="mt-8">
-        <LocalStorageInfo />
-      </div>
+      {!isMobile && (
+        <div className="mt-8">
+          <LocalStorageInfo />
+        </div>
+      )}
     </div>
   );
 };

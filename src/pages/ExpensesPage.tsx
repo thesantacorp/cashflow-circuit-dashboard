@@ -7,7 +7,6 @@ import TransactionForm from "@/components/TransactionForm";
 import TransactionList from "@/components/TransactionList";
 import LocalStorageInfo from "@/components/LocalStorageInfo";
 import SpendingRecommendations from "@/components/SpendingRecommendations";
-import DataExportImport from "@/components/DataExportImport";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTransactions } from "@/context/transaction";
@@ -44,20 +43,29 @@ const ExpensesPage: React.FC = () => {
               </CardContent>
             </Card>
             
-            <Dashboard type="expense" />
-            <SpendingRecommendations />
-            <LocalStorageInfo />
+            <div className="space-y-8">
+              <Dashboard type="expense" />
+              
+              <div className="mt-8">
+                <SpendingRecommendations />
+              </div>
+              
+              {!isMobile && (
+                <div className="mt-8">
+                  <LocalStorageInfo />
+                </div>
+              )}
+            </div>
           </div>
         </TabsContent>
         
         <TabsContent value="categories" className="pt-4">
           <CategoryList type="expense" />
-          <div className="mt-6">
-            <DataExportImport />
-          </div>
-          <div className="mt-6">
-            <LocalStorageInfo />
-          </div>
+          {!isMobile && (
+            <div className="mt-6">
+              <LocalStorageInfo />
+            </div>
+          )}
         </TabsContent>
         
         <TabsContent value="transactions" className="pt-4">
@@ -69,12 +77,11 @@ const ExpensesPage: React.FC = () => {
               <TransactionList type="expense" />
             </div>
           </div>
-          <div className="mt-6">
-            <DataExportImport />
-          </div>
-          <div className="mt-6">
-            <LocalStorageInfo />
-          </div>
+          {!isMobile && (
+            <div className="mt-6">
+              <LocalStorageInfo />
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
