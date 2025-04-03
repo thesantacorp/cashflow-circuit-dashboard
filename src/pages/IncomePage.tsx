@@ -8,6 +8,7 @@ import TransactionList from "@/components/TransactionList";
 import CurrencySelector from "@/components/CurrencySelector";
 import LocalStorageInfo from "@/components/LocalStorageInfo";
 import { useIsMobile } from "@/hooks/use-mobile";
+import IncomeInsights from "@/components/IncomeInsights";
 
 const IncomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
@@ -29,6 +30,7 @@ const IncomePage: React.FC = () => {
         
         <TabsContent value="dashboard" className="pt-4 space-y-4">
           <Dashboard type="income" />
+          <IncomeInsights />
           {!isMobile && <LocalStorageInfo />}
         </TabsContent>
         

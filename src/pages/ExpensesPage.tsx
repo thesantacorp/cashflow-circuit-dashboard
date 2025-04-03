@@ -32,16 +32,7 @@ const ExpensesPage: React.FC = () => {
         
         <TabsContent value="dashboard" className="pt-4 max-w-full overflow-x-hidden">
           <div className="max-w-full mx-auto">
-            <Card className="bg-primary text-primary-foreground overflow-hidden w-full max-w-full mb-6">
-              <CardHeader className="pb-2">
-                <CardTitle>Total Expenses</CardTitle>
-              </CardHeader>
-              <CardContent className="break-words">
-                <div className="text-3xl font-bold overflow-x-auto">
-                  {currencySymbol}{totalExpenses.toFixed(2)}
-                </div>
-              </CardContent>
-            </Card>
+            {/* Removed duplicate Total Expenses card */}
             
             <div className="space-y-8">
               <Dashboard type="expense" />

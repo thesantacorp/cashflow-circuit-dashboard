@@ -11,6 +11,7 @@ import { useCurrency } from "@/context/CurrencyContext";
 import DataExportImport from "@/components/DataExportImport";
 import { useTransactions } from "@/context/transaction";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { LayoutDashboardIcon, SmileIcon, PieChartIcon } from "lucide-react";
 
 const OverviewPageEnhanced: React.FC = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -45,10 +46,31 @@ const OverviewPageEnhanced: React.FC = () => {
       )}
       
       <Tabs defaultValue="dashboard" value={activeTab} onValueChange={setActiveTab} className="mb-8">
-        <TabsList className="grid w-full grid-cols-3 mb-4">
-          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-          <TabsTrigger value="emotions">Emotion Analysis</TabsTrigger>
-          <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+        <TabsList className={`grid w-full ${isMobile ? 'grid-cols-1 gap-2' : 'grid-cols-3'} mb-4`}>
+          {isMobile ? (
+            <>
+              <div className="grid grid-cols-3 gap-1 w-full">
+                <TabsTrigger value="dashboard" className="flex items-center justify-center">
+                  <LayoutDashboardIcon className="h-4 w-4 mr-2" />
+                  <span>Dashboard</span>
+                </TabsTrigger>
+                <TabsTrigger value="emotions" className="flex items-center justify-center">
+                  <SmileIcon className="h-4 w-4 mr-2" />
+                  <span>Emotions</span>
+                </TabsTrigger>
+                <TabsTrigger value="recommendations" className="flex items-center justify-center">
+                  <PieChartIcon className="h-4 w-4 mr-2" />
+                  <span>Tips</span>
+                </TabsTrigger>
+              </div>
+            </>
+          ) : (
+            <>
+              <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+              <TabsTrigger value="emotions">Emotion Analysis</TabsTrigger>
+              <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+            </>
+          )}
         </TabsList>
         
         <TabsContent value="dashboard" className="pt-4 space-y-6">
