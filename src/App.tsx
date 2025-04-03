@@ -18,6 +18,7 @@ import ExpensesPage from "@/pages/ExpensesPage";
 import IncomePage from "@/pages/IncomePage";
 import NotFound from "./pages/NotFound";
 import AdminNotificationDashboard from "./pages/AdminNotificationDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 import { initSessionTracking } from "./utils/sessionTracking";
 
 const queryClient = new QueryClient();
@@ -53,6 +54,7 @@ function App() {
                   <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white overflow-x-hidden">
                     <Routes>
                       <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />
+                      <Route path="/admin/dashboard" element={<AdminDashboard />} />
                       <Route path="/*" element={
                         <>
                           <Navbar />
