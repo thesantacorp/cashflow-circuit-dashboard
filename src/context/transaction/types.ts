@@ -7,6 +7,7 @@ export type TransactionAction =
   | { type: "UPDATE_TRANSACTION"; payload: Transaction }
   | { type: "DELETE_TRANSACTION"; payload: string }
   | { type: "ADD_CATEGORY"; payload: Category }
+  | { type: "UPDATE_CATEGORY"; payload: Category }
   | { type: "DELETE_CATEGORY"; payload: string }
   | { type: "IMPORT_TRANSACTIONS"; payload: Transaction[] }
   | { type: "REPLACE_ALL_DATA"; payload: Transaction[] };

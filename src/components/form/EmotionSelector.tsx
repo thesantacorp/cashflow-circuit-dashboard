@@ -21,6 +21,7 @@ const emotionOptions: EmotionOption[] = [
   { value: "excited", label: "Excited" },
   { value: "sad", label: "Sad" },
   { value: "neutral", label: "Neutral" },
+  { value: "hopeful", label: "Hopeful" },
 ];
 
 const EmotionSelector: React.FC<EmotionSelectorProps> = ({ emotionalState, onChange }) => {

@@ -36,6 +36,13 @@ export function transactionReducer(
         ...state,
         categories: [...state.categories, action.payload],
       };
+    case "UPDATE_CATEGORY":
+      return {
+        ...state,
+        categories: state.categories.map(c => 
+          c.id === action.payload.id ? action.payload : c
+        ),
+      };
     case "DELETE_CATEGORY":
       const hasTransactions = state.transactions.some(
         (transaction) => transaction.categoryId === action.payload

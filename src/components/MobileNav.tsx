@@ -135,22 +135,7 @@ const MobileNav: React.FC = () => {
               <Button
                 variant="ghost"
                 className="w-full justify-start text-white hover:bg-white/10"
-                onClick={() => {
-                  const dialogContent = document.createElement('div');
-                  dialogContent.className = 'w-full max-w-md mx-auto';
-                  const root = createRoot(dialogContent);
-                  root.render(<BackupManager onClose={() => {
-                    // Find and close the dialog that contains this component
-                    const dialogs = document.querySelectorAll('dialog');
-                    dialogs.forEach(dialog => {
-                      if (dialog.contains(dialogContent)) {
-                        dialog.close();
-                      }
-                    });
-                  }} />);
-                  
-                  openDialog(dialogContent, "Backup & Restore");
-                }}
+                onClick={() => openDialog(<BackupManager onClose={() => {}} />, "Backup & Restore")}
               >
                 <Settings className="mr-2 h-4 w-4" />
                 Backup & Restore

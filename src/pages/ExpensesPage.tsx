@@ -9,10 +9,16 @@ import LocalStorageInfo from "@/components/LocalStorageInfo";
 import SpendingRecommendations from "@/components/SpendingRecommendations";
 import DataExportImport from "@/components/DataExportImport";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTransactions } from "@/context/transaction";
+import { useCurrency } from "@/context/CurrencyContext";
 
 const ExpensesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
   const isMobile = useIsMobile();
+  const { getTotalByType } = useTransactions();
+  const { currencySymbol } = useCurrency();
+  const totalExpenses = getTotalByType("expense");
 
   return (
     <div className="container py-6 max-w-7xl mx-auto px-4 w-full overflow-x-hidden">
@@ -27,6 +33,17 @@ const ExpensesPage: React.FC = () => {
         
         <TabsContent value="dashboard" className="pt-4 max-w-full overflow-x-hidden">
           <div className="max-w-full mx-auto">
+            <Card className="bg-primary text-primary-foreground overflow-hidden w-full max-w-full mb-6">
+              <CardHeader className="pb-2">
+                <CardTitle>Total Expenses</CardTitle>
+              </CardHeader>
+              <CardContent className="break-words">
+                <div className="text-3xl font-bold overflow-x-auto">
+                  {currencySymbol}{totalExpenses.toFixed(2)}
+                </div>
+              </CardContent>
+            </Card>
+            
             <Dashboard type="expense" />
             <SpendingRecommendations />
             <LocalStorageInfo />

@@ -2,11 +2,12 @@
 import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Category, TransactionType } from "@/types";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import EditCategoryModal from "./EditCategoryModal";
 
 interface CategoryListProps {
   type: TransactionType;
@@ -100,25 +101,47 @@ interface CategoryCardProps {
 }
 
 const CategoryCard: React.FC<CategoryCardProps> = ({ category, onDelete }) => {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
   return (
-    <div
-      className="p-4 rounded-lg shadow-sm border flex flex-col justify-between"
-      style={{ borderLeftColor: category.color, borderLeftWidth: "4px" }}
-    >
-      <div className="flex justify-between items-start">
-        <p className="font-medium truncate flex-1" title={category.name}>
-          {category.name}
-        </p>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 text-muted-foreground hover:text-destructive"
-          onClick={() => onDelete(category.id)}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+    <>
+      <div
+        className="p-4 rounded-lg shadow-sm border flex flex-col justify-between"
+        style={{ borderLeftColor: category.color, borderLeftWidth: "4px" }}
+      >
+        <div className="flex justify-between items-start">
+          <p className="font-medium truncate flex-1" title={category.name}>
+            {category.name}
+          </p>
+          <div className="flex">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-muted-foreground hover:text-blue-500"
+              onClick={() => setIsEditModalOpen(true)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-muted-foreground hover:text-destructive"
+              onClick={() => onDelete(category.id)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
-    </div>
+      
+      {isEditModalOpen && (
+        <EditCategoryModal 
+          category={category} 
+          isOpen={isEditModalOpen} 
+          onClose={() => setIsEditModalOpen(false)} 
+        />
+      )}
+    </>
   );
 };
 
