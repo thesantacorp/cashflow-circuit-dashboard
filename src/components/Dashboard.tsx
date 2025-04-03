@@ -19,18 +19,16 @@ const Dashboard: React.FC<DashboardProps> = ({ type }) => {
 
   return (
     <div className="grid gap-6 w-full overflow-x-visible pb-6">
-      {!isMobile && (
-        <Card className="bg-primary text-primary-foreground overflow-hidden w-full max-w-full">
-          <CardHeader className="pb-2">
-            <CardTitle>Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
-          </CardHeader>
-          <CardContent className="break-words">
-            <div className="text-3xl font-bold overflow-x-auto">
-              {currencySymbol}{total.toFixed(2)}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Card className="bg-primary text-primary-foreground overflow-hidden w-full max-w-full">
+        <CardHeader className="pb-2">
+          <CardTitle>Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
+        </CardHeader>
+        <CardContent className="break-words">
+          <div className="text-3xl font-bold overflow-x-auto">
+            {currencySymbol}{total.toFixed(2)}
+          </div>
+        </CardContent>
+      </Card>
 
       {type === "expense" && <EmotionInsights />}
     </div>

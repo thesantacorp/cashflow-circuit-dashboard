@@ -10,11 +10,13 @@ import SpendingRecommendations from "@/components/SpendingRecommendations";
 import { useCurrency } from "@/context/CurrencyContext";
 import DataExportImport from "@/components/DataExportImport";
 import { useTransactions } from "@/context/transaction";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const OverviewPageEnhanced: React.FC = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const { currencySymbol } = useCurrency();
   const { getTotalByType } = useTransactions();
+  const isMobile = useIsMobile();
   
   const totalExpenses = getTotalByType("expense");
   const totalIncome = getTotalByType("income");
@@ -29,16 +31,18 @@ const OverviewPageEnhanced: React.FC = () => {
         </div>
       </div>
       
-      <Card className="bg-primary text-primary-foreground overflow-hidden w-full max-w-full mb-6">
-        <CardHeader className="pb-2">
-          <CardTitle>Current Balance</CardTitle>
-        </CardHeader>
-        <CardContent className="break-words">
-          <div className="text-3xl font-bold overflow-x-auto">
-            {currencySymbol}{balance.toFixed(2)}
-          </div>
-        </CardContent>
-      </Card>
+      {!isMobile && (
+        <Card className="bg-primary text-primary-foreground overflow-hidden w-full max-w-full mb-6">
+          <CardHeader className="pb-2">
+            <CardTitle>Current Balance</CardTitle>
+          </CardHeader>
+          <CardContent className="break-words">
+            <div className="text-3xl font-bold overflow-x-auto">
+              {currencySymbol}{balance.toFixed(2)}
+            </div>
+          </CardContent>
+        </Card>
+      )}
       
       <Tabs defaultValue="dashboard" value={activeTab} onValueChange={setActiveTab} className="mb-8">
         <TabsList className="grid w-full grid-cols-3 mb-4">
@@ -47,22 +51,22 @@ const OverviewPageEnhanced: React.FC = () => {
           <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="dashboard" className="pt-4">
+        <TabsContent value="dashboard" className="pt-4 space-y-6">
           <Dashboard type="expense" />
-          <LocalStorageInfo />
-          <DataExportImport />
+          {!isMobile && <LocalStorageInfo />}
+          {!isMobile && <DataExportImport />}
         </TabsContent>
         
-        <TabsContent value="emotions" className="pt-4">
+        <TabsContent value="emotions" className="pt-4 space-y-6">
           <EmotionInsightsEnhanced />
-          <LocalStorageInfo />
-          <DataExportImport />
+          {!isMobile && <LocalStorageInfo />}
+          {!isMobile && <DataExportImport />}
         </TabsContent>
         
-        <TabsContent value="recommendations" className="pt-4">
+        <TabsContent value="recommendations" className="pt-4 space-y-6">
           <SpendingRecommendations />
-          <LocalStorageInfo />
-          <DataExportImport />
+          {!isMobile && <LocalStorageInfo />}
+          {!isMobile && <DataExportImport />}
         </TabsContent>
       </Tabs>
     </div>

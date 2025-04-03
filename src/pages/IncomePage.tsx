@@ -27,7 +27,7 @@ const IncomePage: React.FC = () => {
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="dashboard" className="pt-4">
+        <TabsContent value="dashboard" className="pt-4 space-y-4">
           <Dashboard type="income" />
           {!isMobile && <LocalStorageInfo />}
         </TabsContent>
