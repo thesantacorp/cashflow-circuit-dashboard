@@ -75,7 +75,7 @@ export function analyzeEmotionalSpending(
   });
 
   // For each emotion, analyze spending patterns
-  const emotions: EmotionalState[] = ["happy", "stressed", "bored", "excited", "sad"];
+  const emotions: EmotionalState[] = ["happy", "stressed", "bored", "excited", "sad", "hopeful"];
   emotions.forEach((emotion) => {
     const emotionTransactions = transactionsWithEmotion.filter(
       (t) => t.emotionalState === emotion
@@ -161,6 +161,7 @@ export function getPurchaseWarning(
     excited: 0,
     sad: 0,
     neutral: 0,
+    hopeful: 0
   };
 
   categoryTransactions.forEach((t) => {
