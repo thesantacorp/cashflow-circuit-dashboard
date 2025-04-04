@@ -1,19 +1,18 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { format } from "date-fns";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { ChevronRight } from "lucide-react";
-import CrowdfundingManager from "@/components/admin/CrowdfundingManager";
-import CrowdfundingAnalytics from "@/components/admin/CrowdfundingAnalytics";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import AdminLogin from "@/components/admin/AdminLogin";
+import StatCards from "@/components/admin/StatCards";
+import DashboardCharts from "@/components/admin/DashboardCharts";
+import FinancialInsights from "@/components/admin/FinancialInsights";
+import UserSessionsCard from "@/components/admin/UserSessionsCard";
+import AdminCrowdfundingTab from "@/components/admin/AdminOverviewTab";
 
 const AdminDashboard: React.FC = () => {
   const [username, setUsername] = useState("");
@@ -145,8 +144,6 @@ const AdminDashboard: React.FC = () => {
       .sort((a, b) => b.value - a.value)
       .slice(0, 5); // Top 5 categories
   };
-  
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   // Helper function to calculate total by type
   const getTotalByType = (type: string) => {
@@ -154,46 +151,24 @@ const AdminDashboard: React.FC = () => {
       .filter((t) => t.type === type)
       .reduce((sum, t) => sum + t.amount, 0);
   };
+  
+  const totalExpense = getTotalByType("expense");
+  const totalIncome = getTotalByType("income");
+  const savingsRate = totalIncome > 0 ? (1 - (totalExpense / totalIncome)) : 0;
+  const transactionsPerUser = usageStats.uniqueUsers > 0 ? 
+    (transactions.length / usageStats.uniqueUsers) : 0;
+  const hasTransactions = transactions.length > 0;
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Admin Login</CardTitle>
-            <CardDescription>Enter your credentials to access the admin dashboard</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input 
-                  id="username" 
-                  value={username} 
-                  onChange={(e) => setUsername(e.target.value)} 
-                  required 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input 
-                  id="password" 
-                  type="password" 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  required 
-                />
-              </div>
-              <div className="flex justify-between">
-                <Button type="submit">Login</Button>
-                <Button type="button" variant="outline" onClick={handleBackToApp}>
-                  Back to App
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+      <AdminLogin 
+        username={username}
+        setUsername={setUsername}
+        password={password}
+        setPassword={setPassword}
+        handleLogin={handleLogin}
+        handleBackToApp={handleBackToApp}
+      />
     );
   }
 
@@ -214,43 +189,7 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{usageStats.uniqueUsers}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Last active: {usageStats.lastActive}
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{usageStats.totalSessions}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Avg. session: {usageStats.averageSessionDuration} minutes
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{usageStats.transactionsCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Across {usageStats.categoriesCount} categories
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <StatCards usageStats={usageStats} />
       
       <Tabs defaultValue="overview" className="mb-8">
         <TabsList className="mb-4">
@@ -261,168 +200,28 @@ const AdminDashboard: React.FC = () => {
         </TabsList>
         
         <TabsContent value="overview">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Monthly Transaction Volume</CardTitle>
-                <CardDescription>Income vs Expenses over last 6 months</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={getMonthlyTransactionData()}>
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip 
-                        formatter={(value: number) => [`${currencySymbol}${value.toFixed(2)}`, '']}
-                        labelFormatter={(label) => `Month: ${label}`}
-                      />
-                      <Bar dataKey="income" name="Income" fill="#27ae60" />
-                      <Bar dataKey="expenses" name="Expenses" fill="#e74c3c" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Top Categories</CardTitle>
-                <CardDescription>Highest transaction volume by category</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80 flex items-center justify-center">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={getCategoryDistribution()}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {getCategoryDistribution().map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        formatter={(value: number) => [`${currencySymbol}${value.toFixed(2)}`, 'Amount']}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <DashboardCharts 
+            monthlyData={getMonthlyTransactionData()}
+            categoryData={getCategoryDistribution()}
+            currencySymbol={currencySymbol}
+          />
         </TabsContent>
         
         <TabsContent value="insights">
-          <Card>
-            <CardHeader>
-              <CardTitle>Financial Insights</CardTitle>
-              <CardDescription>
-                Key metrics and trends based on user data
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="border rounded-lg p-4">
-                  <h3 className="font-medium mb-2">Savings Rate</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Overall, users are saving {transactions.length > 0 ? 
-                      `${Math.round((1 - (getTotalByType("expense") / getTotalByType("income"))) * 100)}%` : 
-                      'N/A'} of their income.
-                  </p>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5">
-                    <div 
-                      className="bg-blue-600 h-2.5 rounded-full" 
-                      style={{ 
-                        width: transactions.length > 0 ? 
-                          `${Math.min(100, Math.round((1 - (getTotalByType("expense") / getTotalByType("income"))) * 100))}%` : 
-                          '0%'
-                      }}
-                    />
-                  </div>
-                </div>
-                
-                <div className="border rounded-lg p-4">
-                  <h3 className="font-medium mb-2">Transaction Frequency</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Average of {transactions.length > 0 ? 
-                      (transactions.length / Math.max(1, usageStats.uniqueUsers)).toFixed(1) : 
-                      '0'} transactions per user.
-                  </p>
-                </div>
-                
-                <div className="border rounded-lg p-4">
-                  <h3 className="font-medium mb-2">Category Diversity</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Users are tracking finances across {categories.length} different categories.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <FinancialInsights 
+            savingsRate={savingsRate}
+            transactionsPerUser={transactionsPerUser}
+            categoryCount={categories.length}
+            hasTransactions={hasTransactions}
+          />
         </TabsContent>
         
         <TabsContent value="users">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Sessions</CardTitle>
-              <CardDescription>
-                Activity patterns and engagement
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {usageStats.totalSessions > 0 ? (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center p-3 border-b">
-                    <div>
-                      <h3 className="font-medium">Session Statistics</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {usageStats.totalSessions} total sessions from {usageStats.uniqueUsers} unique users
-                      </p>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  
-                  <div className="flex justify-between items-center p-3 border-b">
-                    <div>
-                      <h3 className="font-medium">Average Session Duration</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {usageStats.averageSessionDuration} minutes per session
-                      </p>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  
-                  <div className="flex justify-between items-center p-3">
-                    <div>
-                      <h3 className="font-medium">Latest Activity</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Last active: {usageStats.lastActive}
-                      </p>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                </div>
-              ) : (
-                <p className="text-center py-8 text-muted-foreground">
-                  No session data available.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          <UserSessionsCard usageStats={usageStats} />
         </TabsContent>
         
         <TabsContent value="crowdfunding">
-          <div className="space-y-8">
-            <CrowdfundingAnalytics />
-            <CrowdfundingManager />
-          </div>
+          <AdminCrowdfundingTab />
         </TabsContent>
       </Tabs>
     </div>

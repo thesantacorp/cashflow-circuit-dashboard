@@ -1,8 +1,7 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCrowdfunding } from '@/context/CrowdfundingContext';
-import { useCurrency } from '@/context/CurrencyContext';
 import { format, differenceInDays } from 'date-fns';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,6 @@ import { ProjectStats } from '@/types/crowdfunding';
 
 const GrowPage = () => {
   const { state: { projects, backers } } = useCrowdfunding();
-  const { currencySymbol } = useCurrency();
   const navigate = useNavigate();
   const today = new Date();
   
@@ -65,6 +63,7 @@ const GrowPage = () => {
             );
             
             const isActive = !project.isFullyFunded && new Date(project.endDate) > today;
+            const currencySymbol = project.currencySymbol || "$";
             
             return (
               <Card key={project.id} className="h-full flex flex-col">

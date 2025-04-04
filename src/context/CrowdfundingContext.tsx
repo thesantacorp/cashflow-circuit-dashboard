@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
@@ -41,8 +40,36 @@ const CrowdfundingContext = createContext<{
 }>({
   state: initialState,
   dispatch: () => {},
-  addProject: async () => ({ id: '', title: '', description: '', targetAmount: 0, raisedAmount: 0, startDate: '', endDate: '', projectDetails: '', isFullyFunded: false, createdAt: '', updatedAt: '' }),
-  updateProject: async () => ({ id: '', title: '', description: '', targetAmount: 0, raisedAmount: 0, startDate: '', endDate: '', projectDetails: '', isFullyFunded: false, createdAt: '', updatedAt: '' }),
+  addProject: async () => ({ 
+    id: '', 
+    title: '', 
+    description: '', 
+    targetAmount: 0, 
+    raisedAmount: 0, 
+    startDate: '', 
+    endDate: '', 
+    projectDetails: '', 
+    isFullyFunded: false, 
+    createdAt: '', 
+    updatedAt: '',
+    currency: 'USD', 
+    currencySymbol: '$' 
+  }),
+  updateProject: async () => ({ 
+    id: '', 
+    title: '', 
+    description: '', 
+    targetAmount: 0, 
+    raisedAmount: 0, 
+    startDate: '', 
+    endDate: '', 
+    projectDetails: '', 
+    isFullyFunded: false, 
+    createdAt: '', 
+    updatedAt: '',
+    currency: 'USD', 
+    currencySymbol: '$' 
+  }),
   deleteProject: async () => {},
   addBacker: async () => ({ id: '', projectId: '', firstName: '', email: '', amount: 0, paymentId: '', timestamp: '' }),
   getProjectById: () => undefined,
@@ -69,13 +96,11 @@ const crowdfundingReducer = (state: CrowdfundingState, action: CrowdfundingActio
         projects: state.projects.filter(project => project.id !== action.payload)
       };
     case 'ADD_BACKER':
-      // Update both backers and corresponding project's raised amount
       const updatedProjects = state.projects.map(project => {
         if (project.id === action.payload.projectId) {
           const newRaisedAmount = project.raisedAmount + action.payload.amount;
           const isFullyFunded = newRaisedAmount >= project.targetAmount;
           
-          // If project becomes fully funded, show a toast notification
           if (!project.isFullyFunded && isFullyFunded) {
             toast.success(`🎉 Project "${project.title}" has been fully funded!`);
           }
@@ -129,7 +154,6 @@ const crowdfundingReducer = (state: CrowdfundingState, action: CrowdfundingActio
 export const CrowdfundingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(crowdfundingReducer, initialState);
 
-  // Load data from localStorage on initial load
   useEffect(() => {
     try {
       const savedProjects = localStorage.getItem('crowdfunding_projects');
@@ -157,7 +181,6 @@ export const CrowdfundingProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, []);
 
-  // Save to localStorage on state changes
   useEffect(() => {
     try {
       localStorage.setItem('crowdfunding_projects', JSON.stringify(state.projects));
@@ -171,7 +194,6 @@ export const CrowdfundingProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [state.projects, state.backers]);
 
-  // Helper functions
   const addProject = async (projectData: Omit<CrowdfundingProject, 'id' | 'raisedAmount' | 'isFullyFunded' | 'createdAt' | 'updatedAt'>) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     
@@ -183,7 +205,9 @@ export const CrowdfundingProvider: React.FC<{ children: React.ReactNode }> = ({ 
         raisedAmount: 0,
         isFullyFunded: false,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
+        currency: projectData.currency || 'USD',
+        currencySymbol: projectData.currencySymbol || '$'
       };
 
       dispatch({ type: 'ADD_PROJECT', payload: newProject });

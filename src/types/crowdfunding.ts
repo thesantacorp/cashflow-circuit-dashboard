@@ -12,6 +12,8 @@ export interface CrowdfundingProject {
   externalLink?: string;
   createdAt: string;
   updatedAt: string;
+  currency: string; // Added currency property for the project
+  currencySymbol: string; // Added currency symbol property
 }
 
 export interface Backer {

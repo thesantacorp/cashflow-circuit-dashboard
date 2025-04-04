@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCrowdfunding } from '@/context/CrowdfundingContext';
-import { useCurrency } from '@/context/CurrencyContext';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { ArrowLeft, Calendar, Users, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,13 +17,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ProjectStats } from '@/types/crowdfunding';
 import { toast } from 'sonner';
 
 const ProjectDetailsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { getProjectById, getBackersForProject } = useCrowdfunding();
-  const { currencySymbol } = useCurrency();
   const navigate = useNavigate();
   const [amount, setAmount] = useState<number>(10);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
@@ -48,6 +45,7 @@ const ProjectDetailsPage: React.FC = () => {
   const daysLeft = Math.max(0, differenceInDays(endDate, today));
   const percentFunded = Math.min(100, (project.raisedAmount / project.targetAmount) * 100);
   const isActive = !project.isFullyFunded && endDate > today;
+  const currencySymbol = project.currencySymbol || "$";
   
   const handleBackClick = () => {
     navigate('/grow');
