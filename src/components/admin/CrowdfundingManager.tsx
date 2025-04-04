@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useCrowdfunding } from "@/context/CrowdfundingContext";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -51,6 +50,8 @@ interface ProjectFormData {
   endDate: string;
   projectDetails: string;
   externalLink?: string;
+  currency: string;
+  currencySymbol: string;
 }
 
 const defaultFormData: ProjectFormData = {
@@ -61,6 +62,8 @@ const defaultFormData: ProjectFormData = {
   endDate: format(new Date(new Date().setMonth(new Date().getMonth() + 1)), 'yyyy-MM-dd'),
   projectDetails: "",
   externalLink: "",
+  currency: "USD",
+  currencySymbol: "$",
 };
 
 const CrowdfundingManager: React.FC = () => {
@@ -79,7 +82,6 @@ const CrowdfundingManager: React.FC = () => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Clear error for this field
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -96,7 +98,6 @@ const CrowdfundingManager: React.FC = () => {
     if (!isNaN(numValue)) {
       setFormData(prev => ({ ...prev, [name]: numValue }));
       
-      // Clear error for this field
       if (errors[name]) {
         setErrors(prev => {
           const newErrors = { ...prev };
@@ -133,7 +134,7 @@ const CrowdfundingManager: React.FC = () => {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
+
   const isValidUrl = (url: string): boolean => {
     try {
       new URL(url);
@@ -172,6 +173,8 @@ const CrowdfundingManager: React.FC = () => {
         endDate: formData.endDate,
         projectDetails: formData.projectDetails,
         externalLink: formData.externalLink || undefined,
+        currency: formData.currency,
+        currencySymbol: formData.currencySymbol,
       });
       
       setIsEditDialogOpen(false);
@@ -211,10 +214,12 @@ const CrowdfundingManager: React.FC = () => {
       title: project.title,
       description: project.description,
       targetAmount: project.targetAmount,
-      startDate: project.startDate.substring(0, 10), // Format to YYYY-MM-DD
-      endDate: project.endDate.substring(0, 10), // Format to YYYY-MM-DD
+      startDate: project.startDate.substring(0, 10),
+      endDate: project.endDate.substring(0, 10),
       projectDetails: project.projectDetails,
       externalLink: project.externalLink || "",
+      currency: project.currency || "USD",
+      currencySymbol: project.currencySymbol || "$",
     });
     setIsEditDialogOpen(true);
   };
@@ -371,7 +376,6 @@ const CrowdfundingManager: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Add Project Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -482,7 +486,6 @@ const CrowdfundingManager: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Project Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -590,7 +593,6 @@ const CrowdfundingManager: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Project Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -614,7 +616,6 @@ const CrowdfundingManager: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* View Backers Dialog */}
       <Dialog open={isViewBackersDialogOpen} onOpenChange={setIsViewBackersDialogOpen}>
         <DialogContent className="sm:max-w-[650px]">
           <DialogHeader>
