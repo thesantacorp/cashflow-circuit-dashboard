@@ -1,16 +1,24 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNotifications } from "@/context/NotificationContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Bell, BellOff } from "lucide-react";
+import { Bell, BellOff, Info, AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { toast } from "sonner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const NotificationSettings: React.FC = () => {
   const { permission, requestPermission, isSupported, sendNotification } = useNotifications();
   const { toast: uiToast } = useToast();
+  const isMobile = useIsMobile();
   
   // When the component mounts, if the user hasn't made a decision yet, prompt them
   useEffect(() => {
@@ -80,7 +88,7 @@ const NotificationSettings: React.FC = () => {
   }
   
   return (
-    <Card className="bg-gradient-to-br from-white to-orange-50/50 border-orange-200">
+    <Card className={`bg-gradient-to-br from-white to-orange-50/50 border-orange-200 ${isMobile ? "border-0 shadow-none" : ""}`}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bell size={20} className="text-orange-500" />
@@ -98,10 +106,21 @@ const NotificationSettings: React.FC = () => {
               Status: {permission === 'granted' ? 'Enabled' : 'Disabled'}
             </p>
           </div>
-          <Switch
-            checked={permission === 'granted'}
-            onCheckedChange={handleTogglePermission}
-          />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Switch
+                  checked={permission === 'granted'}
+                  onCheckedChange={handleTogglePermission}
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                {permission === 'granted' 
+                  ? "Notifications are enabled" 
+                  : "Enable notifications to stay updated"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         
         {permission !== 'granted' && (
@@ -130,9 +149,40 @@ const NotificationSettings: React.FC = () => {
         )}
         
         {permission === 'denied' && (
-          <p className="mt-2 text-xs text-orange-700">
-            You have blocked notifications for this site. Please update your browser settings to enable notifications.
-          </p>
+          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
+            <div className="flex items-start">
+              <AlertTriangle className="h-5 w-5 text-amber-500 mr-2 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-amber-800">Notifications are blocked</p>
+                <p className="text-xs text-amber-700 mt-1">
+                  You have blocked notifications for this site. Please update your browser settings to enable notifications.
+                </p>
+                
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs font-medium text-amber-800">How to enable:</p>
+                  <div className="text-xs text-amber-700 space-y-1">
+                    <p>• Chrome: Click the lock icon in address bar → Site settings → Notifications → Allow</p>
+                    <p>• Firefox: Click the shield icon in address bar → Permissions → Notifications → Allow</p>
+                    <p>• Safari: Safari menu → Preferences → Websites → Notifications → Allow</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {permission === 'granted' && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+            <div className="flex items-start">
+              <Info className="h-5 w-5 text-green-500 mr-2 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-green-800">Notifications are enabled</p>
+                <p className="text-xs text-green-700 mt-1">
+                  You'll receive alerts for important updates, budget reminders, and financial insights.
+                </p>
+              </div>
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>

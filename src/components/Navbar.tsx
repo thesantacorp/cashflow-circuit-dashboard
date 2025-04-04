@@ -18,6 +18,13 @@ import AppLogo from "./AppLogo";
 import { createRoot } from "react-dom/client";
 import NotificationSettings from "./NotificationSettings";
 import { useNotifications } from "@/context/NotificationContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -26,54 +33,11 @@ const Navbar: React.FC = () => {
   const { currencySymbol } = useCurrency();
   const isMobile = useIsMobile();
   const { permission, isSupported } = useNotifications();
+  const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   
   const totalExpenses = getTotalByType("expense");
   const totalIncome = getTotalByType("income");
   const balance = totalIncome - totalExpenses;
-  
-  const openDialog = (component: React.ReactNode, title: string) => {
-    const dialog = document.createElement('dialog');
-    dialog.className = 'p-4 rounded-lg shadow-lg bg-white';
-    dialog.style.position = 'fixed';
-    dialog.style.top = '50%';
-    dialog.style.left = '50%';
-    dialog.style.transform = 'translate(-50%, -50%)';
-    dialog.style.zIndex = '1000';
-    dialog.style.width = '80vw';
-    dialog.style.maxWidth = '500px';
-    
-    const header = document.createElement('div');
-    header.className = 'flex justify-between items-center mb-4';
-    
-    const titleElement = document.createElement('h3');
-    titleElement.className = 'font-semibold text-lg';
-    titleElement.textContent = title;
-    
-    const closeButton = document.createElement('button');
-    closeButton.textContent = '×';
-    closeButton.className = 'text-2xl leading-none';
-    closeButton.onclick = () => dialog.close();
-    
-    header.appendChild(titleElement);
-    header.appendChild(closeButton);
-    dialog.appendChild(header);
-    
-    const dialogContent = document.createElement('div');
-    dialogContent.id = 'modal-content';
-    dialog.appendChild(dialogContent);
-    
-    document.body.appendChild(dialog);
-    dialog.showModal();
-    
-    // Render the component inside the dialog
-    const root = createRoot(dialogContent);
-    root.render(component);
-    
-    dialog.addEventListener('close', () => {
-      root.unmount();
-      document.body.removeChild(dialog);
-    });
-  };
   
   return (
     <nav className="border-b bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md">
@@ -115,19 +79,28 @@ const Navbar: React.FC = () => {
         <div className="ml-auto flex items-center gap-4">
           {!isMobile && (
             <>
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-white bg-white/10 border-white/20 hover:bg-white/20"
-                onClick={() => openDialog(<NotificationSettings />, "Notification Settings")}
-              >
-                {isSupported && permission === 'granted' ? (
-                  <Bell size={16} className="mr-2" />
-                ) : (
-                  <BellOff size={16} className="mr-2" />
-                )}
-                <span>Notifications</span>
-              </Button>
+              <Dialog open={notificationDialogOpen} onOpenChange={setNotificationDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-white bg-white/10 border-white/20 hover:bg-white/20"
+                  >
+                    {isSupported && permission === 'granted' ? (
+                      <Bell size={16} className="mr-2" />
+                    ) : (
+                      <BellOff size={16} className="mr-2" />
+                    )}
+                    <span>Notifications</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Notification Settings</DialogTitle>
+                  </DialogHeader>
+                  <NotificationSettings />
+                </DialogContent>
+              </Dialog>
               
               <BackupManager />
               

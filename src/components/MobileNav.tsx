@@ -9,6 +9,7 @@ import AppLogo from "./AppLogo";
 import NotificationSettings from "./NotificationSettings";
 import CurrencySelector from "./CurrencySelector";
 import DataExportImport from "./DataExportImport";
+import BackupManager from "./BackupManager";
 import {
   Drawer,
   DrawerContent,
@@ -50,6 +51,8 @@ const MobileNav: React.FC = () => {
         return <DataExportImport />;
       case "notifications":
         return <NotificationSettings />;
+      case "backup":
+        return <BackupManager onClose={closeSettingSheet} />;
       default:
         return null;
     }
@@ -142,6 +145,19 @@ const MobileNav: React.FC = () => {
                   </svg>
                   Notifications
                 </Button>
+                
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-white hover:bg-white/10 rounded-lg"
+                  onClick={() => setActiveSettingSheet("backup")}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-4 w-4">
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                    <polyline points="16 6 12 2 8 6"></polyline>
+                    <line x1="12" y1="2" x2="12" y2="15"></line>
+                  </svg>
+                  Google Backup
+                </Button>
               </div>
             </div>
           </div>
@@ -150,22 +166,23 @@ const MobileNav: React.FC = () => {
 
       {/* Settings Sheets */}
       <Sheet open={activeSettingSheet !== null} onOpenChange={(open) => !open && closeSettingSheet()}>
-        <SheetContent className="w-full sm:max-w-md">
+        <SheetContent className="w-full sm:max-w-md pt-12">
           <SheetHeader>
             <SheetTitle>
               {activeSettingSheet === "currency" && "Currency Settings"}
               {activeSettingSheet === "data" && "Data Management"}
               {activeSettingSheet === "notifications" && "Notifications"}
+              {activeSettingSheet === "backup" && "Google Drive Backup"}
             </SheetTitle>
           </SheetHeader>
-          <div className="py-6">
+          <div className="py-6 h-[calc(100vh-170px)] overflow-y-auto">
             {renderSettingContent()}
           </div>
-          <DrawerFooter>
-            <Button variant="outline" onClick={closeSettingSheet}>
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background">
+            <Button variant="outline" onClick={closeSettingSheet} className="w-full">
               Close
             </Button>
-          </DrawerFooter>
+          </div>
         </SheetContent>
       </Sheet>
     </>
