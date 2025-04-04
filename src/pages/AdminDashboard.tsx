@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Chart } from "@/components/ui/chart";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { format } from "date-fns";
@@ -146,6 +145,13 @@ const AdminDashboard: React.FC = () => {
   };
   
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+
+  // Helper function to calculate total by type
+  const getTotalByType = (type: string) => {
+    return transactions
+      .filter((t) => t.type === type)
+      .reduce((sum, t) => sum + t.amount, 0);
+  };
 
   if (!isAuthenticated) {
     return (
@@ -411,13 +417,6 @@ const AdminDashboard: React.FC = () => {
       </Tabs>
     </div>
   );
-};
-
-// Helper function to calculate total by type
-const getTotalByType = (transactions: any[], type: string) => {
-  return transactions
-    .filter((t) => t.type === type)
-    .reduce((sum, t) => sum + t.amount, 0);
 };
 
 export default AdminDashboard;
