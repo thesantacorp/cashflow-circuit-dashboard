@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, ArrowDownIcon, ArrowUpIcon, Settings, HardDrive } from "lucide-react";
+import { Menu, ArrowDownIcon, ArrowUpIcon, Settings, HardDrive, Sprout } from "lucide-react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import AppLogo from "./AppLogo";
@@ -118,6 +118,15 @@ const MobileNav: React.FC = () => {
                   <ArrowUpIcon className="h-3 w-3 mr-1" />
                   {currencySymbol}{totalIncome.toFixed(2)}
                 </span>
+              </div>
+              <div 
+                className={`flex items-center px-6 py-3 rounded-lg mb-1 ${location.pathname === "/grow" 
+                  ? "bg-white/20 border-l-4 border-white" 
+                  : ""}`}
+                onClick={() => onLinkClick("/grow")}
+              >
+                <span>Grow</span>
+                <Sprout className="h-4 w-4 ml-1 text-green-300" />
               </div>
             </nav>
 

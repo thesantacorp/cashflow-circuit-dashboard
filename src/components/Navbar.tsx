@@ -6,7 +6,8 @@ import {
   ArrowDownIcon, 
   ArrowUpIcon, 
   Bell, 
-  BellOff 
+  BellOff, 
+  Sprout 
 } from "lucide-react";
 import { useTransactions } from "@/context/transaction";
 import CurrencySelector from "./CurrencySelector";
@@ -72,6 +73,15 @@ const Navbar: React.FC = () => {
                 ? "bg-white/20 text-white hover:bg-white/30" 
                 : "text-white hover:bg-white/10"}>
               Income
+            </Button>
+          </Link>
+          <Link to="/grow">
+            <Button variant={location.pathname === "/grow" ? "secondary" : "ghost"}
+              className={location.pathname === "/grow" 
+                ? "bg-white/20 text-white hover:bg-white/30" 
+                : "text-white hover:bg-white/10"}>
+              Grow
+              <Sprout size={16} className="ml-1 text-green-300" />
             </Button>
           </Link>
         </div>

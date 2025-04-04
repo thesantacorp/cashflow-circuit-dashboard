@@ -12,6 +12,8 @@ import { useCurrency } from "@/context/CurrencyContext";
 import { format } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { ChevronRight } from "lucide-react";
+import CrowdfundingManager from "@/components/admin/CrowdfundingManager";
+import CrowdfundingAnalytics from "@/components/admin/CrowdfundingAnalytics";
 
 const AdminDashboard: React.FC = () => {
   const [username, setUsername] = useState("");
@@ -255,6 +257,7 @@ const AdminDashboard: React.FC = () => {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
           <TabsTrigger value="users">User Activities</TabsTrigger>
+          <TabsTrigger value="crowdfunding">Crowdfunding</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview">
@@ -413,6 +416,13 @@ const AdminDashboard: React.FC = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="crowdfunding">
+          <div className="space-y-8">
+            <CrowdfundingAnalytics />
+            <CrowdfundingManager />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
