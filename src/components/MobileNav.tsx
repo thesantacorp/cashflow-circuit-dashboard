@@ -20,7 +20,7 @@ import {
   DrawerFooter
 } from "@/components/ui/drawer";
 
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const MobileNav: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -41,6 +41,14 @@ const MobileNav: React.FC = () => {
 
   const closeSettingSheet = () => {
     setActiveSettingSheet(null);
+  };
+
+  const openSettingSheet = (setting: string) => {
+    setOpen(false); // Close the drawer first
+    // Use setTimeout to ensure drawer closes before opening the sheet
+    setTimeout(() => {
+      setActiveSettingSheet(setting);
+    }, 100);
   };
 
   const renderSettingContent = () => {
@@ -119,7 +127,7 @@ const MobileNav: React.FC = () => {
                 <Button
                   variant="ghost"
                   className="w-full justify-start text-white hover:bg-white/10 rounded-lg"
-                  onClick={() => setActiveSettingSheet("currency")}
+                  onClick={() => openSettingSheet("currency")}
                 >
                   <Settings className="mr-2 h-4 w-4" />
                   Currency
@@ -128,7 +136,7 @@ const MobileNav: React.FC = () => {
                 <Button
                   variant="ghost"
                   className="w-full justify-start text-white hover:bg-white/10 rounded-lg"
-                  onClick={() => setActiveSettingSheet("data")}
+                  onClick={() => openSettingSheet("data")}
                 >
                   <HardDrive className="mr-2 h-4 w-4" />
                   Data Management
@@ -137,7 +145,7 @@ const MobileNav: React.FC = () => {
                 <Button
                   variant="ghost"
                   className="w-full justify-start text-white hover:bg-white/10 rounded-lg"
-                  onClick={() => setActiveSettingSheet("notifications")}
+                  onClick={() => openSettingSheet("notifications")}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-4 w-4">
                     <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
@@ -149,7 +157,7 @@ const MobileNav: React.FC = () => {
                 <Button
                   variant="ghost"
                   className="w-full justify-start text-white hover:bg-white/10 rounded-lg"
-                  onClick={() => setActiveSettingSheet("backup")}
+                  onClick={() => openSettingSheet("backup")}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-4 w-4">
                     <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
@@ -165,8 +173,15 @@ const MobileNav: React.FC = () => {
       </Drawer>
 
       {/* Settings Sheets */}
-      <Sheet open={activeSettingSheet !== null} onOpenChange={(open) => !open && closeSettingSheet()}>
-        <SheetContent className="w-full sm:max-w-md pt-12">
+      <Sheet 
+        open={activeSettingSheet !== null} 
+        onOpenChange={(open) => {
+          if (!open) {
+            closeSettingSheet();
+          }
+        }}
+      >
+        <SheetContent className="w-full sm:max-w-md pt-12" hideCloseButton={true}>
           <SheetHeader>
             <SheetTitle>
               {activeSettingSheet === "currency" && "Currency Settings"}
