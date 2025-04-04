@@ -2,7 +2,7 @@
 import CrowdfundingManagerWithCurrency from "./CrowdfundingManagerWithCurrency";
 import CrowdfundingAnalytics from "./CrowdfundingAnalytics";
 
-const AdminCrowdfundingTab = () => {
+const AdminOverviewTab = () => {
   return (
     <div className="space-y-8">
       <CrowdfundingAnalytics />
@@ -11,4 +11,4 @@ const AdminCrowdfundingTab = () => {
   );
 };
 
-export default AdminCrowdfundingTab;
+export default AdminOverviewTab;

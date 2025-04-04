@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Sprout, Calendar, ExternalLink, Users } from 'lucide-react';
 import { ProjectStats } from '@/types/crowdfunding';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const GrowPage = () => {
   const { state: { projects, backers } } = useCrowdfunding();
   const navigate = useNavigate();
   const today = new Date();
+  const isMobile = useIsMobile();
   
   // Calculate project statistics
   const getProjectStats = (projectId: string, targetAmount: number, raisedAmount: number, endDate: string): ProjectStats => {
@@ -36,20 +38,20 @@ const GrowPage = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center mb-6">
         <Sprout className="h-6 w-6 text-green-500 mr-2" />
-        <h1 className="text-2xl font-bold">Grow Your Money</h1>
+        <h1 className="text-2xl font-bold">Spark Innovation</h1>
       </div>
       
       <p className="text-gray-600 mb-8">
-        Explore vetted crowdfunding opportunities for verified businesses and startups. 
-        Fund innovative projects and help them grow while potentially earning returns on your investment.
+        Discover new Ideas. Explore a curated list of innovative product ideas to spark your entrepreneurial spirit. 
+        Vote on the concepts you believe have the most potential, find talents to help you build and scale ideas in our community.
       </p>
       
       {projects.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-12 text-center bg-gray-50 rounded-lg">
           <Sprout className="h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-xl font-medium mb-2">No opportunities available yet</h3>
+          <h3 className="text-xl font-medium mb-2">No Ideas Available Yet</h3>
           <p className="text-gray-500 max-w-md">
-            Check back soon for exciting new investment opportunities and ventures to grow your money.
+            Check back soon for a collection of exciting new ideas.
           </p>
         </div>
       ) : (

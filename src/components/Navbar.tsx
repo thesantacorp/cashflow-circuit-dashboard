@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -94,14 +93,13 @@ const Navbar: React.FC = () => {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-white bg-white/10 border-white/20 hover:bg-white/20"
+                    className="text-white bg-white/10 border-white/20 hover:bg-white/20 w-10 h-10 p-0"
                   >
                     {isSupported && permission === 'granted' ? (
-                      <Bell size={16} className="mr-2" />
+                      <Bell size={16} />
                     ) : (
-                      <BellOff size={16} className="mr-2" />
+                      <BellOff size={16} />
                     )}
-                    <span>Notifications</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[500px]">
