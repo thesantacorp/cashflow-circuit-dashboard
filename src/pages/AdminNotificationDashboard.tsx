@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,12 +41,10 @@ const AdminNotificationDashboard: React.FC = () => {
   const [notificationHistory, setNotificationHistory] = useState<NotificationHistoryItem[]>([]);
   const navigate = useNavigate();
 
-  // Load notification history from localStorage
   useEffect(() => {
     const savedHistory = localStorage.getItem("notificationHistory");
     if (savedHistory) {
       const history = JSON.parse(savedHistory);
-      // Filter for admin notifications only
       const adminHistory = history.filter((item: NotificationHistoryItem) => item.sentFromAdmin);
       setNotificationHistory(adminHistory);
     }
@@ -56,7 +53,6 @@ const AdminNotificationDashboard: React.FC = () => {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Check hardcoded credentials
     if (username === "SupErAdmIn" && password === "K9$PzW2e&xL!mG7@sV3#nQ8*tD5^jF6") {
       setIsAuthenticated(true);
       toast.success("Logged in successfully");
@@ -73,13 +69,12 @@ const AdminNotificationDashboard: React.FC = () => {
       return;
     }
     
-    // Create a new notification object
     const newNotification: Omit<NotificationHistoryItem, 'id' | 'timestamp' | 'read'> = {
       title: notificationTitle,
       body: notificationBody,
       sentFromAdmin: true,
-      deliveredToDevices: Math.floor(Math.random() * 30) + 10, // Random number for demo
-      views: Math.floor(Math.random() * 20) + 5, // Random number for demo
+      deliveredToDevices: Math.floor(Math.random() * 30) + 10,
+      views: Math.floor(Math.random() * 20) + 5,
       deviceTypes: {
         "mobile": Math.floor(Math.random() * 20) + 5,
         "desktop": Math.floor(Math.random() * 15) + 3,
@@ -87,7 +82,6 @@ const AdminNotificationDashboard: React.FC = () => {
       }
     };
     
-    // Add to history in localStorage
     const savedHistory = localStorage.getItem("notificationHistory") || "[]";
     const history = JSON.parse(savedHistory);
     
@@ -101,10 +95,8 @@ const AdminNotificationDashboard: React.FC = () => {
     const updatedHistory = [notificationWithId, ...history];
     localStorage.setItem("notificationHistory", JSON.stringify(updatedHistory));
     
-    // Update local state
     setNotificationHistory(prev => [notificationWithId, ...prev]);
     
-    // Here we would normally send to a server, but for demo purposes we'll use the Notifications API directly
     if ('Notification' in window) {
       if (Notification.permission === 'granted') {
         sendNotification();
@@ -129,7 +121,6 @@ const AdminNotificationDashboard: React.FC = () => {
       
       toast.success("Notification sent successfully");
       
-      // Clear form
       setNotificationTitle("");
       setNotificationBody("");
     } catch (error) {
@@ -152,7 +143,6 @@ const AdminNotificationDashboard: React.FC = () => {
     navigate("/admin/dashboard");
   };
   
-  // Prepare data for device type chart
   const prepareDeviceData = () => {
     const devices: Record<string, number> = {};
     
@@ -167,7 +157,6 @@ const AdminNotificationDashboard: React.FC = () => {
     return Object.entries(devices).map(([name, value]) => ({ name, value }));
   };
   
-  // Engagement data for bar chart
   const prepareEngagementData = () => {
     return notificationHistory.slice(0, 5).map(notification => ({
       name: notification.title.substring(0, 15) + (notification.title.length > 15 ? '...' : ''),
@@ -341,7 +330,7 @@ const AdminNotificationDashboard: React.FC = () => {
                         <TableCell>{notification.deliveredToDevices || 0}</TableCell>
                         <TableCell>{notification.views || 0}</TableCell>
                         <TableCell>
-                          <Badge variant={notification.views && notification.views > (notification.deliveredToDevices || 0) / 2 ? "success" : "default"}>
+                          <Badge variant={notification.views && notification.views > (notification.deliveredToDevices || 0) / 2 ? "secondary" : "default"}>
                             {notification.views && notification.views > (notification.deliveredToDevices || 0) / 2 ? "High Engagement" : "Sent"}
                           </Badge>
                         </TableCell>
