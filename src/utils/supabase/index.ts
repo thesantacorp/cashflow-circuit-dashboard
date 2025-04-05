@@ -1,5 +1,6 @@
 
-// Export all functionality from the supabase modules
-export { getSupabaseClient, checkDatabaseConnection } from './client';
-export { checkTableExists, ensureUuidTableExists } from './tableManagement';
-export { syncQueue, syncDataToSupabase } from '../supabaseInit';
+// Empty stub exports to prevent import errors
+export const getSupabaseClient = () => null;
+export const checkDatabaseConnection = async () => false;
+export const syncQueue = null;
+export const syncDataToSupabase = async () => false;

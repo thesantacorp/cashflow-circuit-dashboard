@@ -8,23 +8,14 @@ import { TransactionProvider } from "@/context/transaction/provider";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import { BackupProvider } from "@/context/BackupContext";
 import { NotificationProvider } from "@/context/NotificationContext";
-import { useEffect, useState } from "react";
-import { AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import CommunityLink from "@/components/CommunityLink";
-import LoadingScreen from "@/components/LoadingScreen";
-import ConnectionStatusIndicator from "@/components/ConnectionStatusIndicator";
 import OverviewPageEnhanced from "@/pages/OverviewPageEnhanced";
 import ExpensesPage from "@/pages/ExpensesPage";
 import IncomePage from "@/pages/IncomePage";
 import NotFound from "./pages/NotFound";
 import AdminNotificationDashboard from "./pages/AdminNotificationDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
-import { initSessionTracking } from "./utils/sessionTracking";
-import { initRecoverySystem } from "./utils/userDataRecovery";
-import { getSupabaseClient, checkDatabaseConnection } from "./utils/supabase/client";
-import { checkSupabaseConnection } from "./utils/supabaseInit";
-import { toast } from "sonner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,156 +27,7 @@ const queryClient = new QueryClient({
   }
 });
 
-const MAX_LOADING_TIME = 4000;
-
-const initializeSupabase = async (): Promise<boolean> => {
-  console.log('Initializing Supabase connection...');
-  try {
-    const connected = await checkDatabaseConnection();
-    
-    if (connected) {
-      console.log('✅ Supabase connection successful');
-    } else {
-      console.error('❌ Supabase connection failed');
-    }
-    
-    return connected;
-  } catch (error) {
-    console.error('Error initializing Supabase:', error);
-    return false;
-  }
-};
-
 function App() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [supabaseInitialized, setSupabaseInitialized] = useState(false);
-  const [initAttempted, setInitAttempted] = useState(false);
-  const [networkStatus, setNetworkStatus] = useState<'online'|'offline'>(
-    navigator.onLine ? 'online' : 'offline'
-  );
-
-  useEffect(() => {
-    const handleOnline = () => {
-      setNetworkStatus('online');
-      if (initAttempted) {
-        checkSupabaseConnection()
-          .then(connected => {
-            if (connected && !supabaseInitialized) {
-              console.log('Network reconnected, initializing Supabase...');
-              initializeSupabase().then(setSupabaseInitialized);
-            }
-          })
-          .catch(console.error);
-      }
-    };
-    
-    const handleOffline = () => {
-      setNetworkStatus('offline');
-      if (isLoading) {
-        setIsLoading(false);
-      }
-    };
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [initAttempted, supabaseInitialized, isLoading]);
-
-  useEffect(() => {
-    const initApp = async () => {
-      setInitAttempted(true);
-      
-      const forceLoadTimeout = setTimeout(() => {
-        if (isLoading) {
-          console.warn("Force continuing app initialization after timeout");
-          setIsLoading(false);
-          toast.warning("Some features initialized slowly", {
-            description: "The app will continue in local mode",
-            duration: 5000
-          });
-        }
-      }, MAX_LOADING_TIME);
-      
-      try {
-        initSessionTracking();
-        initRecoverySystem();
-        
-        if (networkStatus === 'offline') {
-          console.log('Device is offline, skipping Supabase initialization');
-          toast.warning("You're currently offline", {
-            description: "Running in local mode - your data will be stored on this device",
-            duration: 5000
-          });
-          clearTimeout(forceLoadTimeout);
-          setIsLoading(false);
-          return;
-        }
-      
-        console.log("Initializing Supabase connection...");
-        let success = await initializeSupabase();
-        
-        if (!success) {
-          console.log("First initialization attempt failed, retrying...");
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          success = await initializeSupabase();
-        }
-        
-        setSupabaseInitialized(success);
-        
-        if (!success) {
-          console.warn("Continuing without full Supabase initialization");
-          toast.warning("Some online features may be limited", {
-            description: "We'll try to reconnect automatically",
-            duration: 5000
-          });
-        }
-        
-        setTimeout(() => {
-          clearTimeout(forceLoadTimeout);
-          setIsLoading(false);
-        }, 800);
-      } catch (error) {
-        console.error("Failed during app initialization:", error);
-        toast.error("Error during app initialization", {
-          description: "Continuing in local mode",
-          duration: 5000,
-        });
-        clearTimeout(forceLoadTimeout);
-        setIsLoading(false);
-      }
-    };
-    
-    if (!initAttempted) {
-      initApp();
-    }
-    
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        console.log("App is visible again, checking for sync needs...");
-        window.dispatchEvent(new Event('app-visible'));
-        
-        if (initAttempted && !supabaseInitialized) {
-          checkSupabaseConnection().then(connected => {
-            if (connected) {
-              console.log('Connection restored, initializing Supabase...');
-              initializeSupabase().then(setSupabaseInitialized);
-            }
-          });
-        }
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [initAttempted, supabaseInitialized, isLoading, networkStatus]);
-
   return (
     <QueryClientProvider client={queryClient}>
       <TransactionProvider>
@@ -196,10 +38,6 @@ function App() {
                 <Toaster />
                 <Sonner />
                 <BrowserRouter>
-                  <AnimatePresence>
-                    {isLoading && <LoadingScreen />}
-                  </AnimatePresence>
-                  
                   <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white overflow-x-hidden">
                     <Routes>
                       <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />
@@ -209,24 +47,6 @@ function App() {
                           <Navbar />
                           <main className="flex-1 py-6 px-4 sm:px-6 w-full">
                             <div className="max-w-7xl mx-auto w-full">
-                              {networkStatus === 'offline' && (
-                                <div className="bg-amber-50 text-amber-800 px-4 py-2 rounded-md mb-4 text-sm flex items-center gap-2 shadow-sm">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" 
-                                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <line x1="1" x2="23" y1="1" y2="23"></line>
-                                    <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
-                                    <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
-                                    <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
-                                    <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
-                                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
-                                    <line x1="12" x2="12.01" y1="20" y2="20"></line>
-                                  </svg>
-                                  You're currently offline. Your data is being saved locally and will sync when you're back online.
-                                </div>
-                              )}
-                              <div className="flex justify-between items-center mb-4">
-                                <ConnectionStatusIndicator showControls className="ml-auto" />
-                              </div>
                               <Routes>
                                 <Route path="/" element={<OverviewPageEnhanced />} />
                                 <Route path="/expenses" element={<ExpensesPage />} />
