@@ -66,11 +66,11 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
     console.log('Checking Supabase connection...');
     
     // Try a simple query to see if we can connect
+    // Removed the .timeout(5000) method since it's not supported in the current Supabase version
     const { data, error, status } = await supabase
       .from('user_uuids')
       .select('count(*)', { count: 'exact', head: true })
-      .limit(1)
-      .timeout(5000);
+      .limit(1);
       
     // Handle specific error types
     if (error) {
