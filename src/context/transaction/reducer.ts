@@ -7,6 +7,8 @@ import { TransactionAction, TransactionState } from "./types";
 export const initialState: TransactionState = {
   transactions: [],
   categories: allDefaultCategories,
+  nextTransactionId: 1,
+  nextCategoryId: 100, // Starting after default categories
 };
 
 export function transactionReducer(

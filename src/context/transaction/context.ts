@@ -1,5 +1,5 @@
 
 import { createContext } from "react";
-import { TransactionContextProps } from "./types";
+import { TransactionContextType } from "./types";
 
-export const TransactionContext = createContext<TransactionContextProps | undefined>(undefined);
+export const TransactionContext = createContext<TransactionContextType | undefined>(undefined);

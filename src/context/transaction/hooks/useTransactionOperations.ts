@@ -57,7 +57,7 @@ export function useTransactionOperations(userUuid: string | null) {
     
     dispatch({ 
       type: "DELETE_TRANSACTION", 
-      payload: id 
+      payload: id
     });
     toast.success("Transaction deleted successfully");
     return true;
@@ -87,7 +87,7 @@ export function useTransactionOperations(userUuid: string | null) {
     
     dispatch({ 
       type: "DELETE_CATEGORY", 
-      payload: id 
+      payload: id
     });
     return true;
   };
