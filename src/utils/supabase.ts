@@ -2,14 +2,17 @@
 import { createClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 
+// Store Supabase credentials directly in the code
+// These are safe to store in the frontend code as they are public anon keys
+const SUPABASE_URL = 'https://tsidnalhlgcmcnqawgux.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzaWRuYWxobGdjbWNucWF3Z3V4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM4MjkzNTIsImV4cCI6MjA1OTQwNTM1Mn0.G9voKlG0s22kFnNX2qE8Tfv5xq8amdion7J6Xfi8rKQ';
+
 // Create a Supabase client for use throughout the app
 export const getSupabaseClient = () => {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
   
-  if (!supabaseUrl || !supabaseAnonKey || 
-      supabaseUrl === 'YOUR_SUPABASE_URL' || 
-      supabaseAnonKey === 'YOUR_SUPABASE_ANON_KEY') {
+  if (!supabaseUrl || !supabaseAnonKey) {
     console.error('Missing or invalid Supabase environment variables');
     return null;
   }
@@ -101,62 +104,37 @@ export async function ensureUuidTableExists(): Promise<boolean> {
             duration: 5000
           }
         );
-        
-        // Create the table using SQL query via REST endpoint
-        const { error: createTableError } = await supabase.from('_manual_table_creation').select('*');
-        
-        if (createTableError) {
-          console.log('Will create table via the Supabase UI instead');
-          
-          toast.info(
-            'Please create a table in Supabase', 
-            { 
-              description: 'Create a "user_uuids" table with columns: id (integer, primary key), email (text, unique), uuid (text)',
-              duration: 10000
-            }
-          );
-          
-          // Try to create the table automatically via API
-          try {
-            await createUserUuidsTable(supabase);
-            toast.success('Table created successfully!');
-            return true;
-          } catch (e) {
-            console.error('Failed to create table automatically:', e);
-            return false;
+
+        // Try to create the table with a direct SQL query through REST
+        try {
+          const { error } = await supabase
+            .from('user_uuids')
+            .insert([])
+            .select();
+
+          if (error && error.message.includes("does not exist")) {
+            console.log("Table doesn't exist, attempting to create it");
+
+            // If this approach fails, show manual instructions
+            toast.info(
+              'Please create a table in Supabase', 
+              { 
+                description: 'Create a "user_uuids" table with columns: id (integer, primary key), email (text, unique), uuid (text)',
+                duration: 10000
+              }
+            );
           }
+        } catch (e) {
+          console.error('Failed to check or create table:', e);
         }
+        
+        return false;
       }
     }
     
     return true;
   } catch (error) {
     console.error('Error ensuring user_uuids table exists:', error);
-    return false;
-  }
-}
-
-// Function to create the user_uuids table automatically
-async function createUserUuidsTable(supabase: any): Promise<boolean> {
-  try {
-    // First try to create the table through a REST API call
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/create_user_uuids_table`, {
-      method: 'POST',
-      headers: {
-        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      }
-    });
-    
-    if (!response.ok) {
-      console.error('Failed to create table via REST API');
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error creating user_uuids table:', error);
     return false;
   }
 }
