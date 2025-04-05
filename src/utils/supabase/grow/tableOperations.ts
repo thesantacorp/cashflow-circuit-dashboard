@@ -29,7 +29,7 @@ export const createProjectsTable = async (): Promise<boolean> => {
     // Direct insertion approach - this should create the table if it doesn't exist
     console.log('Creating projects table with direct insertion...');
     
-    // Set proper content-type headers for creation
+    // Create project with correct insert syntax (no headers parameter)
     const { error: createError } = await supabase
       .from('projects')
       .insert({
@@ -39,11 +39,6 @@ export const createProjectsTable = async (): Promise<boolean> => {
         upvotes: 0,
         downvotes: 0,
         created_at: new Date().toISOString()
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        }
       });
     
     // If the table was created or already exists
@@ -105,6 +100,7 @@ export const createProjectVotesTable = async (): Promise<boolean> => {
     // Direct insertion approach to create the votes table
     console.log('Creating project_votes table with direct insertion...');
     
+    // Create vote record with correct insert syntax (no headers parameter)
     const { error: createError } = await supabase
       .from('project_votes')
       .insert({
@@ -112,11 +108,6 @@ export const createProjectVotesTable = async (): Promise<boolean> => {
         user_uuid: '00000000-0000-0000-0000-000000000000',
         vote: 0,
         created_at: new Date().toISOString()
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        }
       });
     
     // If the table was created or already exists

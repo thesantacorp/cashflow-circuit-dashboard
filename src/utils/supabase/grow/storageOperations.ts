@@ -45,13 +45,19 @@ export const createStorageBucketGuaranteed = async (): Promise<boolean> => {
     
     // Alternative attempt with different approach
     try {
+      // Get the base URL and API key from environment or config
+      // Instead of directly accessing protected properties
+      const supabaseUrl = process.env.SUPABASE_URL || 'https://tsidnalhlgcmcnqawgux.supabase.co';
+      const supabaseKey = supabase.auth.getSession().then(session => session.data.session?.access_token || '');
+      
       // Try direct REST API approach as a last resort
-      const response = await fetch(`${supabase.supabaseUrl}/storage/v1/bucket`, {
+      const apiKey = await supabaseKey;
+      const response = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': supabase.supabaseKey,
-          'Authorization': `Bearer ${supabase.supabaseKey}`
+          'apikey': apiKey,
+          'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
           id: 'grow',
