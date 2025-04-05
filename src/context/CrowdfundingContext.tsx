@@ -40,7 +40,8 @@ const initialState: ProductIdeasState = {
   error: null
 };
 
-const ProductIdeasContext = createContext<{
+// Create the context with a default value
+interface CrowdfundingContextType {
   state: ProductIdeasState;
   dispatch: React.Dispatch<ProductIdeasAction>;
   addIdea: (idea: Omit<ProductIdea, 'id' | 'upvotes' | 'downvotes' | 'createdAt' | 'updatedAt' | 'votedSessions'>) => Promise<ProductIdea>;
@@ -52,7 +53,9 @@ const ProductIdeasContext = createContext<{
   hasVoted: (ideaId: string) => boolean;
   getVoteType: (ideaId: string) => boolean | null; // true for upvote, false for downvote, null if not voted
   getCurrentSessionId: () => string;
-}>({
+}
+
+const ProductIdeasContext = createContext<CrowdfundingContextType>({
   state: initialState,
   dispatch: () => {},
   addIdea: async () => ({ 
@@ -414,4 +417,11 @@ export const CrowdfundingProvider: React.FC<{ children: React.ReactNode }> = ({ 
   );
 };
 
-export const useCrowdfunding = useContext(ProductIdeasContext);
+// Create a custom hook for using the context
+export const useCrowdfunding = () => {
+  const context = useContext(ProductIdeasContext);
+  if (context === undefined) {
+    throw new Error('useCrowdfunding must be used within a CrowdfundingProvider');
+  }
+  return context;
+};

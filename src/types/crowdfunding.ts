@@ -28,3 +28,30 @@ export interface ProjectStats {
   downvotes: number;
   score: number; // Net score (upvotes - downvotes)
 }
+
+// For backward compatibility with CrowdfundingManager.tsx
+export interface CrowdfundingProject {
+  id: string;
+  title: string;
+  description: string;
+  targetAmount: number;
+  raisedAmount: number;
+  startDate: string;
+  endDate: string;
+  projectDetails: string;
+  externalLink?: string;
+  isFullyFunded: boolean;
+  createdAt: string;
+  updatedAt: string;
+  currency: string;
+  currencySymbol: string;
+}
+
+export interface Backer {
+  id: string;
+  projectId: string;
+  firstName: string;
+  email: string;
+  amount: number;
+  timestamp: string;
+}

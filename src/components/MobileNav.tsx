@@ -18,19 +18,36 @@ const MobileNav: React.FC = () => {
   };
 
   const openSettingSheet = (setting: string) => {
-    // We need to set these in sequence with delay to prevent state conflicts
+    // Close drawer first
     setOpen(false);
-    // Add a slight delay before opening the settings sheet
+    
+    // Add a longer delay before opening the settings sheet to ensure drawer is fully closed
     setTimeout(() => {
       setActiveSettingSheet(setting);
-    }, 150);
+    }, 300); // Increased from 150ms to 300ms for better reliability
   };
 
   return (
     <>
-      <Drawer open={open} onOpenChange={setOpen}>
+      <Drawer open={open} onOpenChange={(isOpen) => {
+        // Only allow setting open to true if no active setting sheet
+        if (isOpen && activeSettingSheet === null) {
+          setOpen(true);
+        } else if (!isOpen) {
+          setOpen(false);
+        }
+      }}>
         <DrawerTrigger asChild>
-          <Button variant="ghost" size="icon" className="md:hidden text-white">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="md:hidden text-white"
+            onClick={() => {
+              if (activeSettingSheet === null) {
+                setOpen(true);
+              }
+            }}
+          >
             <Menu className="h-6 w-6" />
           </Button>
         </DrawerTrigger>
