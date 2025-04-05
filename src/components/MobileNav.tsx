@@ -14,16 +14,14 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Bell, Banknote, CreditCard, Cloud, Link2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import NotificationSettings from "./NotificationSettings";
-import CurrencySelector from "./CurrencySelector";
-import DataExportImport from "./DataExportImport";
-import BackupManager from "./BackupManager";
-import DataRecovery from "./DataRecovery";
+import MobileNavMenu from "./mobile/MobileNavMenu";
+import MobileSettingsMenu from "./mobile/MobileSettingsMenu";
+import SettingsSheetContent from "./mobile/SettingsSheetContent";
 
 const MobileNav: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [activeSheet, setActiveSheet] = useState<string | null>(null);
-  const [sheetTrigger, setSheetTrigger] = useState(0); // Using a counter to force sheet re-render
+  const [sheetTrigger, setSheetTrigger] = useState(0); // Counter to force sheet re-render
   const navigate = useNavigate();
 
   // Navigation items
@@ -86,24 +84,6 @@ const MobileNav: React.FC = () => {
     setActiveSheet(null);
   };
 
-  // Render Settings Sheet content
-  const renderSettingContent = () => {
-    switch (activeSheet) {
-      case "currency":
-        return <CurrencySelector />;
-      case "data":
-        return <DataExportImport />;
-      case "notifications":
-        return <NotificationSettings />;
-      case "backup":
-        return <BackupManager onClose={closeSettingsSheet} />;
-      case "recovery":
-        return <DataRecovery />;
-      default:
-        return null;
-    }
-  };
-
   return (
     <>
       {/* Mobile Menu Button */}
@@ -131,35 +111,16 @@ const MobileNav: React.FC = () => {
           
           <div className="flex-1 overflow-y-auto p-4">
             {/* Navigation Section */}
-            <h3 className="font-medium text-sm text-muted-foreground mb-2">Navigation</h3>
-            <div className="grid gap-2 mb-6">
-              {navigationItems.map((item) => (
-                <Button
-                  key={item.name}
-                  variant="ghost"
-                  className="w-full justify-start text-lg h-12"
-                  onClick={() => handleNavigation(item.path)}
-                >
-                  {item.name}
-                </Button>
-              ))}
-            </div>
+            <MobileNavMenu 
+              navigationItems={navigationItems} 
+              onNavigation={handleNavigation} 
+            />
             
             {/* Settings Section */}
-            <h3 className="font-medium text-sm text-muted-foreground mb-2 mt-4">Settings</h3>
-            <div className="grid gap-2">
-              {settingsItems.map((item) => (
-                <Button
-                  key={item.name}
-                  variant="ghost"
-                  className="w-full justify-start text-lg h-12"
-                  onClick={() => openSettingsSheet(item.setting)}
-                >
-                  {item.icon}
-                  {item.name}
-                </Button>
-              ))}
-            </div>
+            <MobileSettingsMenu 
+              settingsItems={settingsItems} 
+              onSettingSelect={openSettingsSheet} 
+            />
           </div>
           
           <DrawerFooter className="pt-2 border-t">
@@ -193,7 +154,10 @@ const MobileNav: React.FC = () => {
             </SheetTitle>
           </SheetHeader>
           <div className="py-6 h-[calc(100vh-170px)] overflow-y-auto">
-            {renderSettingContent()}
+            <SettingsSheetContent 
+              activeSheet={activeSheet} 
+              onClose={closeSettingsSheet} 
+            />
           </div>
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background">
             <Button variant="outline" onClick={closeSettingsSheet} className="w-full">
