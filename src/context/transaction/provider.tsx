@@ -10,8 +10,9 @@ import { TransactionState, TransactionAction } from "./types";
 
 // Create provider
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // UUID state
+  // UUID state and email
   const [userUuid, setUserUuid] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   // Load state from localStorage
   const savedState = localStorage.getItem("transactionState");
@@ -20,11 +21,15 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     savedState ? JSON.parse(savedState) : initialState
   );
 
-  // Check for saved UUID in localStorage
+  // Check for saved UUID and email in localStorage
   useEffect(() => {
     const savedUuid = localStorage.getItem("userUuid");
+    const savedEmail = localStorage.getItem("userEmail");
     if (savedUuid) {
       setUserUuid(savedUuid);
+    }
+    if (savedEmail) {
+      setUserEmail(savedEmail);
     }
   }, []);
 
@@ -33,18 +38,31 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     localStorage.setItem("transactionState", JSON.stringify(state));
   }, [state]);
 
-  // Generate a new UUID for the user
-  const generateUserUuid = () => {
+  // Generate a new UUID for the user and bind it to an email
+  const generateUserUuid = (email?: string) => {
     const newUuid = uuidv4();
     localStorage.setItem("userUuid", newUuid);
     setUserUuid(newUuid);
-    toast.success("User ID generated successfully");
+    
+    if (email) {
+      localStorage.setItem("userEmail", email);
+      setUserEmail(email);
+      toast.success(`User ID generated and linked to ${email}`);
+    } else {
+      toast.success("User ID generated successfully");
+    }
+    
     return newUuid;
   };
 
   // Check if UUID exists
   const checkUuidExists = () => {
     return !!userUuid;
+  };
+
+  // Get user email
+  const getUserEmail = () => {
+    return userEmail;
   };
 
   // Add a transaction
@@ -179,8 +197,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         state,
         dispatch,
         userUuid,
+        userEmail,
         generateUserUuid,
         checkUuidExists,
+        getUserEmail,
         addTransaction,
         updateTransaction,
         deleteTransaction,

@@ -1,12 +1,37 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { KeyRound, Check, Star, Clock, Rocket, Zap } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { KeyRound, Check, Star, Clock, Rocket, Zap, Mail } from "lucide-react";
+import { toast } from "sonner";
 
 const UuidStatus: React.FC = () => {
-  const { userUuid, generateUserUuid } = useTransactions();
+  const { userUuid, userEmail, generateUserUuid } = useTransactions();
+  const [email, setEmail] = useState<string>("");
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+
+  const validateEmail = (email: string): boolean => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
+  const handleGenerateUuid = () => {
+    if (isGenerating && (!email || !validateEmail(email))) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+    
+    if (isGenerating) {
+      generateUserUuid(email);
+      setIsGenerating(false);
+      setEmail("");
+    } else {
+      setIsGenerating(true);
+    }
+  };
 
   return (
     <Card className="border-orange-200 shadow-lg bg-gradient-to-b from-white to-orange-50/30">
@@ -26,6 +51,12 @@ const UuidStatus: React.FC = () => {
             <div className="text-sm text-muted-foreground break-all">
               <span className="font-medium">Your ID:</span> {userUuid}
             </div>
+            {userEmail && (
+              <div className="flex items-center gap-2 text-green-600 text-sm">
+                <Mail className="h-4 w-4" />
+                <span>Linked to: {userEmail}</span>
+              </div>
+            )}
             <p className="text-sm text-muted-foreground mt-2">
               Your transactions are securely linked to this ID. Keep it safe for data recovery.
             </p>
@@ -46,16 +77,35 @@ const UuidStatus: React.FC = () => {
               <span>Your ID makes data recovery a breeze. Let's get you set up in no time! 🚀</span>
             </p>
             
-            <p className="text-sm text-muted-foreground flex items-start gap-2">
-              <Zap className="h-4 w-4 mt-0.5 flex-shrink-0" />
-              <span>Simply bind your email and you're all set up 🎉</span>
-            </p>
+            {isGenerating ? (
+              <div className="space-y-2 mt-2">
+                <Label htmlFor="email" className="text-sm font-medium flex items-center gap-1">
+                  <Mail className="h-4 w-4" /> Your Email Address
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email address"
+                  className="border-orange-200 focus-visible:ring-orange-400"
+                />
+                <p className="text-xs text-muted-foreground">
+                  We'll link this email to your ID for better data recovery options.
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground flex items-start gap-2">
+                <Zap className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>Simply bind your email and you're all set up 🎉</span>
+              </p>
+            )}
             
             <Button 
-              onClick={generateUserUuid} 
+              onClick={handleGenerateUuid} 
               className="mt-2 bg-orange-500 hover:bg-orange-600 text-white w-full"
             >
-              Generate User ID
+              {isGenerating ? "Confirm and Generate ID" : "Generate User ID"}
             </Button>
           </div>
         )}

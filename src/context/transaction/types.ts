@@ -23,8 +23,10 @@ export interface TransactionContextProps {
   state: TransactionState;
   dispatch: React.Dispatch<TransactionAction>;
   userUuid: string | null;
-  generateUserUuid: () => string;
+  userEmail: string | null;
+  generateUserUuid: (email?: string) => string;
   checkUuidExists: () => boolean;
+  getUserEmail: () => string | null;
   addTransaction: (transaction: Omit<Transaction, "id">) => boolean;
   updateTransaction: (transaction: Transaction) => boolean;
   deleteTransaction: (id: string) => boolean;

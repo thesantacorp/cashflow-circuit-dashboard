@@ -1,9 +1,11 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Button } from "@/components/ui/button";
-import { KeyRound, Star, Rocket } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { KeyRound, Star, Rocket, Mail } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
 
 interface UuidCheckProps {
   onUuidGenerated?: () => void;
@@ -11,9 +13,26 @@ interface UuidCheckProps {
 
 const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
   const { userUuid, generateUserUuid } = useTransactions();
+  const [email, setEmail] = useState<string>("");
+  const [showEmailInput, setShowEmailInput] = useState<boolean>(false);
+  
+  const validateEmail = (email: string): boolean => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
   
   const handleGenerateUuid = () => {
-    generateUserUuid();
+    if (!showEmailInput) {
+      setShowEmailInput(true);
+      return;
+    }
+    
+    if (!email || !validateEmail(email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+    
+    generateUserUuid(email);
     if (onUuidGenerated) {
       onUuidGenerated();
     }
@@ -36,11 +55,28 @@ const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
           <Rocket className="h-4 w-4 mt-1 flex-shrink-0" />
           <span>Create Your Unique ID in seconds and make data recovery a breeze! 🚀</span>
         </p>
+        
+        {showEmailInput && (
+          <div className="mb-3">
+            <div className="flex items-center gap-1 mb-1 text-sm">
+              <Mail className="h-4 w-4" />
+              <span>Enter your email address:</span>
+            </div>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your.email@example.com"
+              className="border-orange-200 focus-visible:ring-orange-400 mb-2"
+            />
+          </div>
+        )}
+        
         <Button 
           onClick={handleGenerateUuid}
           className="bg-orange-500 hover:bg-orange-600 text-white"
         >
-          Generate User ID
+          {showEmailInput ? "Confirm and Generate ID" : "Generate User ID"}
         </Button>
       </AlertDescription>
     </Alert>
