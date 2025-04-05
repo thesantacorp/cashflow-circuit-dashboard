@@ -5,17 +5,31 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { SmtpClient } from 'https://deno.land/x/smtp@v0.7.0/mod.ts';
 
-// Configure your SMTP settings from environment variables
-const SMTP_HOST = Deno.env.get('SMTP_HOST') || '';
-const SMTP_USERNAME = Deno.env.get('SMTP_USERNAME') || '';
-const SMTP_PASSWORD = Deno.env.get('SMTP_PASSWORD') || '';
-const SMTP_PORT = Number(Deno.env.get('SMTP_PORT')) || 587;
-const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'noreply@yourdomain.com';
+// Configure from environment variables first (if set in Supabase)
+let SMTP_HOST = Deno.env.get('SMTP_HOST') || '';
+let SMTP_USERNAME = Deno.env.get('SMTP_USERNAME') || '';
+let SMTP_PASSWORD = Deno.env.get('SMTP_PASSWORD') || '';
+let SMTP_PORT = Number(Deno.env.get('SMTP_PORT')) || 587;
+let FROM_EMAIL = Deno.env.get('FROM_EMAIL') || '';
 
 serve(async (req) => {
   try {
     // Parse the request body
-    const { email, subject, message } = await req.json();
+    const { 
+      email, 
+      subject, 
+      message, 
+      smtpConfig  // Allow passing SMTP config as part of request
+    } = await req.json();
+    
+    // Check if SMTP settings were provided in the request and use them if env vars aren't set
+    if (smtpConfig) {
+      SMTP_HOST = SMTP_HOST || smtpConfig.host || '';
+      SMTP_USERNAME = SMTP_USERNAME || smtpConfig.username || '';
+      SMTP_PASSWORD = SMTP_PASSWORD || smtpConfig.password || '';
+      SMTP_PORT = SMTP_PORT || Number(smtpConfig.port) || 587;
+      FROM_EMAIL = FROM_EMAIL || smtpConfig.fromEmail || '';
+    }
     
     // Log the request (but hide sensitive data)
     console.log(`Processing verification code email request to: ${email}, subject: ${subject}`);
@@ -27,11 +41,14 @@ serve(async (req) => {
       );
     }
 
-    // Validate that we have all required environment variables
-    if (!SMTP_HOST || !SMTP_USERNAME || !SMTP_PASSWORD) {
+    // Validate that we have all required SMTP settings
+    if (!SMTP_HOST || !SMTP_USERNAME || !SMTP_PASSWORD || !FROM_EMAIL) {
       console.error('Missing SMTP configuration');
       return new Response(
-        JSON.stringify({ error: 'Server configuration error: Missing SMTP settings' }),
+        JSON.stringify({ 
+          error: 'Server configuration error: Missing SMTP settings',
+          details: 'SMTP settings must be provided either as environment variables or in the request'
+        }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -88,9 +105,24 @@ export const EDGE_FUNCTION_NAME = 'send-verification-code';
 // 2. Create a new function named 'send-verification-code'
 // 3. Copy the code from the comment above into the function editor
 // 4. Deploy the function
-// 5. Set the following environment variables in your Supabase project:
-//    - SMTP_HOST (e.g., smtp.gmail.com)
-//    - SMTP_USERNAME (your email address)
-//    - SMTP_PASSWORD (your email password or app password)
-//    - SMTP_PORT (usually 587)
-//    - FROM_EMAIL (the email that will appear in the From field)
+// 5. You can either:
+//    a) Set environment variables in your Supabase project:
+//       - SMTP_HOST (e.g., smtp.gmail.com)
+//       - SMTP_USERNAME (your email address)
+//       - SMTP_PASSWORD (your email password or app password)
+//       - SMTP_PORT (usually 587)
+//       - FROM_EMAIL (the email that will appear in the From field)
+//    OR
+//    b) Pass the SMTP configuration in your request body:
+//       {
+//         "email": "recipient@example.com",
+//         "subject": "Your Subject",
+//         "message": "Your message content",
+//         "smtpConfig": {
+//           "host": "smtp.gmail.com",
+//           "username": "your-email@gmail.com",
+//           "password": "your-app-password",
+//           "port": 587,
+//           "fromEmail": "your-email@gmail.com"
+//         }
+//       }
