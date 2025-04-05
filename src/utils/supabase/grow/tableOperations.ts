@@ -26,37 +26,28 @@ export const createProjectsTable = async (): Promise<boolean> => {
       return false;
     }
     
-    // Create the projects table using SQL execution
-    const { error } = await supabase.rpc('create_projects_table_if_not_exists');
+    // Create the projects table using direct SQL
+    const { error } = await supabase.rpc('exec_sql', { 
+      sql: `
+        CREATE TABLE IF NOT EXISTS public.projects (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name TEXT NOT NULL,
+          description TEXT,
+          image_url TEXT,
+          amount NUMERIC,
+          live_link TEXT,
+          more_details TEXT,
+          expiration_date TIMESTAMPTZ,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          upvotes INTEGER NOT NULL DEFAULT 0,
+          downvotes INTEGER NOT NULL DEFAULT 0
+        );
+      `
+    });
     
     if (error) {
       console.error('Failed to create projects table via RPC:', error);
-      
-      // Try direct SQL execution as fallback
-      const { error: sqlError } = await supabase.from('manual_sql_execution').rpc('execute', { 
-        sql_statement: `
-          CREATE TABLE IF NOT EXISTS public.projects (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            name TEXT NOT NULL,
-            description TEXT,
-            image_url TEXT,
-            amount NUMERIC,
-            live_link TEXT,
-            more_details TEXT,
-            expiration_date TIMESTAMPTZ,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            upvotes INTEGER NOT NULL DEFAULT 0,
-            downvotes INTEGER NOT NULL DEFAULT 0
-          );
-        `
-      });
-      
-      if (sqlError) {
-        console.error('Direct SQL execution failed:', sqlError);
-        
-        // Final fallback - try direct table creation
-        return await createProjectsTableDirect();
-      }
+      return await createProjectsTableDirect();
     }
     
     // Verify the table was created
@@ -148,31 +139,22 @@ export const createProjectVotesTable = async (): Promise<boolean> => {
       return false;
     }
     
-    // Create the votes table using SQL execution
-    const { error } = await supabase.rpc('create_project_votes_table_if_not_exists');
+    // Create the votes table using direct SQL
+    const { error } = await supabase.rpc('exec_sql', {
+      sql: `
+        CREATE TABLE IF NOT EXISTS public.project_votes (
+          project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+          user_uuid UUID NOT NULL,
+          vote INTEGER NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY(project_id, user_uuid)
+        );
+      `
+    });
     
     if (error) {
       console.error('Failed to create project_votes table via RPC:', error);
-      
-      // Try direct SQL execution as fallback
-      const { error: sqlError } = await supabase.from('manual_sql_execution').rpc('execute', { 
-        sql_statement: `
-          CREATE TABLE IF NOT EXISTS public.project_votes (
-            project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
-            user_uuid UUID NOT NULL,
-            vote INTEGER NOT NULL,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            PRIMARY KEY(project_id, user_uuid)
-          );
-        `
-      });
-      
-      if (sqlError) {
-        console.error('Direct SQL execution failed:', sqlError);
-        
-        // Final fallback - try direct table creation
-        return await createVotesTableDirect();
-      }
+      return await createVotesTableDirect();
     }
     
     // Verify the table was created
