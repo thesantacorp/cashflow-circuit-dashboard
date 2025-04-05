@@ -2,9 +2,9 @@
 import { useState, useEffect } from 'react';
 import { useTransactions } from '@/context/transaction';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/utils/supabase/client'; // Using the correct path
 import { toast } from 'sonner';
-import { TransactionType, EmotionalState } from '@/context/transaction/types';
+import { TransactionType, EmotionalState } from '@/types'; // Import from types instead of context/transaction/types
 
 type SupabaseCount = {
   count: number;
@@ -26,8 +26,8 @@ export function useSupabaseSync() {
     setIsSyncing(true);
     try {
       // Delete existing data for this user to prevent duplicates
-      await supabase.from('transactions').delete().eq('user_email', user.email);
-      await supabase.from('categories').delete().eq('user_email', user.email);
+      await (supabase.from('transactions') as any).delete().eq('user_email', user.email);
+      await (supabase.from('categories') as any).delete().eq('user_email', user.email);
       
       // Insert transactions
       if (state.transactions.length > 0) {
@@ -156,12 +156,12 @@ export function useSupabaseSync() {
         const hasLocalData = state.transactions.length > 0 || state.categories.length > 0;
         
         // Check if we have remote data
-        const { data: remoteTrans, error } = await (supabase
+        const { data } = await (supabase
           .from('transactions') as any)
           .select('count', { count: 'exact', head: true })
           .eq('user_email', user.email);
         
-        const remoteCount = remoteTrans?.count ?? 0;
+        const remoteCount = data?.count ?? 0;
         
         // If we have remote data but no local data, restore from remote
         if (remoteCount > 0 && !hasLocalData) {

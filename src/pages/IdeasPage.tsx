@@ -1,13 +1,45 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import IdeasGrid from "@/components/ideas/IdeasGrid";
-import IdeasLoading from "@/components/ideas/IdeasLoading";
+import { IdeasGrid } from "@/components/ideas/IdeasGrid";
+import { IdeasLoading } from "@/components/ideas/IdeasLoading";
 import { useIdeaVotes } from "@/hooks/useIdeaVotes";
-import EmptyIdeasState from "@/components/ideas/EmptyIdeasState";
+import { EmptyIdeasState } from "@/components/ideas/EmptyIdeasState";
+import { customClient, Idea } from "@/integrations/supabase/customClient";
+import { toast } from "sonner";
 
 const IdeasPage = () => {
-  const { ideas, isLoading, error } = useIdeaVotes();
+  const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const { userVotes, voteStats, loading: votesLoading, handleVote } = useIdeaVotes(ideas);
+
+  // Fetch ideas on component mount
+  useEffect(() => {
+    const fetchIdeas = async () => {
+      try {
+        const { data, error } = await customClient.ideas
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (error) {
+          throw error;
+        }
+        
+        setIdeas(data || []);
+      } catch (err) {
+        console.error('Error fetching ideas:', err);
+        setError(err instanceof Error ? err : new Error('Failed to fetch ideas'));
+        toast.error('Failed to load ideas');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchIdeas();
+  }, []);
+
+  const isPageLoading = isLoading || votesLoading;
 
   return (
     <div className="container py-8 max-w-7xl">
@@ -19,7 +51,7 @@ const IdeasPage = () => {
         </p>
       </div>
 
-      {isLoading ? (
+      {isPageLoading ? (
         <IdeasLoading />
       ) : error ? (
         <Card className="w-full p-6">
@@ -32,7 +64,12 @@ const IdeasPage = () => {
       ) : ideas.length === 0 ? (
         <EmptyIdeasState />
       ) : (
-        <IdeasGrid ideas={ideas} />
+        <IdeasGrid 
+          ideas={ideas} 
+          userVotes={userVotes} 
+          voteStats={voteStats} 
+          onVote={handleVote} 
+        />
       )}
     </div>
   );
