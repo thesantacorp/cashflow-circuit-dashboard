@@ -84,7 +84,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) return;
     
-    const success = addTransaction({
+    const result = addTransaction({
       amount: parsedAmount,
       categoryId,
       description,
@@ -93,7 +93,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
       emotionalState,
     });
     
-    if (success) {
+    if (result) {
       resetForm();
       if (onSuccess) onSuccess();
     }

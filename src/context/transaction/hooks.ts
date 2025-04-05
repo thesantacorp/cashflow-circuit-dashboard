@@ -1,14 +1,5 @@
 
-import { useContext } from "react";
-import { TransactionContext } from "./context";
-import { Transaction } from "@/types";
+// This file is now just importing and re-exporting from context.ts for backward compatibility
+import { useTransactions as useTransactionsFromContext } from "./context";
 
-export function useTransactions() {
-  const context = useContext(TransactionContext);
-
-  if (context === undefined) {
-    throw new Error("useTransactions must be used within a TransactionProvider");
-  }
-
-  return context;
-}
+export const useTransactions = useTransactionsFromContext;

@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { TransactionContext } from "./context";
 import { useUuidManagement } from "./hooks/useUuidManagement";
@@ -14,8 +13,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     userUuid, 
     userEmail, 
     generateUserUuid,
-    checkUuidExists,
-    getUserEmail,
     syncStatus,
     connectionVerified,
     forceSyncToCloud,
@@ -40,6 +37,15 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getCategoryById, 
     getTotalByType 
   } = useDataOperations(state, userUuid, dispatch);
+
+  // Wrapper functions to match the context interface
+  const checkUuidExists = (): boolean => {
+    return userUuid !== null;
+  };
+
+  const getUserEmail = (): string | null => {
+    return userEmail;
+  };
 
   // Listen for app visibility changes to auto-sync
   useEffect(() => {
