@@ -1,8 +1,8 @@
 
 import { useState, useEffect } from 'react';
-import IdeasGrid from '@/components/ideas/IdeasGrid';
-import IdeasLoading from '@/components/ideas/IdeasLoading';
-import EmptyIdeasState from '@/components/ideas/EmptyIdeasState';
+import { IdeasGrid } from '@/components/ideas/IdeasGrid';
+import { IdeasLoading } from '@/components/ideas/IdeasLoading';
+import { EmptyIdeasState } from '@/components/ideas/EmptyIdeasState';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useSupabaseSync } from '@/hooks/useSupabaseSync';
@@ -13,7 +13,7 @@ const IdeasPage = () => {
   const { user } = useAuth();
   const [ideas, setIdeas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { updateIdeas, getUserVotes } = useIdeaVotes();
+  const { userVotes, voteStats, handleVote, updateIdeas } = useIdeaVotes();
   const { isSyncing } = useSupabaseSync();
 
   // Fetch ideas on page load
@@ -41,13 +41,6 @@ const IdeasPage = () => {
     fetchIdeas();
   }, [updateIdeas]);
 
-  // When the user logs in, fetch their votes
-  useEffect(() => {
-    if (user) {
-      getUserVotes();
-    }
-  }, [user, getUserVotes]);
-
   if (loading) {
     return <IdeasLoading />;
   }
@@ -62,7 +55,12 @@ const IdeasPage = () => {
       <p className="text-muted-foreground mb-8">
         Vote on features and ideas for the app. The most popular ideas will be implemented next!
       </p>
-      <IdeasGrid ideas={ideas} />
+      <IdeasGrid 
+        ideas={ideas}
+        userVotes={userVotes}
+        voteStats={voteStats}
+        onVote={handleVote}
+      />
     </div>
   );
 };
