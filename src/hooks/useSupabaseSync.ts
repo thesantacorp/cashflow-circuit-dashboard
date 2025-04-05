@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useTransactions } from '@/context/transaction';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/utils/supabase/client'; // Using the correct path
+import { getSupabaseClient } from '@/utils/supabase/client'; // Change to use the correct export
 import { toast } from 'sonner';
 import { TransactionType, EmotionalState } from '@/types'; // Import from types instead of context/transaction/types
 
@@ -24,6 +24,8 @@ export function useSupabaseSync() {
     }
 
     setIsSyncing(true);
+    const supabase = getSupabaseClient(); // Get the client when needed
+    
     try {
       // Delete existing data for this user to prevent duplicates
       await (supabase.from('transactions') as any).delete().eq('user_email', user.email);
@@ -96,6 +98,8 @@ export function useSupabaseSync() {
     }
 
     setIsSyncing(true);
+    const supabase = getSupabaseClient(); // Get the client when needed
+    
     try {
       // Fetch transactions
       const { data: transactionsData, error: transactionsError } = await (supabase
@@ -152,6 +156,8 @@ export function useSupabaseSync() {
   useEffect(() => {
     if (user && profile) {
       const syncData = async () => {
+        const supabase = getSupabaseClient(); // Get the client when needed
+        
         // Check if we have local data
         const hasLocalData = state.transactions.length > 0 || state.categories.length > 0;
         
@@ -161,7 +167,15 @@ export function useSupabaseSync() {
           .select('count', { count: 'exact', head: true })
           .eq('user_email', user.email);
         
-        const remoteCount = data?.count ?? 0;
+        // Handle correctly when data is an array or an object with count property
+        let remoteCount = 0;
+        if (data) {
+          if (Array.isArray(data) && data[0]?.count) {
+            remoteCount = data[0].count;
+          } else if (typeof data === 'object' && data.count !== undefined) {
+            remoteCount = data.count;
+          }
+        }
         
         // If we have remote data but no local data, restore from remote
         if (remoteCount > 0 && !hasLocalData) {

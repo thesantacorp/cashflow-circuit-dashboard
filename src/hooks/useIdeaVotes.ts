@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
@@ -6,7 +5,7 @@ import { customClient, Idea, Vote } from '@/integrations/supabase/customClient';
 
 type VoteStats = Record<string, {upvotes: number, downvotes: number}>;
 
-export const useIdeaVotes = (ideas: Idea[]) => {
+export const useIdeaVotes = (ideas: Idea[] = []) => {
   const { user } = useAuth();
   const [userVotes, setUserVotes] = useState<Record<string, Vote>>({});
   const [voteStats, setVoteStats] = useState<VoteStats>({});
@@ -40,7 +39,6 @@ export const useIdeaVotes = (ideas: Idea[]) => {
         setVoteStats(ideasStats);
       }
       
-      // If user is logged in, fetch their votes
       if (user) {
         const { data: votesData, error: votesError } = await customClient.votes
           .select()
@@ -75,18 +73,15 @@ export const useIdeaVotes = (ideas: Idea[]) => {
     try {
       const existingVote = userVotes[ideaId];
       
-      // If there's an existing vote of the same type, remove it (toggle off)
       if (existingVote && existingVote.vote_type === voteType) {
         await customClient.votes
           .delete()
           .eq('id', existingVote.id);
           
-        // Update local state
         const newUserVotes = { ...userVotes };
         delete newUserVotes[ideaId];
         setUserVotes(newUserVotes);
         
-        // Update vote stats
         setVoteStats(prev => ({
           ...prev,
           [ideaId]: {
@@ -97,13 +92,11 @@ export const useIdeaVotes = (ideas: Idea[]) => {
         
         toast.success('Vote removed');
       } 
-      // If there's an existing vote of different type, update it
       else if (existingVote) {
         await customClient.votes
           .update({ vote_type: voteType })
           .eq('id', existingVote.id);
           
-        // Update local state
         setUserVotes({
           ...userVotes,
           [ideaId]: {
@@ -112,7 +105,6 @@ export const useIdeaVotes = (ideas: Idea[]) => {
           }
         });
         
-        // Update vote stats
         setVoteStats(prev => ({
           ...prev,
           [ideaId]: {
@@ -127,7 +119,6 @@ export const useIdeaVotes = (ideas: Idea[]) => {
         
         toast.success(`${voteType === 'upvote' ? 'Upvoted' : 'Downvoted'} successfully`);
       } 
-      // If there's no existing vote, create a new one
       else {
         const { data, error } = await customClient.votes
           .insert({
@@ -140,13 +131,11 @@ export const useIdeaVotes = (ideas: Idea[]) => {
           
         if (error) throw error;
         
-        // Update local state
         setUserVotes(prev => ({
           ...prev,
           [ideaId]: data as Vote
         }));
         
-        // Update vote stats
         setVoteStats(prev => ({
           ...prev,
           [ideaId]: {
@@ -165,7 +154,11 @@ export const useIdeaVotes = (ideas: Idea[]) => {
   };
 
   useEffect(() => {
-    fetchVoteStats();
+    if (ideas && ideas.length > 0) {
+      fetchVoteStats();
+    } else {
+      setLoading(false);
+    }
   }, [ideas, user?.id]);
 
   return { userVotes, voteStats, loading, handleVote };
