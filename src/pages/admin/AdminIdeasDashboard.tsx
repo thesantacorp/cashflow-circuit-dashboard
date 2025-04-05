@@ -1,7 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,23 +54,8 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-
-interface Idea {
-  id: string;
-  name: string;
-  description: string;
-  image_url: string | null;
-  countdown_timer: string;
-  live_project_link: string | null;
-  learn_more_link: string | null;
-  created_at: string;
-}
-
-interface VoteSummary {
-  idea_id: string;
-  upvotes: number;
-  downvotes: number;
-}
+import { supabase } from '@/integrations/supabase/client';
+import { customClient, Idea, VoteSummary } from '@/integrations/supabase/customClient';
 
 const AdminIdeasDashboard = () => {
   const navigate = useNavigate();
@@ -136,9 +120,8 @@ const AdminIdeasDashboard = () => {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
-        .from('ideas')
-        .select('*')
+      const { data, error } = await customClient.ideas
+        .select()
         .order('created_at', { ascending: false });
         
       if (error) throw error;
@@ -150,15 +133,13 @@ const AdminIdeasDashboard = () => {
         const voteStats: Record<string, VoteSummary> = {};
         
         for (const idea of data) {
-          const { data: upvotes, error: upvotesError } = await supabase
-            .from('votes')
-            .select('id')
+          const { data: upvotes, error: upvotesError } = await customClient.votes
+            .select()
             .eq('idea_id', idea.id)
             .eq('vote_type', 'upvote');
             
-          const { data: downvotes, error: downvotesError } = await supabase
-            .from('votes')
-            .select('id')
+          const { data: downvotes, error: downvotesError } = await customClient.votes
+            .select()
             .eq('idea_id', idea.id)
             .eq('vote_type', 'downvote');
             
@@ -210,7 +191,7 @@ const AdminIdeasDashboard = () => {
         const filePath = `ideas/${fileName}`;
         
         // Get pre-signed URL for upload
-        const { data: { signedURL }, error: urlError } = await supabase
+        const { data, error: urlError } = await supabase
           .storage
           .from('ideas')
           .createSignedUploadUrl(filePath);
@@ -218,7 +199,7 @@ const AdminIdeasDashboard = () => {
         if (urlError) throw urlError;
         
         // Upload file using signed URL
-        const uploadResponse = await fetch(signedURL, {
+        const uploadResponse = await fetch(data.signedUrl, {
           method: 'PUT',
           headers: { 'Content-Type': imageFile.type },
           body: imageFile
@@ -240,8 +221,7 @@ const AdminIdeasDashboard = () => {
       
       if (editingIdea) {
         // Update existing idea
-        const { error } = await supabase
-          .from('ideas')
+        const { error } = await customClient.ideas
           .update({
             name,
             description,
@@ -257,8 +237,7 @@ const AdminIdeasDashboard = () => {
         toast.success('Idea updated successfully');
       } else {
         // Create new idea
-        const { error } = await supabase
-          .from('ideas')
+        const { error } = await customClient.ideas
           .insert({
             name,
             description,
@@ -289,8 +268,7 @@ const AdminIdeasDashboard = () => {
   
   const handleDeleteIdea = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('ideas')
+      const { error } = await customClient.ideas
         .delete()
         .eq('id', id);
         

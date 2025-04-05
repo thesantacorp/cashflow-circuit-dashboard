@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { 
   ThumbsUp, 
   ThumbsDown, 
@@ -15,23 +14,7 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
-
-interface Idea {
-  id: string;
-  name: string;
-  description: string;
-  image_url: string | null;
-  countdown_timer: string;
-  live_project_link: string | null;
-  learn_more_link: string | null;
-  created_at: string;
-}
-
-interface Vote {
-  id: string;
-  idea_id: string;
-  vote_type: 'upvote' | 'downvote';
-}
+import { customClient, Idea, Vote } from '@/integrations/supabase/customClient';
 
 const IdeasPage = () => {
   const { user } = useAuth();
@@ -42,9 +25,8 @@ const IdeasPage = () => {
 
   const fetchIdeas = async () => {
     try {
-      const { data: ideasData, error: ideasError } = await supabase
-        .from('ideas')
-        .select('*')
+      const { data: ideasData, error: ideasError } = await customClient.ideas
+        .select()
         .order('countdown_timer', { ascending: true });
       
       if (ideasError) throw ideasError;
@@ -56,15 +38,13 @@ const IdeasPage = () => {
         const ideasStats: Record<string, {upvotes: number, downvotes: number}> = {};
         
         for (const idea of ideasData) {
-          const { data: upvotes, error: upvotesError } = await supabase
-            .from('votes')
-            .select('id')
+          const { data: upvotes, error: upvotesError } = await customClient.votes
+            .select()
             .eq('idea_id', idea.id)
             .eq('vote_type', 'upvote');
             
-          const { data: downvotes, error: downvotesError } = await supabase
-            .from('votes')
-            .select('id')
+          const { data: downvotes, error: downvotesError } = await customClient.votes
+            .select()
             .eq('idea_id', idea.id)
             .eq('vote_type', 'downvote');
             
@@ -82,9 +62,8 @@ const IdeasPage = () => {
       
       // If user is logged in, fetch their votes
       if (user) {
-        const { data: votesData, error: votesError } = await supabase
-          .from('votes')
-          .select('*')
+        const { data: votesData, error: votesError } = await customClient.votes
+          .select()
           .eq('user_id', user.id);
           
         if (votesError) throw votesError;
@@ -118,8 +97,7 @@ const IdeasPage = () => {
       
       // If there's an existing vote of the same type, remove it (toggle off)
       if (existingVote && existingVote.vote_type === voteType) {
-        await supabase
-          .from('votes')
+        await customClient.votes
           .delete()
           .eq('id', existingVote.id);
           
@@ -141,8 +119,7 @@ const IdeasPage = () => {
       } 
       // If there's an existing vote of different type, update it
       else if (existingVote) {
-        await supabase
-          .from('votes')
+        await customClient.votes
           .update({ vote_type: voteType })
           .eq('id', existingVote.id);
           
@@ -172,8 +149,7 @@ const IdeasPage = () => {
       } 
       // If there's no existing vote, create a new one
       else {
-        const { data, error } = await supabase
-          .from('votes')
+        const { data, error } = await customClient.votes
           .insert({
             idea_id: ideaId,
             user_id: user.id,
