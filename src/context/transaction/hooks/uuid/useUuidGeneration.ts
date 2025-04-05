@@ -2,11 +2,12 @@
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
 import { verifySupabaseSetup } from "@/utils/supabaseVerification";
+import { syncQueue } from "@/utils/supabaseInit";
 
 interface UseUuidGenerationProps {
   setUserUuid: React.Dispatch<React.SetStateAction<string | null>>;
   setUserEmail: React.Dispatch<React.SetStateAction<string | null>>;
-  setSyncStatus: React.Dispatch<React.SetStateAction<'synced' | 'local-only' | 'unknown'>>;
+  setSyncStatus: React.Dispatch<React.SetStateAction<'synced' | 'syncing' | 'local-only' | 'error' | 'unknown'>>;
   userUuid: string | null;
   tableVerified: boolean;
   setTableVerified: React.Dispatch<React.SetStateAction<boolean>>;
@@ -43,12 +44,23 @@ export function useUuidGeneration({
       const newUuid = uuidv4();
       console.log(`Generated new UUID: ${newUuid}`);
       
+      // Show generating progress
+      toast.loading("Generating your unique User ID...", { id: "uuid-generate" });
+      
       // Store locally first to ensure we have a backup
       localStorage.setItem("userUuid", newUuid);
       localStorage.setItem("userEmail", email);
       
+      // Update state immediately so UI is responsive
       setUserUuid(newUuid);
       setUserEmail(email);
+      
+      // Mark as local first, will update if sync succeeds
+      setSyncStatus('local-only');
+      toast.success("User ID generated successfully", { 
+        id: "uuid-generate",
+        description: "Your ID has been saved locally"
+      });
       
       // Attempt immediate sync to Supabase
       if (connectionVerified) {
@@ -68,45 +80,70 @@ export function useUuidGeneration({
         
         if (tableReady) {
           // Show sync progress to user
+          setSyncStatus('syncing');
           toast.loading("Syncing your User ID to the cloud...", { id: "uuid-sync" });
           
-          // Try to store with retries
-          const { forceSyncToCloud } = await import('./useUuidSynchronization');
-          const syncProps = {
-            userUuid: newUuid,
-            userEmail: email,
-            setSyncStatus,
-            syncRetryCount: 0,
-            setSyncRetryCount: () => {},
-            tableVerified: tableReady,
-            setTableVerified,
-            connectionVerified,
-            setConnectionVerified: () => {}
-          };
-          const syncUtils = forceSyncToCloud(syncProps);
-          const success = await syncUtils(false);
-          
-          if (success) {
-            setSyncStatus('synced');
-            toast.success(`User ID generated and synced to cloud`, { id: "uuid-sync" });
-          } else {
+          // Try to store in Supabase
+          try {
+            const { storeUserUuid } = await import('@/utils/supabase/index');
+            const success = await storeUserUuid(email, newUuid);
+            
+            if (success) {
+              setSyncStatus('synced');
+              toast.success("User ID synced to cloud", { 
+                id: "uuid-sync",
+                description: "Your ID is now backed up in the cloud" 
+              });
+            } else {
+              // Add to sync queue and continue with local ID
+              syncQueue.add('syncUuid', { email, uuid: newUuid });
+              
+              setSyncStatus('local-only');
+              toast.warning("User ID stored locally", { 
+                id: "uuid-sync",
+                description: "Will sync to cloud when connection is available",
+                action: {
+                  label: "Try Again",
+                  onClick: () => {
+                    const { forceSyncToCloud } = require('./useUuidSynchronization');
+                    const syncProps = {
+                      userUuid: newUuid,
+                      userEmail: email,
+                      setSyncStatus,
+                      syncRetryCount: 0,
+                      setSyncRetryCount: () => {},
+                      tableVerified: tableReady,
+                      setTableVerified,
+                      connectionVerified,
+                      setConnectionVerified: () => {}
+                    };
+                    forceSyncToCloud(syncProps)();
+                  }
+                }
+              });
+            }
+          } catch (syncError) {
+            console.error('Error syncing UUID to Supabase:', syncError);
+            // Add to retry queue
+            syncQueue.add('syncUuid', { email, uuid: newUuid });
+            
             setSyncStatus('local-only');
-            toast.error(`Failed to sync to cloud`, { 
+            toast.warning("User ID stored locally only", { 
               id: "uuid-sync",
-              description: "Your ID is stored locally. We'll try again later." 
+              description: "Will sync to cloud when connection is available" 
             });
           }
         } else {
           setSyncStatus('local-only');
           console.warn('Table does not exist, skipping Supabase sync');
-          toast.warning(`User ID stored locally only`, { 
+          toast.warning("User ID stored locally only", { 
             id: "uuid-sync",
             description: "Cloud sync will be attempted later" 
           });
         }
       } else {
         setSyncStatus('local-only');
-        toast.warning(`User ID generated and stored locally`, { 
+        toast.warning("User ID generated and stored locally", { 
           id: "uuid-sync",
           description: "No connection to cloud database" 
         });

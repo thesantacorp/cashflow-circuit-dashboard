@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,17 +21,55 @@ import AdminNotificationDashboard from "./pages/AdminNotificationDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import { initSessionTracking } from "./utils/sessionTracking";
 import { initRecoverySystem } from "./utils/userDataRecovery";
-import { initializeSupabase } from "./utils/supabaseInit";
+import { initializeSupabase, checkSupabaseConnection } from "./utils/supabaseInit";
 import { toast } from "sonner";
 
 const queryClient = new QueryClient();
-const MAX_LOADING_TIME = 5000; // Max loading time before force continuing
+const MAX_LOADING_TIME = 4000; // Reduced max loading time to improve UX
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [supabaseInitialized, setSupabaseInitialized] = useState(false);
   const [initAttempted, setInitAttempted] = useState(false);
+  const [networkStatus, setNetworkStatus] = useState<'online'|'offline'>(
+    navigator.onLine ? 'online' : 'offline'
+  );
 
+  // Keep track of network status
+  useEffect(() => {
+    const handleOnline = () => {
+      setNetworkStatus('online');
+      // If we're already initialized, check Supabase connection on reconnect
+      if (initAttempted) {
+        checkSupabaseConnection()
+          .then(connected => {
+            if (connected && !supabaseInitialized) {
+              console.log('Network reconnected, initializing Supabase...');
+              initializeSupabase().then(setSupabaseInitialized);
+            }
+          })
+          .catch(console.error);
+      }
+    };
+    
+    const handleOffline = () => {
+      setNetworkStatus('offline');
+      if (isLoading) {
+        // Speed up initialization if we're offline
+        setIsLoading(false);
+      }
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [initAttempted, supabaseInitialized, isLoading]);
+
+  // App initialization
   useEffect(() => {
     const initApp = async () => {
       setInitAttempted(true);
@@ -43,13 +80,30 @@ function App() {
           console.warn("Force continuing app initialization after timeout");
           setIsLoading(false);
           toast.warning("Some features initialized slowly", {
-            description: "The app will continue in local mode"
+            description: "The app will continue in local mode",
+            duration: 5000
           });
         }
       }, MAX_LOADING_TIME);
       
-      // Initialize Supabase connection first
       try {
+        // Initialize session tracking first (doesn't require connection)
+        initSessionTracking();
+        initRecoverySystem();
+        
+        // If we're offline, skip Supabase initialization
+        if (networkStatus === 'offline') {
+          console.log('Device is offline, skipping Supabase initialization');
+          toast.warning("You're currently offline", {
+            description: "Running in local mode - your data will be stored on this device",
+            duration: 5000
+          });
+          clearTimeout(forceLoadTimeout);
+          setIsLoading(false);
+          return;
+        }
+      
+        // Check connection to Supabase
         console.log("Initializing Supabase connection...");
         const success = await initializeSupabase();
         setSupabaseInitialized(success);
@@ -57,25 +111,22 @@ function App() {
         if (!success) {
           console.warn("Continuing without full Supabase initialization");
         }
+        
+        // Continue app initialization regardless of Supabase connection
+        setTimeout(() => {
+          clearTimeout(forceLoadTimeout); // Clear the force timeout
+          setIsLoading(false);
+        }, 800); // Short delay to allow UI to update
+        
       } catch (error) {
-        console.error("Failed to initialize Supabase:", error);
-        toast.error("Could not connect to the database", {
-          description: "Your data will be stored locally only",
+        console.error("Failed during app initialization:", error);
+        toast.error("Error during app initialization", {
+          description: "Continuing in local mode",
           duration: 5000,
         });
-      }
-      
-      // Initialize session tracking
-      initSessionTracking();
-      
-      // Initialize recovery system
-      initRecoverySystem();
-      
-      // Simulating app initialization time - use shorter time for better UX
-      setTimeout(() => {
-        clearTimeout(forceLoadTimeout); // Clear the force timeout if normal init completes
+        clearTimeout(forceLoadTimeout);
         setIsLoading(false);
-      }, 1500);
+      }
     };
     
     if (!initAttempted) {
@@ -84,10 +135,20 @@ function App() {
     
     // Auto-sync check on app focus or visibility change
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && supabaseInitialized) {
+      if (document.visibilityState === 'visible') {
         console.log("App is visible again, checking for sync needs...");
         // This will trigger the TransactionProvider to check if syncing is needed
         window.dispatchEvent(new Event('app-visible'));
+        
+        // Also check Supabase connection if not already initialized
+        if (initAttempted && !supabaseInitialized) {
+          checkSupabaseConnection().then(connected => {
+            if (connected) {
+              console.log('Connection restored, initializing Supabase...');
+              initializeSupabase().then(setSupabaseInitialized);
+            }
+          });
+        }
       }
     };
     
@@ -96,7 +157,7 @@ function App() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [supabaseInitialized, isLoading, initAttempted]);
+  }, [initAttempted, supabaseInitialized, isLoading, networkStatus]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -122,6 +183,21 @@ function App() {
                           <Navbar />
                           <main className="flex-1 py-6 px-4 sm:px-6 w-full">
                             <div className="max-w-7xl mx-auto w-full">
+                              {networkStatus === 'offline' && (
+                                <div className="bg-amber-50 text-amber-800 px-4 py-2 rounded-md mb-4 text-sm flex items-center gap-2 shadow-sm">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" 
+                                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="1" x2="23" y1="1" y2="23"></line>
+                                    <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+                                    <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+                                    <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+                                    <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+                                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                                    <line x1="12" x2="12.01" y1="20" y2="20"></line>
+                                  </svg>
+                                  You're currently offline. Your data is being saved locally and will sync when you're back online.
+                                </div>
+                              )}
                               <Routes>
                                 <Route path="/" element={<OverviewPageEnhanced />} />
                                 <Route path="/expenses" element={<ExpensesPage />} />

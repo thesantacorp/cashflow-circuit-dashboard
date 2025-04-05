@@ -5,22 +5,37 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { KeyRound, Check, Star, Clock, Rocket, Zap, Mail, Loader2, Cloud, CloudOff, RefreshCw } from "lucide-react";
+import { 
+  KeyRound, Check, Star, Clock, Rocket, Zap, Mail, Loader2, 
+  Cloud, CloudOff, RefreshCw, AlertTriangle, Wifi, WifiOff 
+} from "lucide-react";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import SyncVerification from "./SyncVerification";
 
 const UuidStatus: React.FC = () => {
-  const { userUuid, userEmail, generateUserUuid, syncStatus, forceSyncToCloud, checkSyncStatus } = useTransactions();
+  const { 
+    userUuid, 
+    userEmail, 
+    generateUserUuid, 
+    syncStatus, 
+    forceSyncToCloud, 
+    checkSyncStatus,
+    connectionVerified 
+  } = useTransactions();
   const [email, setEmail] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [showEmailInput, setShowEmailInput] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [showVerification, setShowVerification] = useState<boolean>(true); // Show verification by default
+  const [showVerification, setShowVerification] = useState<boolean>(false);
+  const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
 
   // Check sync status on mount
   useEffect(() => {
     if (userUuid && userEmail) {
-      checkSyncStatus();
+      checkSyncStatus().then(() => {
+        setLastCheckTime(new Date());
+      });
     }
   }, [userUuid, userEmail, checkSyncStatus]);
 
@@ -63,6 +78,7 @@ const UuidStatus: React.FC = () => {
         toast.success("Successfully synced to cloud!");
         // Automatically show verification after sync
         setShowVerification(true);
+        setLastCheckTime(new Date());
       }
     } catch (error) {
       console.error("Error syncing to cloud:", error);
@@ -70,6 +86,49 @@ const UuidStatus: React.FC = () => {
       setIsSyncing(false);
     }
   };
+
+  const handleVerifyStatus = () => {
+    checkSyncStatus().then(() => {
+      setLastCheckTime(new Date());
+    });
+  };
+
+  const getSyncStatusDisplay = () => {
+    switch (syncStatus) {
+      case 'synced':
+        return {
+          icon: <Cloud className="h-4 w-4" />,
+          text: 'Synced to cloud',
+          color: 'text-green-600'
+        };
+      case 'syncing':
+        return {
+          icon: <Loader2 className="h-4 w-4 animate-spin" />,
+          text: 'Syncing to cloud...',
+          color: 'text-indigo-600'
+        };
+      case 'local-only':
+        return {
+          icon: <CloudOff className="h-4 w-4" />,
+          text: 'Stored locally only',
+          color: 'text-amber-600'
+        };
+      case 'error':
+        return {
+          icon: <AlertTriangle className="h-4 w-4" />,
+          text: 'Sync error',
+          color: 'text-red-600'
+        };
+      default:
+        return {
+          icon: <Clock className="h-4 w-4" />,
+          text: 'Sync status unknown',
+          color: 'text-gray-500'
+        };
+    }
+  };
+
+  const statusDisplay = getSyncStatusDisplay();
 
   return (
     <>
@@ -97,63 +156,89 @@ const UuidStatus: React.FC = () => {
                 </div>
               )}
               
-              {/* Sync status indicator */}
+              {/* Connection status indicator */}
               <div className={`flex items-center gap-2 text-sm mt-1 ${
-                syncStatus === 'synced' 
-                  ? 'text-green-600' 
-                  : syncStatus === 'local-only' 
-                    ? 'text-amber-600' 
-                    : 'text-gray-500'
+                connectionVerified ? 'text-green-600' : 'text-amber-600'
               }`}>
-                {syncStatus === 'synced' ? (
+                {connectionVerified ? (
                   <>
-                    <Cloud className="h-4 w-4" />
-                    <span>Synced to cloud</span>
-                  </>
-                ) : syncStatus === 'local-only' ? (
-                  <>
-                    <CloudOff className="h-4 w-4" />
-                    <span>Stored locally only</span>
+                    <Wifi className="h-4 w-4" />
+                    <span>Cloud connection active</span>
                   </>
                 ) : (
                   <>
-                    <Clock className="h-4 w-4" />
-                    <span>Sync status unknown</span>
+                    <WifiOff className="h-4 w-4" />
+                    <span>No cloud connection</span>
                   </>
                 )}
               </div>
               
-              {syncStatus === 'local-only' && (
-                <Button
-                  onClick={handleSyncToCloud}
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                  disabled={isSyncing}
-                >
-                  {isSyncing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Syncing...
-                    </>
-                  ) : (
-                    <>
-                      <Cloud className="mr-2 h-4 w-4" />
-                      Sync to Cloud
-                    </>
-                  )}
-                </Button>
+              {/* Sync status indicator */}
+              <div className={`flex items-center gap-2 text-sm mt-1 ${statusDisplay.color}`}>
+                {statusDisplay.icon}
+                <span>{statusDisplay.text}</span>
+              </div>
+              
+              {lastCheckTime && (
+                <div className="text-xs text-gray-500 mt-1">
+                  Last checked: {lastCheckTime.toLocaleTimeString()}
+                </div>
               )}
               
-              <Button
-                onClick={() => setShowVerification(!showVerification)}
-                variant={showVerification ? "default" : "ghost"}
-                size="sm"
-                className={`mt-3 ${showVerification ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"}`}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                {showVerification ? "Hide Verification" : "Verify Cloud Sync"}
-              </Button>
+              {/* Action buttons based on sync status */}
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(syncStatus === 'local-only' || syncStatus === 'error') && (
+                  <Button
+                    onClick={handleSyncToCloud}
+                    variant="outline"
+                    size="sm"
+                    disabled={isSyncing || !connectionVerified}
+                    className="flex-1"
+                  >
+                    {isSyncing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <Cloud className="mr-2 h-4 w-4" />
+                        Sync to Cloud
+                      </>
+                    )}
+                  </Button>
+                )}
+                
+                <Button
+                  onClick={handleVerifyStatus}
+                  variant="outline"
+                  size="sm"
+                  disabled={!connectionVerified}
+                  className="flex-1"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Verify Status
+                </Button>
+                
+                <Button
+                  onClick={() => setShowVerification(!showVerification)}
+                  variant={showVerification ? "default" : "outline"}
+                  size="sm"
+                  className={`flex-1 ${showVerification ? "bg-indigo-600 hover:bg-indigo-700 text-white" : ""}`}
+                >
+                  {showVerification ? "Hide Details" : "Show Details"}
+                </Button>
+              </div>
+              
+              {/* Offline warning */}
+              {!connectionVerified && (
+                <Alert variant="warning" className="mt-3 bg-amber-50 border-amber-200">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-800 text-sm">
+                    You're currently offline. Your User ID is stored locally and will sync when your connection is restored.
+                  </AlertDescription>
+                </Alert>
+              )}
               
               <p className="text-sm text-muted-foreground mt-2">
                 Your transactions are securely linked to this ID. Keep it safe for data recovery.
@@ -199,6 +284,23 @@ const UuidStatus: React.FC = () => {
                 </p>
               )}
               
+              {/* Connection status for new users */}
+              <div className={`flex items-center gap-2 text-sm ${
+                connectionVerified ? 'text-green-600' : 'text-amber-600'
+              }`}>
+                {connectionVerified ? (
+                  <>
+                    <Wifi className="h-4 w-4" />
+                    <span>Cloud connection available</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="h-4 w-4" />
+                    <span>No cloud connection - ID will be stored locally only</span>
+                  </>
+                )}
+              </div>
+              
               <Button 
                 onClick={handleGenerateUuid} 
                 className="mt-2 bg-orange-500 hover:bg-orange-600 text-white w-full"
@@ -220,7 +322,7 @@ const UuidStatus: React.FC = () => {
         </CardContent>
       </Card>
       
-      {/* Verification component - now shown by default when user has a UUID */}
+      {/* Verification component - conditionally shown */}
       {userUuid && showVerification && <div className="mt-4"><SyncVerification /></div>}
     </>
   );

@@ -2,13 +2,14 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { verifySupabaseSetup } from "@/utils/supabaseVerification";
+import { syncQueue } from "@/utils/supabaseInit";
 
-const SYNC_TIMEOUT = 10000; // 10 seconds timeout for sync operations
+const SYNC_TIMEOUT = 8000; // Lower the timeout to improve user experience
 
 interface UseUuidSynchronizationProps {
   userUuid: string | null;
   userEmail: string | null;
-  setSyncStatus: React.Dispatch<React.SetStateAction<'synced' | 'local-only' | 'unknown'>>;
+  setSyncStatus: React.Dispatch<React.SetStateAction<'synced' | 'syncing' | 'local-only' | 'error' | 'unknown'>>;
   syncRetryCount: number;
   setSyncRetryCount: React.Dispatch<React.SetStateAction<number>>;
   tableVerified: boolean;
@@ -38,12 +39,32 @@ export function useUuidSynchronization({
     try {
       console.log(`Force syncing UUID ${userUuid} for ${userEmail} to cloud...`);
       
+      // Update sync status to indicate syncing is in progress
+      setSyncStatus('syncing');
+      
       if (!silent) {
         toast.loading("Syncing to cloud...", { id: "force-sync" });
       }
       
       // Set up a timeout for the sync operation
-      let timeoutId: number | null = null;
+      let syncComplete = false;
+      const timeoutPromise = new Promise<boolean>(resolve => {
+        setTimeout(() => {
+          if (!syncComplete) {
+            console.warn("Sync operation timed out");
+            // Add to sync queue if timeout occurs
+            syncQueue.add('syncUuid', { email: userEmail, uuid: userUuid });
+            if (!silent) {
+              toast.warning("Sync operation timed out", { 
+                id: "force-sync",
+                description: "Will retry in background"
+              });
+            }
+            resolve(false);
+          }
+        }, SYNC_TIMEOUT);
+      });
+      
       const syncPromise = new Promise<boolean>(async (resolve) => {
         try {
           // Verify Supabase connection
@@ -53,7 +74,13 @@ export function useUuidSynchronization({
             setTableVerified(verification.tableExists);
             
             if (!verification.connected) {
-              if (!silent) toast.error("Cannot connect to cloud database", { id: "force-sync" });
+              if (!silent) {
+                toast.error("Cannot connect to cloud database", { 
+                  id: "force-sync",
+                  description: "Your data will be stored locally"
+                });
+              }
+              setSyncStatus('local-only');
               resolve(false);
               return;
             }
@@ -68,7 +95,10 @@ export function useUuidSynchronization({
               setTableVerified(tableExists);
             } catch (tableError) {
               console.error('Error ensuring table exists during force sync:', tableError);
-              if (!silent) toast.error("Could not verify database table", { id: "force-sync" });
+              if (!silent) {
+                toast.error("Could not verify database table", { id: "force-sync" });
+              }
+              setSyncStatus('error');
               resolve(false);
               return;
             }
@@ -81,6 +111,7 @@ export function useUuidSynchronization({
                 description: "Please check your Supabase project"
               });
             }
+            setSyncStatus('error');
             resolve(false);
             return;
           }
@@ -94,7 +125,9 @@ export function useUuidSynchronization({
             
             if (exists) {
               setSyncStatus('synced');
-              if (!silent) toast.success("User ID is already synced to the cloud", { id: "force-sync" });
+              if (!silent) {
+                toast.success("User ID is already synced to the cloud", { id: "force-sync" });
+              }
               resolve(true);
               return;
             }
@@ -102,89 +135,82 @@ export function useUuidSynchronization({
             console.error('Error verifying UUID existence:', verifyError);
           }
           
-          // If not, try to store it with limited retries
-          let success = false;
-          let attempts = 0;
-          const maxAttempts = 2; // Limit retries to avoid infinite loops
-          
-          while (!success && attempts < maxAttempts) {
-            try {
-              console.log(`Attempt ${attempts + 1}/${maxAttempts} to sync UUID to Supabase`);
-              const { storeUserUuid } = await import('@/utils/supabase/index');
-              success = await storeUserUuid(userEmail, userUuid);
-              
-              if (success) {
-                console.log('UUID successfully synced to Supabase');
-                setSyncStatus('synced');
-                if (!silent) toast.success("User ID successfully synced to the cloud", { id: "force-sync" });
-                resolve(true);
-                return;
+          // If not, try to store it
+          try {
+            console.log(`Attempting to sync UUID to Supabase`);
+            const { storeUserUuid } = await import('@/utils/supabase/index');
+            const success = await storeUserUuid(userEmail, userUuid);
+            
+            if (success) {
+              console.log('UUID successfully synced to Supabase');
+              setSyncStatus('synced');
+              if (!silent) {
+                toast.success("User ID successfully synced to the cloud", { id: "force-sync" });
               }
-            } catch (syncError) {
-              console.error(`Error on sync attempt ${attempts + 1}:`, syncError);
+              resolve(true);
+              return;
+            } else {
+              // Add to sync queue for later retry
+              syncQueue.add('syncUuid', { email: userEmail, uuid: userUuid });
+              
+              console.warn('Failed to sync UUID to Supabase, added to retry queue');
+              setSyncStatus('local-only');
+              
+              if (!silent) {
+                toast.warning("Sync temporarily unavailable", { 
+                  id: "force-sync",
+                  description: "Your ID is stored locally and will be synced later",
+                  action: {
+                    label: "Retry Now",
+                    onClick: () => forceSyncToCloud(false)
+                  }
+                });
+              }
+              resolve(false);
             }
+          } catch (syncError) {
+            console.error(`Error syncing UUID:`, syncError);
+            // Add to retry queue
+            syncQueue.add('syncUuid', { email: userEmail, uuid: userUuid });
             
-            if (!success && attempts < maxAttempts - 1) {
-              const delay = 1000;
-              console.log(`Waiting ${delay}ms before retry...`);
-              await new Promise(resolve => setTimeout(resolve, delay));
+            setSyncStatus('error');
+            if (!silent) {
+              toast.error("Error syncing to cloud", { 
+                id: "force-sync",
+                description: "Will retry automatically when connection is available"
+              });
             }
-            
-            attempts++;
-          }
-          
-          setSyncRetryCount(prevCount => {
-            // Limit retry count to prevent infinite loops
-            return prevCount < 5 ? prevCount + 1 : prevCount;
-          });
-          
-          if (!success) {
-            console.error('Failed to sync UUID to Supabase after multiple attempts');
-            if (!silent) toast.error("Failed to sync User ID to the cloud", { id: "force-sync" });
-            setSyncStatus('local-only');
-            
-            // Schedule just one more retry attempt later, with exponential backoff
-            if (syncRetryCount < 3) {
-              const retryDelay = 5000 * Math.pow(2, syncRetryCount);
-              console.log(`Scheduling another retry in ${retryDelay}ms`);
-              setTimeout(() => forceSyncToCloud(true), retryDelay);
-            }
-            
             resolve(false);
-            return;
           }
-          
-          resolve(success);
         } catch (error) {
           console.error("Error in sync operation:", error);
+          setSyncStatus('error');
+          if (!silent) {
+            toast.error("Unexpected error during sync", { id: "force-sync" });
+          }
           resolve(false);
         }
-      });
-      
-      // Set up timeout mechanism
-      const timeoutPromise = new Promise<boolean>((resolve) => {
-        timeoutId = window.setTimeout(() => {
-          console.error("Sync operation timed out");
-          if (!silent) toast.error("Sync operation timed out", { id: "force-sync" });
-          resolve(false);
-        }, SYNC_TIMEOUT);
       });
       
       // Race the sync operation against the timeout
       const result = await Promise.race([syncPromise, timeoutPromise]);
       
-      // Clear timeout if it hasn't fired yet
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId);
-      }
+      // Mark sync as complete to prevent timeout handler from running if it hasn't yet
+      syncComplete = true;
       
       return result;
     } catch (error) {
       console.error("Error forcing sync to cloud:", error);
-      if (!silent) toast.error("Error syncing to cloud", { id: "force-sync" });
+      setSyncStatus('error');
+      if (!silent) {
+        toast.error("Error syncing to cloud", { 
+          id: "force-sync",
+          description: "Please check your connection and try again"
+        });
+      }
       return false;
     }
-  }, [userUuid, userEmail, tableVerified, connectionVerified, syncRetryCount, setConnectionVerified, setTableVerified, setSyncStatus, setSyncRetryCount]);
+  }, [userUuid, userEmail, tableVerified, connectionVerified, setConnectionVerified, setTableVerified, setSyncStatus]);
 
   // Check sync status with timeout
   const checkSyncStatus = useCallback(async (): Promise<boolean> => {
@@ -195,7 +221,7 @@ export function useUuidSynchronization({
       
       // Set up timeout mechanism
       const timeoutPromise = new Promise<boolean>((_, reject) => {
-        setTimeout(() => reject(new Error('Sync status check timed out')), 8000);
+        setTimeout(() => reject(new Error('Sync status check timed out')), 5000);
       });
       
       try {
@@ -225,10 +251,10 @@ export function useUuidSynchronization({
           
           setSyncStatus(isSynced ? 'synced' : 'local-only');
           
-          // If not synced, attempt to sync now (but don't wait for result)
+          // If not synced, add to the sync queue (but don't block UI)
           if (!isSynced) {
-            console.log('UUID not synced to Supabase, attempting sync now...');
-            forceSyncToCloud(true).catch(e => console.error("Background sync failed:", e));
+            console.log('UUID not synced to Supabase, adding to sync queue...');
+            syncQueue.add('syncUuid', { email: userEmail, uuid: userUuid });
           }
           
           return isSynced;
@@ -245,12 +271,12 @@ export function useUuidSynchronization({
       console.error("Error checking sync status:", error);
       return false;
     }
-  }, [userUuid, userEmail, connectionVerified, tableVerified, forceSyncToCloud, setConnectionVerified, setTableVerified, setSyncStatus]);
+  }, [userUuid, userEmail, connectionVerified, tableVerified, setConnectionVerified, setTableVerified, setSyncStatus]);
 
   return { forceSyncToCloud, checkSyncStatus };
 }
 
-// For use from other hooks that need these functions
+// For use from other hooks
 export const forceSyncToCloud = (props: UseUuidSynchronizationProps) => {
   const { forceSyncToCloud: syncFn } = useUuidSynchronization(props);
   return syncFn;
