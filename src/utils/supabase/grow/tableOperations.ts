@@ -1,6 +1,7 @@
 
 import { getSupabaseClient } from '../client';
 import { toast } from 'sonner';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../client';
 
 // Table creation operations for the Grow feature
 
@@ -51,11 +52,12 @@ export const createProjectsTable = async (): Promise<boolean> => {
       // Fallback to the insertion method if RPC fails (may not have permissions)
       console.log('Falling back to insert method for projects table...');
       
-      const response = await fetch(`${supabase.supabaseUrl}/rest/v1/projects`, {
+      // Use the exported constants instead of accessing protected properties
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/projects`, {
         method: 'POST',
         headers: {
-          'apikey': supabase.supabaseKey,
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal'
         },
@@ -132,11 +134,12 @@ export const createProjectVotesTable = async (): Promise<boolean> => {
       // Fallback to the insertion method if RPC fails
       console.log('Falling back to insert method for project_votes table...');
       
-      const response = await fetch(`${supabase.supabaseUrl}/rest/v1/project_votes`, {
+      // Use the exported constants instead of accessing protected properties
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/project_votes`, {
         method: 'POST',
         headers: {
-          'apikey': supabase.supabaseKey,
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal'
         },
