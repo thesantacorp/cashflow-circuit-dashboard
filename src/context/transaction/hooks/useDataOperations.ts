@@ -40,17 +40,11 @@ export function useDataOperations(
 
   // Get transactions by type
   const getTransactionsByType = (type: TransactionType) => {
-    if (type === "combined") {
-      return state.transactions;
-    }
     return state.transactions.filter((transaction) => transaction.type === type);
   };
 
   // Get categories by type
   const getCategoriesByType = (type: TransactionType) => {
-    if (type === "combined") {
-      return state.categories;
-    }
     return state.categories.filter((category) => category.type === type);
   };
 
@@ -61,18 +55,6 @@ export function useDataOperations(
 
   // Get total amount by type
   const getTotalByType = (type: TransactionType) => {
-    if (type === "combined") {
-      const incomeTotal = state.transactions
-        .filter((transaction) => transaction.type === "income")
-        .reduce((acc, transaction) => acc + transaction.amount, 0);
-      
-      const expenseTotal = state.transactions
-        .filter((transaction) => transaction.type === "expense")
-        .reduce((acc, transaction) => acc + transaction.amount, 0);
-      
-      return incomeTotal - expenseTotal;
-    }
-    
     return state.transactions
       .filter((transaction) => transaction.type === type)
       .reduce((acc, transaction) => acc + transaction.amount, 0);

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
   const [warning, setWarning] = useState<string | null>(null);
   const [type, setType] = useState<TransactionType>("expense");
   
+  // Load transaction data when the modal opens
   useEffect(() => {
     if (transaction) {
       setAmount(transaction.amount.toString());
@@ -48,13 +50,12 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
     }
   }, [transaction]);
   
-  const actualType = type === "combined" ? "expense" : type;
-  const categories = transaction ? getCategoriesByType(actualType) : [];
+  const categories = transaction ? getCategoriesByType(transaction.type) : [];
   
   const handleCategoryChange = (value: string) => {
     setCategoryId(value);
     
-    if (actualType === "expense" && emotionalState) {
+    if (type === "expense" && emotionalState) {
       const warningMessage = getPurchaseWarning(
         value,
         emotionalState,
@@ -68,7 +69,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
   const handleEmotionChange = (value: EmotionalState) => {
     setEmotionalState(value);
     
-    if (categoryId && actualType === "expense") {
+    if (categoryId && type === "expense") {
       const warningMessage = getPurchaseWarning(
         categoryId,
         value,
@@ -106,7 +107,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
       <DialogContent className="sm:max-w-[500px] border-primary/20 bg-gradient-to-b from-background to-background/90 backdrop-blur-sm">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-orange-500">
-            Edit {actualType === "expense" ? "Expense" : "Income"}
+            Edit {transaction.type === "expense" ? "Expense" : "Income"}
           </DialogTitle>
         </DialogHeader>
         
@@ -130,7 +131,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
             <DatePicker date={date} onDateChange={(newDate) => newDate && setDate(newDate)} />
           </div>
           
-          {actualType === "expense" && (
+          {transaction.type === "expense" && (
             <EmotionSelector
               emotionalState={emotionalState}
               onChange={handleEmotionChange}

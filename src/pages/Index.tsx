@@ -1,13 +1,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Navbar from '@/components/Navbar';
+import { Navbar } from '@/components/Navbar';
 import TransactionList from '@/components/TransactionList';
 import TransactionForm from '@/components/TransactionForm';
 import { Card, CardContent } from '@/components/ui/card';
 import CategoryList from '@/components/CategoryList';
 import Dashboard from '@/components/Dashboard';
-import BackupManager from '@/components/BackupManager';
+import { BackupManager } from '@/components/BackupManager';
 import { useTransactions } from '@/context/transaction';
 import DataExportImport from '@/components/DataExportImport';
 import LocalStorageInfo from '@/components/LocalStorageInfo';
@@ -16,9 +16,8 @@ import DataRecovery from '@/components/DataRecovery';
 import MobileNav from '@/components/MobileNav';
 
 export default function Index() {
-  const { getAllTransactions } = useTransactions();
+  const { transactions } = useTransactions();
   const [mounted, setMounted] = useState(false);
-  const transactions = getAllTransactions();
 
   useEffect(() => {
     setMounted(true);
@@ -48,19 +47,19 @@ export default function Index() {
           </div>
 
           <TabsContent value="transactions" className="space-y-4">
-            <TransactionList title="Recent Transactions" limit={20} />
+            <TransactionList transactions={transactions} title="Recent Transactions" limit={20} />
           </TabsContent>
 
           <TabsContent value="expenses" className="space-y-4">
-            <TransactionForm type="expense" />
+            <TransactionForm />
           </TabsContent>
 
           <TabsContent value="categories" className="space-y-4">
-            <CategoryList type="expense" />
+            <CategoryList />
           </TabsContent>
 
           <TabsContent value="dashboard" className="space-y-4">
-            <Dashboard type="combined" />
+            <Dashboard />
           </TabsContent>
 
           <TabsContent value="backup" className="space-y-6">

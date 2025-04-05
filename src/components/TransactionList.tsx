@@ -1,160 +1,173 @@
 
 import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
-import { Category, Transaction as TransactionType, TransactionType as TType } from "@/types";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format } from "date-fns";
 import { useCurrency } from "@/context/CurrencyContext";
+import { Transaction, TransactionType } from "@/types";
+import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, isWithinInterval, endOfDay, endOfWeek, endOfMonth, endOfYear } from "date-fns";
+import { Trash2, Edit } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import EditTransactionModal from "./EditTransactionModal";
-import { Button } from "./ui/button";
-import { Edit, Trash2 } from "lucide-react";
-import { Switch } from "./ui/switch";
-import { Label } from "./ui/label";
-import { Badge } from "./ui/badge";
 
 interface TransactionListProps {
-  type?: TType;
+  type: TransactionType;
   limit?: number;
-  title?: string;
+  showViewAll?: boolean;
 }
 
-const TransactionList: React.FC<TransactionListProps> = ({ type, limit, title }) => {
-  const { state, deleteTransaction, getCategoryById } = useTransactions();
+type TimePeriod = "day" | "week" | "month" | "year" | "all";
+
+const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showViewAll = false }) => {
+  const { getTransactionsByType, deleteTransaction, getCategoryById } = useTransactions();
   const { currencySymbol } = useCurrency();
-  const [selectedTransaction, setSelectedTransaction] = useState<TransactionType | null>(null);
-  const [showEditModal, setShowEditModal] = useState<boolean>(false);
-  const [showEmotions, setShowEmotions] = useState<boolean>(false);
+  const transactions = getTransactionsByType(type);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
 
-  // Filter transactions by type if specified
-  const transactions = React.useMemo(() => {
-    let filtered = state.transactions;
+  const filterTransactionsByTimePeriod = (transactions: Transaction[], period: TimePeriod): Transaction[] => {
+    if (period === "all") return transactions;
     
-    if (type && type !== "combined") {
-      filtered = filtered.filter((t) => t.type === type);
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date;
+    
+    switch (period) {
+      case "day":
+        startDate = startOfDay(now);
+        endDate = endOfDay(now);
+        break;
+      case "week":
+        startDate = startOfWeek(now, { weekStartsOn: 1 });
+        endDate = endOfWeek(now, { weekStartsOn: 1 });
+        break;
+      case "month":
+        startDate = startOfMonth(now);
+        endDate = endOfMonth(now);
+        break;
+      case "year":
+        startDate = startOfYear(now);
+        endDate = endOfYear(now);
+        break;
+      default:
+        return transactions;
     }
     
-    // Sort by date (newest first)
-    filtered = [...filtered].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-    
-    // Apply limit if specified
-    if (limit && limit > 0) {
-      filtered = filtered.slice(0, limit);
-    }
-    
-    return filtered;
-  }, [state.transactions, type, limit]);
+    return transactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      return isWithinInterval(transactionDate, { start: startDate, end: endDate });
+    });
+  };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this transaction?")) {
-      deleteTransaction(id);
+  // Filter transactions by time period
+  const filteredTransactions = filterTransactionsByTimePeriod(transactions, timePeriod);
+  
+  // Sort transactions by date (newest first)
+  const sortedTransactions = [...filteredTransactions].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+  
+  // Apply limit if specified
+  const displayTransactions = limit ? sortedTransactions.slice(0, limit) : sortedTransactions;
+
+  const handleEdit = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsEditModalOpen(false);
+    setEditingTransaction(null);
+  };
+
+  const getEmotionColor = (emotion?: string) => {
+    switch (emotion) {
+      case "happy": return "bg-green-100 text-green-800 border-green-300";
+      case "stressed": return "bg-red-100 text-red-800 border-red-300";
+      case "bored": return "bg-orange-100 text-orange-800 border-orange-300";
+      case "excited": return "bg-purple-100 text-purple-800 border-purple-300";
+      case "sad": return "bg-blue-100 text-blue-800 border-blue-300";
+      default: return "bg-gray-100 text-gray-800 border-gray-300";
     }
   };
 
-  const handleEdit = (transaction: TransactionType) => {
-    setSelectedTransaction(transaction);
-    setShowEditModal(true);
+  const getPeriodLabel = () => {
+    switch (timePeriod) {
+      case "day": return "Today";
+      case "week": return "This Week";
+      case "month": return "This Month";
+      case "year": return "This Year";
+      default: return "All Time";
+    }
   };
-
-  const handleCloseEditModal = () => {
-    setSelectedTransaction(null);
-    setShowEditModal(false);
-  };
-
-  if (transactions.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{title || "Transactions"}</CardTitle>
-        </CardHeader>
-        <CardContent className="text-center py-8 text-muted-foreground">
-          No transactions found.
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle>{title || "Transactions"}</CardTitle>
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="show-emotions"
-              checked={showEmotions}
-              onCheckedChange={setShowEmotions}
-            />
-            <Label htmlFor="show-emotions">Show Emotions</Label>
+    <>
+      <Card className="border-orange-200 shadow-lg bg-gradient-to-b from-white to-orange-50/30">
+        <CardHeader className="border-b border-orange-100">
+          <div className="flex flex-wrap justify-between items-center">
+            <CardTitle className="text-orange-600">Recent Transactions</CardTitle>
+            <Select value={timePeriod} onValueChange={(value: TimePeriod) => setTimePeriod(value)}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="Time Period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Time</SelectItem>
+                <SelectItem value="day">Today</SelectItem>
+                <SelectItem value="week">This Week</SelectItem>
+                <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="year">This Year</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Amount</TableHead>
-                {showEmotions && <TableHead>Emotion</TableHead>}
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.map((transaction) => {
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3 mt-3">
+            {displayTransactions.length > 0 ? (
+              displayTransactions.map((transaction) => {
                 const category = getCategoryById(transaction.categoryId);
                 return (
-                  <TableRow key={transaction.id}>
-                    <TableCell>
-                      {format(new Date(transaction.date), "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        {category ? (
-                          <>
-                            <div
-                              className="w-3 h-3 rounded-full mr-2"
-                              style={{ backgroundColor: category.color }}
-                            ></div>
-                            {category.name}
-                          </>
-                        ) : (
-                          "Unknown"
-                        )}
-                        {type === "combined" && (
-                          <Badge
-                            variant={transaction.type === "expense" ? "destructive" : "default"}
-                            className="ml-2"
-                          >
-                            {transaction.type === "expense" ? "Expense" : "Income"}
+                  <div
+                    key={transaction.id}
+                    className="flex flex-wrap items-center justify-between p-3 border rounded-lg hover:shadow-md transition-shadow duration-200"
+                    style={{
+                      borderLeftColor: category?.color || "#ccc",
+                      borderLeftWidth: "4px",
+                    }}
+                  >
+                    <div className="flex flex-col mr-2 mb-2 sm:mb-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium break-words max-w-[200px] sm:max-w-full">
+                          {category?.name || "Unknown Category"}
+                        </span>
+                        {transaction.emotionalState && transaction.emotionalState !== "neutral" && (
+                          <Badge variant="outline" className={getEmotionColor(transaction.emotionalState)}>
+                            {transaction.emotionalState}
                           </Badge>
                         )}
                       </div>
-                    </TableCell>
-                    <TableCell
-                      className={
-                        transaction.type === "expense"
-                          ? "text-destructive font-medium"
-                          : "text-green-600 font-medium"
-                      }
-                    >
-                      {transaction.type === "expense" ? "-" : "+"}
-                      {currencySymbol}
-                      {transaction.amount.toFixed(2)}
-                    </TableCell>
-                    {showEmotions && (
-                      <TableCell>
-                        {transaction.emotionalState || "neutral"}
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      <div className="flex space-x-1">
+                      <span className="text-sm text-muted-foreground break-words max-w-[200px] sm:max-w-full">
+                        {transaction.description || "No description"}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(transaction.date), "MMM d, yyyy")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 ml-auto">
+                      <span
+                        className={`font-semibold ${
+                          type === "expense" ? "text-red-600" : "text-green-600"
+                        }`}
+                      >
+                        {type === "expense" ? "-" : "+"}{currencySymbol}{transaction.amount.toFixed(2)}
+                      </span>
+                      <div className="flex">
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 text-orange-500 hover:text-orange-700 hover:bg-orange-100"
                           onClick={() => handleEdit(transaction)}
                         >
                           <Edit className="h-4 w-4" />
@@ -162,26 +175,31 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, title })
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive hover:text-destructive/80"
-                          onClick={() => handleDelete(transaction.id)}
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-red-100"
+                          onClick={() => deleteTransaction(transaction.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </div>
                 );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
+              })
+            ) : (
+              <p className="text-center text-muted-foreground py-8">
+                No {type} transactions found for {getPeriodLabel().toLowerCase()}.
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      
       <EditTransactionModal
-        transaction={selectedTransaction}
-        isOpen={showEditModal}
-        onClose={handleCloseEditModal}
+        transaction={editingTransaction}
+        isOpen={isEditModalOpen}
+        onClose={handleCloseModal}
       />
-    </Card>
+    </>
   );
 };
 

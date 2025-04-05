@@ -13,10 +13,6 @@ import AdminNotificationDashboard from './pages/AdminNotificationDashboard';
 import RecoverPage from './pages/RecoverPage';
 import Index from './pages/Index';
 import './App.css';
-import { TransactionProvider } from '@/context/transaction';
-import { CurrencyProvider } from '@/context/CurrencyContext';
-import { NotificationProvider } from '@/context/NotificationContext';
-import { BackupProvider } from '@/context/BackupContext';
 
 function App() {
   useEffect(() => {
@@ -29,27 +25,19 @@ function App() {
   }, []);
   
   return (
-    <TransactionProvider>
-      <CurrencyProvider>
-        <NotificationProvider>
-          <BackupProvider>
-            <Router>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/expenses" element={<ExpensesPage />} />
-                <Route path="/income" element={<IncomePage />} />
-                <Route path="/overview" element={<OverviewPage />} />
-                <Route path="/overview-enhanced" element={<OverviewPageEnhanced />} />
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />
-                <Route path="/recover" element={<RecoverPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Router>
-          </BackupProvider>
-        </NotificationProvider>
-      </CurrencyProvider>
-    </TransactionProvider>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/expenses" element={<ExpensesPage />} />
+        <Route path="/income" element={<IncomePage />} />
+        <Route path="/overview" element={<OverviewPage />} />
+        <Route path="/overview-enhanced" element={<OverviewPageEnhanced />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />
+        <Route path="/recover" element={<RecoverPage />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Router>
   );
 }
 

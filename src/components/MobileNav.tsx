@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import {
@@ -21,6 +21,7 @@ const MobileNav: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [activeSheet, setActiveSheet] = useState<string | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
 
   const navigationItems = [
@@ -83,11 +84,24 @@ const MobileNav: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (!isSheetOpen) {
+      setTimeout(() => {
+        document.body.style.pointerEvents = '';
+        document.body.style.touchAction = '';
+        if (menuButtonRef.current) {
+          menuButtonRef.current.style.pointerEvents = 'auto';
+        }
+      }, 150);
+    }
+  }, [isSheetOpen]);
+
   return (
     <>
       <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
         <DrawerTrigger asChild>
           <Button 
+            ref={menuButtonRef}
             variant="ghost" 
             size="icon" 
             className="md:hidden text-white hover:bg-orange-600/20 transition-colors"
