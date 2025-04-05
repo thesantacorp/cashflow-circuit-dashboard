@@ -1,6 +1,7 @@
+
 import { getSupabaseClient, checkDatabaseConnection } from './supabase/client';
-import { toast } from 'sonner';
 import { Queue } from './queue';
+import { toast } from 'sonner';
 
 // Create a queue for syncing operations that can be retried
 export const syncQueue = new Queue();
@@ -69,13 +70,16 @@ export const checkSupabaseConnection = async (): Promise<boolean> => {
     
     const connectionPromise = new Promise<boolean>(async (resolve) => {
       try {
-        const { data, error } = await supabase.from('_test_connection')
-          .select('*').limit(1);
+        // Try to check connection using the user_uuids table instead of _test_connection
+        // This table is more likely to exist as it's created by our app
+        const { data, error } = await supabase.from('user_uuids')
+          .select('count')
+          .limit(1);
           
-        const connected = !error;
+        const connected = !error || (error && error.code === '42P01'); // 42P01 means table not found, but still connected
         console.log(`Supabase connection check: ${connected ? 'success' : 'failed'}`);
         
-        if (error) {
+        if (error && error.code !== '42P01') {
           console.error('Supabase connection error:', error);
         }
         

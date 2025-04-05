@@ -9,17 +9,48 @@ import GrowPageHeader from "@/components/grow/GrowPageHeader";
 import { Project } from "@/types/project";
 import ProjectsLoadingState from "@/components/grow/ProjectsLoadingState";
 import ProjectsEmptyState from "@/components/grow/ProjectsEmptyState";
+import { ensureGrowTablesExist } from "@/utils/supabase/growTableSetup";
 
 const GrowPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterState, setFilterState] = useState<"all" | "active" | "expired">("all");
   const [error, setError] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(false);
   const navigate = useNavigate();
   
   useEffect(() => {
-    fetchProjects();
+    checkTablesAndFetchProjects();
   }, []);
+
+  const checkTablesAndFetchProjects = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // First, check if the tables exist and create them if needed
+      setIsInitializing(true);
+      const tablesInitialized = await ensureGrowTablesExist();
+      setIsInitializing(false);
+      
+      if (!tablesInitialized) {
+        console.error("Failed to initialize Grow tables");
+        setError("Failed to initialize projects database");
+        setProjects([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Tables are now initialized, fetch projects
+      fetchProjects();
+    } catch (err) {
+      console.error("Error checking/initializing tables:", err);
+      setError("Failed to initialize projects database");
+      setProjects([]);
+      setIsLoading(false);
+      setIsInitializing(false);
+    }
+  };
 
   const fetchProjects = async () => {
     setIsLoading(true);
@@ -35,12 +66,16 @@ const GrowPage: React.FC = () => {
         .limit(1);
         
       if (tableCheckError && tableCheckError.code === '42P01') {
-        // Table doesn't exist - likely needs initialization
+        // Table doesn't exist - try to initialize it again
         console.error("Projects table doesn't exist:", tableCheckError);
-        setProjects([]);
-        setError("Projects database needs initialization");
-        setIsLoading(false);
-        return;
+        const initialized = await ensureGrowTablesExist();
+        
+        if (!initialized) {
+          setProjects([]);
+          setError("Projects database needs initialization");
+          setIsLoading(false);
+          return;
+        }
       }
       
       let query = supabase
@@ -156,10 +191,11 @@ const GrowPage: React.FC = () => {
           <p className="text-orange-800 mb-2">{error}</p>
           <Button 
             variant="outline"
-            onClick={() => fetchProjects()}
+            onClick={() => checkTablesAndFetchProjects()}
             className="bg-white border-orange-300 hover:bg-orange-50"
+            disabled={isInitializing}
           >
-            Try Again
+            {isInitializing ? 'Initializing...' : 'Initialize & Try Again'}
           </Button>
         </div>
       )}
