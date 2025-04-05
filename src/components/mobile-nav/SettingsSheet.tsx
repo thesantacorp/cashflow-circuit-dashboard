@@ -36,14 +36,17 @@ const SettingsSheet: React.FC<SettingsSheetProps> = ({
     }
   };
 
+  // Force a controlled component pattern for the Sheet
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      closeSettingSheet();
+    }
+  };
+
   return (
     <Sheet 
       open={activeSettingSheet !== null} 
-      onOpenChange={(open) => {
-        if (!open) {
-          closeSettingSheet();
-        }
-      }}
+      onOpenChange={handleOpenChange}
     >
       <SheetContent className="w-full sm:max-w-md pt-12" hideCloseButton={true}>
         <SheetHeader>

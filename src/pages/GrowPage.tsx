@@ -2,36 +2,65 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCrowdfunding } from '@/context/CrowdfundingContext';
-import { format, differenceInDays } from 'date-fns';
+import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Sprout, Calendar, ExternalLink, Users } from 'lucide-react';
+import { Sprout, Calendar, ExternalLink, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { ProjectStats } from '@/types/crowdfunding';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { toast } from 'sonner';
 
 const GrowPage = () => {
-  const { state: { projects, backers } } = useCrowdfunding();
+  const { 
+    state: { ideas, votes }, 
+    addVote, 
+    removeVote, 
+    hasVoted, 
+    getVoteType 
+  } = useCrowdfunding();
   const navigate = useNavigate();
-  const today = new Date();
   const isMobile = useIsMobile();
   
   // Calculate project statistics
-  const getProjectStats = (projectId: string, targetAmount: number, raisedAmount: number, endDate: string): ProjectStats => {
-    const projectBackers = backers.filter(b => b.projectId === projectId);
-    const daysLeft = Math.max(0, differenceInDays(new Date(endDate), today));
-    const percentFunded = (raisedAmount / targetAmount) * 100;
+  const getProjectStats = (ideaId: string): ProjectStats => {
+    const idea = ideas.find(i => i.id === ideaId);
+    
+    if (!idea) {
+      return {
+        totalVotes: 0,
+        upvotes: 0,
+        downvotes: 0,
+        score: 0
+      };
+    }
     
     return {
-      totalBackers: projectBackers.length,
-      totalRaised: raisedAmount,
-      percentFunded: Math.min(100, percentFunded),
-      daysLeft
+      totalVotes: idea.upvotes + idea.downvotes,
+      upvotes: idea.upvotes,
+      downvotes: idea.downvotes,
+      score: idea.upvotes - idea.downvotes
     };
   };
 
-  const handleParticipateClick = (projectId: string) => {
-    navigate(`/grow/${projectId}`);
+  const handleViewDetails = (ideaId: string) => {
+    navigate(`/grow/${ideaId}`);
+  };
+  
+  const handleVote = async (ideaId: string, isUpvote: boolean) => {
+    try {
+      const currentVoteType = getVoteType(ideaId);
+      
+      // If already voted the same way, remove the vote
+      if (currentVoteType === isUpvote) {
+        await removeVote(ideaId);
+      } 
+      // If voted differently or hasn't voted, add new vote
+      else {
+        await addVote(ideaId, isUpvote);
+      }
+    } catch (error) {
+      toast.error('Failed to register vote');
+    }
   };
 
   return (
@@ -46,7 +75,7 @@ const GrowPage = () => {
         Vote on the concepts you believe have the most potential, find talents to help you build and scale ideas in our community.
       </p>
       
-      {projects.length === 0 ? (
+      {ideas.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-12 text-center bg-gray-50 rounded-lg">
           <Sprout className="h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-xl font-medium mb-2">No Ideas Available Yet</h3>
@@ -56,77 +85,73 @@ const GrowPage = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map(project => {
-            const stats = getProjectStats(
-              project.id,
-              project.targetAmount,
-              project.raisedAmount,
-              project.endDate
-            );
-            
-            const isActive = !project.isFullyFunded && new Date(project.endDate) > today;
-            const currencySymbol = project.currencySymbol || "$";
+          {ideas.map(idea => {
+            const stats = getProjectStats(idea.id);
+            const userVoteType = getVoteType(idea.id);
+            const currencySymbol = idea.currencySymbol || "$";
             
             return (
-              <Card key={project.id} className="h-full flex flex-col">
+              <Card key={idea.id} className="h-full flex flex-col">
                 <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-xl">{project.title}</CardTitle>
-                    {project.isFullyFunded && (
-                      <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                        Fully Funded
-                      </span>
-                    )}
-                    {!project.isFullyFunded && stats.daysLeft === 0 && (
-                      <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                        Ended
-                      </span>
-                    )}
-                  </div>
-                  <CardDescription>{project.description}</CardDescription>
+                  <CardTitle className="text-xl">{idea.title}</CardTitle>
+                  <CardDescription>{idea.description}</CardDescription>
                 </CardHeader>
+                
                 <CardContent className="flex-grow">
-                  <div className="mb-4">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>{currencySymbol}{project.raisedAmount.toLocaleString()}</span>
-                      <span>{currencySymbol}{project.targetAmount.toLocaleString()}</span>
-                    </div>
-                    <Progress value={stats.percentFunded} className="h-2" />
-                    <div className="flex justify-between text-xs text-gray-500 mt-1">
-                      <span>{stats.percentFunded.toFixed(0)}% funded</span>
-                      {stats.daysLeft > 0 && !project.isFullyFunded ? (
-                        <span>{stats.daysLeft} days left</span>
-                      ) : (
-                        <span>{project.isFullyFunded ? 'Goal reached' : 'Campaign ended'}</span>
-                      )}
-                    </div>
-                  </div>
-                  
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center text-gray-600">
                       <Calendar className="h-4 w-4 mr-2" />
-                      <span>
-                        {format(new Date(project.startDate), 'MMM d')} - {format(new Date(project.endDate), 'MMM d, yyyy')}
-                      </span>
+                      <span>Posted on {format(new Date(idea.createdAt), 'MMM d, yyyy')}</span>
                     </div>
-                    <div className="flex items-center text-gray-600">
-                      <Users className="h-4 w-4 mr-2" />
-                      <span>{stats.totalBackers} backers</span>
+                    
+                    <div className="bg-gray-50 p-3 rounded-md mt-3">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center">
+                          <span className="font-medium mr-1">Score:</span> 
+                          <span className={stats.score > 0 ? "text-green-600" : stats.score < 0 ? "text-red-600" : ""}>
+                            {stats.score}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {stats.totalVotes} total votes
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
+                
                 <CardFooter className="flex flex-col gap-2">
+                  <div className="flex justify-between w-full mb-2">
+                    <Button 
+                      variant={userVoteType === true ? "default" : "outline"} 
+                      size="sm" 
+                      className="flex-1 mr-1"
+                      onClick={() => handleVote(idea.id, true)}
+                    >
+                      <ThumbsUp className="h-4 w-4 mr-1" />
+                      <span>{stats.upvotes}</span>
+                    </Button>
+                    <Button 
+                      variant={userVoteType === false ? "default" : "outline"} 
+                      size="sm" 
+                      className="flex-1 ml-1"
+                      onClick={() => handleVote(idea.id, false)}
+                    >
+                      <ThumbsDown className="h-4 w-4 mr-1" />
+                      <span>{stats.downvotes}</span>
+                    </Button>
+                  </div>
+                  
                   <Button 
                     className="w-full" 
-                    onClick={() => handleParticipateClick(project.id)}
-                    disabled={!isActive}
+                    onClick={() => handleViewDetails(idea.id)}
                   >
-                    {isActive ? 'Participate' : 'View Details'}
+                    View Details
                   </Button>
                   
-                  {project.externalLink && (
+                  {idea.externalLink && (
                     <Button variant="outline" className="w-full flex items-center" asChild>
-                      <a href={project.externalLink} target="_blank" rel="noopener noreferrer">
+                      <a href={idea.externalLink} target="_blank" rel="noopener noreferrer">
                         Visit Project Website
                         <ExternalLink className="h-4 w-4 ml-1" />
                       </a>

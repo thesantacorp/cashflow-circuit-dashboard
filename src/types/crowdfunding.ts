@@ -1,49 +1,30 @@
 
-export interface CrowdfundingProject {
+export interface ProductIdea {
   id: string;
   title: string;
   description: string;
-  targetAmount: number;
-  raisedAmount: number;
-  startDate: string;
-  endDate: string;
-  projectDetails: string;
-  isFullyFunded: boolean;
-  externalLink?: string;
+  detailedDescription: string;
+  upvotes: number;
+  downvotes: number;
   createdAt: string;
   updatedAt: string;
-  currency: string; // Added currency property for the project
-  currencySymbol: string; // Added currency symbol property
+  externalLink?: string;
+  category?: string;
+  votedSessions: string[]; // Session IDs that have voted on this idea
+  currency: string; // Currency for potential monetization/development costs
+  currencySymbol: string; // Symbol for the currency
 }
 
-export interface Backer {
-  id: string;
-  projectId: string;
-  firstName: string;
-  email: string; // Will be used internally only, not displayed to users
-  amount: number;
-  paymentId: string;
+export interface Vote {
+  ideaId: string;
+  sessionId: string; 
+  isUpvote: boolean;
   timestamp: string;
 }
 
-export interface PayPalPaymentResponse {
-  id: string;
-  status: string;
-  payer: {
-    name: {
-      given_name: string;
-    },
-    email_address: string;
-  };
-  amount: {
-    value: string;
-  };
-  create_time: string;
-}
-
 export interface ProjectStats {
-  totalBackers: number;
-  totalRaised: number;
-  percentFunded: number;
-  daysLeft: number;
+  totalVotes: number;
+  upvotes: number;
+  downvotes: number;
+  score: number; // Net score (upvotes - downvotes)
 }

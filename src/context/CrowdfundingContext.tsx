@@ -1,125 +1,184 @@
+
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
-import { CrowdfundingProject, Backer } from '@/types/crowdfunding';
+import { ProductIdea, Vote } from '@/types/crowdfunding';
 
-interface CrowdfundingState {
-  projects: CrowdfundingProject[];
-  backers: Backer[];
+// Generate a unique session ID for the current browser session
+const generateSessionId = () => {
+  if (!localStorage.getItem('session_id')) {
+    localStorage.setItem('session_id', uuidv4());
+  }
+  return localStorage.getItem('session_id') || '';
+};
+
+const SESSION_ID = generateSessionId();
+
+interface ProductIdeasState {
+  ideas: ProductIdea[];
+  votes: Vote[];
   loading: boolean;
   error: string | null;
 }
 
-type CrowdfundingAction =
-  | { type: 'ADD_PROJECT'; payload: CrowdfundingProject }
-  | { type: 'UPDATE_PROJECT'; payload: CrowdfundingProject }
-  | { type: 'DELETE_PROJECT'; payload: string }
-  | { type: 'ADD_BACKER'; payload: Backer }
+type ProductIdeasAction =
+  | { type: 'ADD_IDEA'; payload: ProductIdea }
+  | { type: 'UPDATE_IDEA'; payload: ProductIdea }
+  | { type: 'DELETE_IDEA'; payload: string }
+  | { type: 'ADD_VOTE'; payload: Vote }
+  | { type: 'REMOVE_VOTE'; payload: { ideaId: string, sessionId: string } }
   | { type: 'SET_ERROR'; payload: string }
   | { type: 'CLEAR_ERROR' }
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_PROJECTS'; payload: CrowdfundingProject[] }
-  | { type: 'SET_BACKERS'; payload: Backer[] };
+  | { type: 'SET_IDEAS'; payload: ProductIdea[] }
+  | { type: 'SET_VOTES'; payload: Vote[] };
 
-const initialState: CrowdfundingState = {
-  projects: [],
-  backers: [],
+const initialState: ProductIdeasState = {
+  ideas: [],
+  votes: [],
   loading: false,
   error: null
 };
 
-const CrowdfundingContext = createContext<{
-  state: CrowdfundingState;
-  dispatch: React.Dispatch<CrowdfundingAction>;
-  addProject: (project: Omit<CrowdfundingProject, 'id' | 'raisedAmount' | 'isFullyFunded' | 'createdAt' | 'updatedAt'>) => Promise<CrowdfundingProject>;
-  updateProject: (project: CrowdfundingProject) => Promise<CrowdfundingProject>;
-  deleteProject: (id: string) => Promise<void>;
-  addBacker: (backer: Omit<Backer, 'id' | 'timestamp'>) => Promise<Backer>;
-  getProjectById: (id: string) => CrowdfundingProject | undefined;
-  getBackersForProject: (projectId: string) => Backer[];
+const ProductIdeasContext = createContext<{
+  state: ProductIdeasState;
+  dispatch: React.Dispatch<ProductIdeasAction>;
+  addIdea: (idea: Omit<ProductIdea, 'id' | 'upvotes' | 'downvotes' | 'createdAt' | 'updatedAt' | 'votedSessions'>) => Promise<ProductIdea>;
+  updateIdea: (idea: ProductIdea) => Promise<ProductIdea>;
+  deleteIdea: (id: string) => Promise<void>;
+  addVote: (ideaId: string, isUpvote: boolean) => Promise<void>;
+  removeVote: (ideaId: string) => Promise<void>;
+  getIdeaById: (id: string) => ProductIdea | undefined;
+  hasVoted: (ideaId: string) => boolean;
+  getVoteType: (ideaId: string) => boolean | null; // true for upvote, false for downvote, null if not voted
+  getCurrentSessionId: () => string;
 }>({
   state: initialState,
   dispatch: () => {},
-  addProject: async () => ({ 
+  addIdea: async () => ({ 
     id: '', 
     title: '', 
     description: '', 
-    targetAmount: 0, 
-    raisedAmount: 0, 
-    startDate: '', 
-    endDate: '', 
-    projectDetails: '', 
-    isFullyFunded: false, 
+    detailedDescription: '', 
+    upvotes: 0, 
+    downvotes: 0, 
     createdAt: '', 
     updatedAt: '',
+    votedSessions: [],
     currency: 'USD', 
     currencySymbol: '$' 
   }),
-  updateProject: async () => ({ 
+  updateIdea: async () => ({ 
     id: '', 
     title: '', 
     description: '', 
-    targetAmount: 0, 
-    raisedAmount: 0, 
-    startDate: '', 
-    endDate: '', 
-    projectDetails: '', 
-    isFullyFunded: false, 
+    detailedDescription: '', 
+    upvotes: 0, 
+    downvotes: 0, 
     createdAt: '', 
     updatedAt: '',
+    votedSessions: [],
     currency: 'USD', 
     currencySymbol: '$' 
   }),
-  deleteProject: async () => {},
-  addBacker: async () => ({ id: '', projectId: '', firstName: '', email: '', amount: 0, paymentId: '', timestamp: '' }),
-  getProjectById: () => undefined,
-  getBackersForProject: () => []
+  deleteIdea: async () => {},
+  addVote: async () => {},
+  removeVote: async () => {},
+  getIdeaById: () => undefined,
+  hasVoted: () => false,
+  getVoteType: () => null,
+  getCurrentSessionId: () => '',
 });
 
-const crowdfundingReducer = (state: CrowdfundingState, action: CrowdfundingAction): CrowdfundingState => {
+const productIdeasReducer = (state: ProductIdeasState, action: ProductIdeasAction): ProductIdeasState => {
   switch (action.type) {
-    case 'ADD_PROJECT':
+    case 'ADD_IDEA':
       return {
         ...state,
-        projects: [...state.projects, action.payload]
+        ideas: [...state.ideas, action.payload]
       };
-    case 'UPDATE_PROJECT':
+    case 'UPDATE_IDEA':
       return {
         ...state,
-        projects: state.projects.map(project => 
-          project.id === action.payload.id ? action.payload : project
+        ideas: state.ideas.map(idea => 
+          idea.id === action.payload.id ? action.payload : idea
         )
       };
-    case 'DELETE_PROJECT':
+    case 'DELETE_IDEA':
       return {
         ...state,
-        projects: state.projects.filter(project => project.id !== action.payload)
+        ideas: state.ideas.filter(idea => idea.id !== action.payload),
+        votes: state.votes.filter(vote => vote.ideaId !== action.payload)
       };
-    case 'ADD_BACKER':
-      const updatedProjects = state.projects.map(project => {
-        if (project.id === action.payload.projectId) {
-          const newRaisedAmount = project.raisedAmount + action.payload.amount;
-          const isFullyFunded = newRaisedAmount >= project.targetAmount;
+    case 'ADD_VOTE': {
+      const { ideaId, isUpvote, sessionId } = action.payload;
+      
+      // Remove any existing votes from this session for this idea
+      const filteredVotes = state.votes.filter(
+        vote => !(vote.ideaId === ideaId && vote.sessionId === sessionId)
+      );
+      
+      // Update the idea's vote counts
+      const updatedIdeas = state.ideas.map(idea => {
+        if (idea.id === ideaId) {
+          // First, recount all votes except the one from this session
+          const existingVotes = state.votes.filter(vote => 
+            vote.ideaId === ideaId && vote.sessionId !== sessionId
+          );
           
-          if (!project.isFullyFunded && isFullyFunded) {
-            toast.success(`🎉 Project "${project.title}" has been fully funded!`);
-          }
+          const currentUpvotes = existingVotes.filter(vote => vote.isUpvote).length;
+          const currentDownvotes = existingVotes.filter(vote => !vote.isUpvote).length;
           
+          // Then add the new vote
           return {
-            ...project,
-            raisedAmount: newRaisedAmount,
-            isFullyFunded: isFullyFunded,
+            ...idea,
+            upvotes: currentUpvotes + (isUpvote ? 1 : 0),
+            downvotes: currentDownvotes + (!isUpvote ? 1 : 0),
+            votedSessions: [...idea.votedSessions.filter(id => id !== sessionId), sessionId],
             updatedAt: new Date().toISOString()
           };
         }
-        return project;
+        return idea;
       });
       
       return {
         ...state,
-        backers: [...state.backers, action.payload],
-        projects: updatedProjects
+        ideas: updatedIdeas,
+        votes: [...filteredVotes, action.payload]
       };
+    }
+    case 'REMOVE_VOTE': {
+      const { ideaId, sessionId } = action.payload;
+      
+      // Find the vote we're removing to determine if it was an upvote or downvote
+      const voteToRemove = state.votes.find(
+        vote => vote.ideaId === ideaId && vote.sessionId === sessionId
+      );
+      
+      if (!voteToRemove) return state;
+      
+      // Update the idea's vote counts
+      const updatedIdeas = state.ideas.map(idea => {
+        if (idea.id === ideaId) {
+          return {
+            ...idea,
+            upvotes: idea.upvotes - (voteToRemove.isUpvote ? 1 : 0),
+            downvotes: idea.downvotes - (!voteToRemove.isUpvote ? 1 : 0),
+            votedSessions: idea.votedSessions.filter(id => id !== sessionId),
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return idea;
+      });
+      
+      return {
+        ...state,
+        ideas: updatedIdeas,
+        votes: state.votes.filter(vote => 
+          !(vote.ideaId === ideaId && vote.sessionId === sessionId)
+        )
+      };
+    }
     case 'SET_ERROR':
       return {
         ...state,
@@ -136,15 +195,15 @@ const crowdfundingReducer = (state: CrowdfundingState, action: CrowdfundingActio
         ...state,
         loading: action.payload
       };
-    case 'SET_PROJECTS':
+    case 'SET_IDEAS':
       return {
         ...state,
-        projects: action.payload
+        ideas: action.payload
       };
-    case 'SET_BACKERS':
+    case 'SET_VOTES':
       return {
         ...state,
-        backers: action.payload
+        votes: action.payload
       };
     default:
       return state;
@@ -152,70 +211,71 @@ const crowdfundingReducer = (state: CrowdfundingState, action: CrowdfundingActio
 };
 
 export const CrowdfundingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(crowdfundingReducer, initialState);
+  const [state, dispatch] = useReducer(productIdeasReducer, initialState);
 
   useEffect(() => {
     try {
-      const savedProjects = localStorage.getItem('crowdfunding_projects');
-      const savedBackers = localStorage.getItem('crowdfunding_backers');
+      const savedIdeas = localStorage.getItem('product_ideas');
+      const savedVotes = localStorage.getItem('product_idea_votes');
 
-      if (savedProjects) {
+      if (savedIdeas) {
         dispatch({ 
-          type: 'SET_PROJECTS', 
-          payload: JSON.parse(savedProjects) 
+          type: 'SET_IDEAS', 
+          payload: JSON.parse(savedIdeas) 
         });
       }
 
-      if (savedBackers) {
+      if (savedVotes) {
         dispatch({ 
-          type: 'SET_BACKERS', 
-          payload: JSON.parse(savedBackers) 
+          type: 'SET_VOTES', 
+          payload: JSON.parse(savedVotes) 
         });
       }
     } catch (error) {
-      console.error('Error loading crowdfunding data:', error);
+      console.error('Error loading product idea data:', error);
       dispatch({ 
         type: 'SET_ERROR', 
-        payload: 'Failed to load crowdfunding data' 
+        payload: 'Failed to load product idea data' 
       });
     }
   }, []);
 
   useEffect(() => {
     try {
-      localStorage.setItem('crowdfunding_projects', JSON.stringify(state.projects));
-      localStorage.setItem('crowdfunding_backers', JSON.stringify(state.backers));
+      localStorage.setItem('product_ideas', JSON.stringify(state.ideas));
+      localStorage.setItem('product_idea_votes', JSON.stringify(state.votes));
     } catch (error) {
-      console.error('Error saving crowdfunding data:', error);
+      console.error('Error saving product idea data:', error);
       dispatch({ 
         type: 'SET_ERROR', 
-        payload: 'Failed to save crowdfunding data' 
+        payload: 'Failed to save product idea data' 
       });
     }
-  }, [state.projects, state.backers]);
+  }, [state.ideas, state.votes]);
 
-  const addProject = async (projectData: Omit<CrowdfundingProject, 'id' | 'raisedAmount' | 'isFullyFunded' | 'createdAt' | 'updatedAt'>) => {
+  const addIdea = async (ideaData: Omit<ProductIdea, 'id' | 'upvotes' | 'downvotes' | 'createdAt' | 'updatedAt' | 'votedSessions'>) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     
     try {
       const now = new Date().toISOString();
-      const newProject: CrowdfundingProject = {
+      const newIdea: ProductIdea = {
         id: uuidv4(),
-        ...projectData,
-        raisedAmount: 0,
-        isFullyFunded: false,
+        ...ideaData,
+        upvotes: 0,
+        downvotes: 0,
+        votedSessions: [],
         createdAt: now,
         updatedAt: now,
-        currency: projectData.currency || 'USD',
-        currencySymbol: projectData.currencySymbol || '$'
+        currency: ideaData.currency || 'USD',
+        currencySymbol: ideaData.currencySymbol || '$'
       };
 
-      dispatch({ type: 'ADD_PROJECT', payload: newProject });
+      dispatch({ type: 'ADD_IDEA', payload: newIdea });
       dispatch({ type: 'SET_LOADING', payload: false });
-      toast.success('Project created successfully');
-      return newProject;
+      toast.success('Product idea created successfully');
+      return newIdea;
     } catch (error) {
-      let errorMessage = 'Failed to create project';
+      let errorMessage = 'Failed to create product idea';
       if (error instanceof Error) {
         errorMessage = error.message;
       }
@@ -225,21 +285,21 @@ export const CrowdfundingProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  const updateProject = async (project: CrowdfundingProject) => {
+  const updateIdea = async (idea: ProductIdea) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     
     try {
-      const updatedProject = {
-        ...project,
+      const updatedIdea = {
+        ...idea,
         updatedAt: new Date().toISOString()
       };
 
-      dispatch({ type: 'UPDATE_PROJECT', payload: updatedProject });
+      dispatch({ type: 'UPDATE_IDEA', payload: updatedIdea });
       dispatch({ type: 'SET_LOADING', payload: false });
-      toast.success('Project updated successfully');
-      return updatedProject;
+      toast.success('Product idea updated successfully');
+      return updatedIdea;
     } catch (error) {
-      let errorMessage = 'Failed to update project';
+      let errorMessage = 'Failed to update product idea';
       if (error instanceof Error) {
         errorMessage = error.message;
       }
@@ -249,15 +309,15 @@ export const CrowdfundingProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  const deleteProject = async (id: string) => {
+  const deleteIdea = async (id: string) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     
     try {
-      dispatch({ type: 'DELETE_PROJECT', payload: id });
+      dispatch({ type: 'DELETE_IDEA', payload: id });
       dispatch({ type: 'SET_LOADING', payload: false });
-      toast.success('Project deleted successfully');
+      toast.success('Product idea deleted successfully');
     } catch (error) {
-      let errorMessage = 'Failed to delete project';
+      let errorMessage = 'Failed to delete product idea';
       if (error instanceof Error) {
         errorMessage = error.message;
       }
@@ -267,51 +327,91 @@ export const CrowdfundingProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  const addBacker = async (backerData: Omit<Backer, 'id' | 'timestamp'>) => {
+  const addVote = async (ideaId: string, isUpvote: boolean) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     
     try {
-      const newBacker: Backer = {
-        id: uuidv4(),
-        ...backerData,
+      const newVote: Vote = {
+        ideaId,
+        sessionId: SESSION_ID,
+        isUpvote,
         timestamp: new Date().toISOString()
       };
 
-      dispatch({ type: 'ADD_BACKER', payload: newBacker });
+      dispatch({ type: 'ADD_VOTE', payload: newVote });
       dispatch({ type: 'SET_LOADING', payload: false });
-      return newBacker;
+      toast.success(`Successfully ${isUpvote ? 'upvoted' : 'downvoted'} the idea`);
     } catch (error) {
-      let errorMessage = 'Failed to add backer';
+      let errorMessage = 'Failed to submit vote';
       if (error instanceof Error) {
         errorMessage = error.message;
       }
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      toast.error(errorMessage);
       throw error;
     }
   };
 
-  const getProjectById = (id: string) => {
-    return state.projects.find(project => project.id === id);
+  const removeVote = async (ideaId: string) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    
+    try {
+      dispatch({ 
+        type: 'REMOVE_VOTE', 
+        payload: { 
+          ideaId, 
+          sessionId: SESSION_ID 
+        } 
+      });
+      dispatch({ type: 'SET_LOADING', payload: false });
+      toast.success('Vote removed successfully');
+    } catch (error) {
+      let errorMessage = 'Failed to remove vote';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      toast.error(errorMessage);
+      throw error;
+    }
   };
 
-  const getBackersForProject = (projectId: string) => {
-    return state.backers.filter(backer => backer.projectId === projectId);
+  const getIdeaById = (id: string) => {
+    return state.ideas.find(idea => idea.id === id);
   };
+
+  const hasVoted = (ideaId: string) => {
+    return !!state.votes.find(vote => 
+      vote.ideaId === ideaId && vote.sessionId === SESSION_ID
+    );
+  };
+
+  const getVoteType = (ideaId: string) => {
+    const vote = state.votes.find(vote => 
+      vote.ideaId === ideaId && vote.sessionId === SESSION_ID
+    );
+    return vote ? vote.isUpvote : null;
+  };
+
+  const getCurrentSessionId = () => SESSION_ID;
 
   return (
-    <CrowdfundingContext.Provider value={{ 
+    <ProductIdeasContext.Provider value={{ 
       state, 
       dispatch, 
-      addProject, 
-      updateProject, 
-      deleteProject,
-      addBacker,
-      getProjectById,
-      getBackersForProject
+      addIdea, 
+      updateIdea, 
+      deleteIdea,
+      addVote,
+      removeVote,
+      getIdeaById,
+      hasVoted,
+      getVoteType,
+      getCurrentSessionId
     }}>
       {children}
-    </CrowdfundingContext.Provider>
+    </ProductIdeasContext.Provider>
   );
 };
 
-export const useCrowdfunding = () => useContext(CrowdfundingContext);
+export const useCrowdfunding = useContext(ProductIdeasContext);

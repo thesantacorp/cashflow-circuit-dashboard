@@ -18,9 +18,12 @@ const MobileNav: React.FC = () => {
   };
 
   const openSettingSheet = (setting: string) => {
-    // Close the drawer first without the timeout which was causing the issue
+    // We need to set these in sequence with delay to prevent state conflicts
     setOpen(false);
-    setActiveSettingSheet(setting);
+    // Add a slight delay before opening the settings sheet
+    setTimeout(() => {
+      setActiveSettingSheet(setting);
+    }, 150);
   };
 
   return (
