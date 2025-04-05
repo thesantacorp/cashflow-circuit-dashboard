@@ -122,6 +122,20 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
     console.log('Attempting to fix Supabase setup...');
     toast.loading('Attempting to fix Supabase setup...', { id: 'fixing-supabase' });
     
+    // If RLS is blocking writes, check if the user accessing Supabase 
+    // has appropriate permissions to modify the RLS policy
+    const verification = await verifySupabaseSetup();
+    if (verification.connected && verification.tableExists && !verification.hasWriteAccess) {
+      // We need to tell the user they need to fix their RLS policies
+      toast.warning('Row Level Security preventing writes', { 
+        id: 'fixing-supabase',
+        description: 'Contact administrator to update RLS policies',
+        duration: 8000
+      });
+      console.warn('Unable to fix RLS issues automatically');
+      return false;
+    }
+    
     // Try to create the user_uuids table if it doesn't exist
     const createTableSQL = `
       CREATE TABLE IF NOT EXISTS user_uuids (
@@ -167,9 +181,9 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
     }
     
     // Verify if fixes worked
-    const verification = await verifySupabaseSetup();
+    const newVerification = await verifySupabaseSetup();
     
-    if (verification.tableExists) {
+    if (newVerification.tableExists) {
       toast.success('Successfully fixed Supabase setup!', { id: 'fixing-supabase' });
       return true;
     } else {

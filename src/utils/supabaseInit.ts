@@ -21,6 +21,18 @@ export async function initializeSupabase(): Promise<boolean> {
     const verification = await verifySupabaseSetup();
     console.log('Supabase verification results:', verification);
     
+    // Connected but has write access issues
+    if (verification.connected && verification.tableExists && 
+        verification.hasReadAccess && !verification.hasWriteAccess) {
+      console.warn('Connected to Supabase with read-only access (RLS policy issue)');
+      toast.warning('Connected with limited permissions', { 
+        id: 'supabase-init',
+        description: 'Read-only mode due to database permissions' 
+      });
+      // Still return true as we have basic connectivity
+      return true;
+    }
+    
     // If connected but table doesn't exist, try to create it
     if (verification.connected && !verification.tableExists) {
       console.log('Connected to Supabase but table missing, attempting to create...');

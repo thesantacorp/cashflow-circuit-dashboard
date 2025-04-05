@@ -30,9 +30,22 @@ const queryClient = new QueryClient();
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [supabaseInitialized, setSupabaseInitialized] = useState(false);
+  const [initializationTimeout, setInitializationTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const initApp = async () => {
+      // Set a timeout to prevent infinite loading
+      const timeout = setTimeout(() => {
+        console.log("Initialization timeout reached, continuing anyway");
+        setIsLoading(false);
+        toast.warning("Database connection took too long", {
+          description: "Starting app in offline mode",
+          id: "supabase-timeout"
+        });
+      }, 5000); // 5 seconds timeout
+      
+      setInitializationTimeout(timeout);
+      
       // Initialize Supabase connection first
       try {
         console.log("Initializing Supabase connection...");
@@ -65,10 +78,15 @@ function App() {
       // Initialize recovery system
       initRecoverySystem();
       
-      // Simulating app initialization time
+      // Clear timeout and finish loading
+      if (initializationTimeout) {
+        clearTimeout(initializationTimeout);
+      }
+      
+      // Simulating app initialization time but with a shorter duration
       setTimeout(() => {
         setIsLoading(false);
-      }, 1500);
+      }, 1000); // Reduced from 1500ms
     };
     
     initApp();
@@ -86,8 +104,11 @@ function App() {
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (initializationTimeout) {
+        clearTimeout(initializationTimeout);
+      }
     };
-  }, [supabaseInitialized]);
+  }, [supabaseInitialized, initializationTimeout]);
 
   return (
     <QueryClientProvider client={queryClient}>

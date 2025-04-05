@@ -50,6 +50,19 @@ export function useUuidSynchronization({
           if (!silent) toast.error("Cannot connect to cloud database", { id: "force-sync" });
           return false;
         }
+        
+        // Check if we have write access
+        if (verification.connected && !verification.hasWriteAccess) {
+          console.warn("RLS policy prevents writing to database");
+          if (!silent) {
+            toast.warning("Read-only database access", { 
+              id: "force-sync", 
+              description: "Incomplete permissions prevent cloud sync. Using local storage." 
+            });
+          }
+          setSyncStatus('local-only');
+          return false;
+        }
       }
       
       // Verify table exists before attempting sync
@@ -95,7 +108,7 @@ export function useUuidSynchronization({
       // If not, try to store it with retries
       let success = false;
       let attempts = 0;
-      const maxAttempts = 3;
+      const maxAttempts = 2; // Reducing max attempts to avoid excessive failures with RLS
       
       while (!success && attempts < maxAttempts) {
         try {
@@ -109,8 +122,21 @@ export function useUuidSynchronization({
             if (!silent) toast.success("User ID successfully synced to the cloud", { id: "force-sync" });
             return true;
           }
-        } catch (syncError) {
+        } catch (syncError: any) {
           console.error(`Error on sync attempt ${attempts + 1}:`, syncError);
+          
+          // Check specifically for RLS policy violation
+          if (syncError.message && syncError.message.includes('policy')) {
+            console.warn('RLS policy prevents writing - stopping retry attempts');
+            if (!silent) {
+              toast.warning("Database permissions issue", { 
+                id: "force-sync",
+                description: "Read-only mode active. Data saved locally."
+              });
+            }
+            setSyncStatus('local-only');
+            return false;
+          }
         }
         
         if (!success && attempts < maxAttempts - 1) {
@@ -126,16 +152,19 @@ export function useUuidSynchronization({
       
       if (!success) {
         console.error('Failed to sync UUID to Supabase after multiple attempts');
-        if (!silent) toast.error("Failed to sync User ID to the cloud", { id: "force-sync" });
-        setSyncStatus('local-only');
         
-        // Schedule another retry attempt later
-        if (syncRetryCount < 5) {
-          const retryDelay = 5000 * (syncRetryCount + 1);
-          console.log(`Scheduling another retry in ${retryDelay}ms`);
-          setTimeout(() => forceSyncToCloud(true), retryDelay);
+        if (!silent) {
+          if (syncRetryCount >= 2) {
+            toast.error("Could not sync to cloud", { 
+              id: "force-sync",
+              description: "Using local storage only. Check database permissions."
+            });
+          } else {
+            toast.error("Failed to sync User ID to the cloud", { id: "force-sync" });
+          }
         }
         
+        setSyncStatus('local-only');
         return false;
       }
       
@@ -148,14 +177,14 @@ export function useUuidSynchronization({
   }, [userUuid, userEmail, tableVerified, connectionVerified, syncRetryCount, setConnectionVerified, setTableVerified, setSyncStatus, setSyncRetryCount]);
 
   // Check sync status
-  const checkSyncStatus = useCallback(async (): Promise<boolean> => {
+  const checkSyncStatus = useCallback(async (forceCheck: boolean = false): Promise<boolean> => {
     if (!userUuid || !userEmail) return false;
     
     try {
       console.log(`Checking sync status for UUID ${userUuid} and email ${userEmail}...`);
       
       // First verify connection and table
-      if (!connectionVerified || !tableVerified) {
+      if (!connectionVerified || !tableVerified || forceCheck) {
         const verification = await verifySupabaseSetup();
         setConnectionVerified(verification.connected);
         setTableVerified(verification.tableExists);
@@ -171,6 +200,13 @@ export function useUuidSynchronization({
           setSyncStatus('local-only');
           return false;
         }
+        
+        // Update on write access issues
+        if (!verification.hasWriteAccess) {
+          console.log('No write access to Supabase, marking as local-only');
+          setSyncStatus('local-only');
+          return false;
+        }
       }
       
       const { verifyUuidInSupabase } = await import('@/utils/supabase/index');
@@ -179,10 +215,12 @@ export function useUuidSynchronization({
       
       setSyncStatus(isSynced ? 'synced' : 'local-only');
       
-      // If not synced, attempt to sync now
-      if (!isSynced) {
+      // Only attempt sync if we haven't reached retry limits
+      if (!isSynced && syncRetryCount < 3) {
         console.log('UUID not synced to Supabase, attempting sync now...');
         await forceSyncToCloud(true);
+      } else if (!isSynced) {
+        console.log('UUID not synced, but reached retry limit. Staying in local-only mode.');
       }
       
       return isSynced;
@@ -190,7 +228,7 @@ export function useUuidSynchronization({
       console.error("Error checking sync status:", error);
       return false;
     }
-  }, [userUuid, userEmail, connectionVerified, tableVerified, forceSyncToCloud, setConnectionVerified, setTableVerified, setSyncStatus]);
+  }, [userUuid, userEmail, connectionVerified, tableVerified, forceSyncToCloud, syncRetryCount, setConnectionVerified, setTableVerified, setSyncStatus]);
 
   return { forceSyncToCloud, checkSyncStatus };
 }
