@@ -26,34 +26,40 @@ import { initializeSupabase } from "./utils/supabaseInit";
 import { toast } from "sonner";
 
 const queryClient = new QueryClient();
+const MAX_LOADING_TIME = 5000; // Max loading time before force continuing
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [supabaseInitialized, setSupabaseInitialized] = useState(false);
+  const [initAttempted, setInitAttempted] = useState(false);
 
   useEffect(() => {
     const initApp = async () => {
+      setInitAttempted(true);
+      
+      // Ensure we don't get stuck on loading screen
+      const forceLoadTimeout = setTimeout(() => {
+        if (isLoading) {
+          console.warn("Force continuing app initialization after timeout");
+          setIsLoading(false);
+          toast.warning("Some features initialized slowly", {
+            description: "The app will continue in local mode"
+          });
+        }
+      }, MAX_LOADING_TIME);
+      
       // Initialize Supabase connection first
       try {
         console.log("Initializing Supabase connection...");
-        toast.loading("Connecting to cloud database...", { id: "supabase-init" });
-        
         const success = await initializeSupabase();
         setSupabaseInitialized(success);
         
-        if (success) {
-          toast.success("Connected to cloud database", { id: "supabase-init" });
-        } else {
-          console.warn("Supabase initialization was not fully successful");
-          toast.warning("Limited cloud database connection", { 
-            id: "supabase-init",
-            description: "Some cloud features may not work properly"
-          });
+        if (!success) {
+          console.warn("Continuing without full Supabase initialization");
         }
       } catch (error) {
         console.error("Failed to initialize Supabase:", error);
         toast.error("Could not connect to the database", {
-          id: "supabase-init",
           description: "Your data will be stored locally only",
           duration: 5000,
         });
@@ -65,13 +71,16 @@ function App() {
       // Initialize recovery system
       initRecoverySystem();
       
-      // Simulating app initialization time
+      // Simulating app initialization time - use shorter time for better UX
       setTimeout(() => {
+        clearTimeout(forceLoadTimeout); // Clear the force timeout if normal init completes
         setIsLoading(false);
       }, 1500);
     };
     
-    initApp();
+    if (!initAttempted) {
+      initApp();
+    }
     
     // Auto-sync check on app focus or visibility change
     const handleVisibilityChange = () => {
@@ -87,7 +96,7 @@ function App() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [supabaseInitialized]);
+  }, [supabaseInitialized, isLoading, initAttempted]);
 
   return (
     <QueryClientProvider client={queryClient}>

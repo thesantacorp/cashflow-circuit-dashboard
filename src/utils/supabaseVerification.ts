@@ -2,6 +2,8 @@
 import { getSupabaseClient } from './supabase/index';
 import { toast } from 'sonner';
 
+const VERIFICATION_TIMEOUT = 8000; // 8 seconds timeout for verification
+
 // Complete verification of Supabase connection and table setup
 export async function verifySupabaseSetup(): Promise<{
   connected: boolean;
@@ -20,20 +22,70 @@ export async function verifySupabaseSetup(): Promise<{
   };
   
   try {
+    // Set up a timeout for the verification process
+    const timeoutPromise = new Promise<null>((_, reject) => {
+      setTimeout(() => reject(new Error('Verification timeout')), VERIFICATION_TIMEOUT);
+    });
+    
+    // Run verification with timeout
+    try {
+      return await Promise.race([
+        verifySupabaseSetupInternal(),
+        timeoutPromise as any
+      ]);
+    } catch (timeoutError) {
+      console.error('Supabase verification timed out:', timeoutError);
+      result.details += 'Verification timed out. ';
+      return result;
+    }
+  } catch (error) {
+    console.error('Supabase verification exception:', error);
+    result.details += `Verification exception: ${error}. `;
+    return result;
+  }
+}
+
+// Internal verification function
+async function verifySupabaseSetupInternal(): Promise<{
+  connected: boolean;
+  tableExists: boolean;
+  hasReadAccess: boolean;
+  hasWriteAccess: boolean;
+  details: string;
+}> {
+  const supabase = getSupabaseClient();
+  let result = {
+    connected: false,
+    tableExists: false,
+    hasReadAccess: false, 
+    hasWriteAccess: false,
+    details: ''
+  };
+
+  try {
     // Step 1: Verify basic connection
     console.log('Testing basic Supabase connection...');
-    const { error: connectionError } = await supabase.from('_health_check')
-      .select('*')
-      .limit(1)
-      .maybeSingle();
-    
-    // Expected error is about table not existing, which means connection works
-    if (!connectionError || connectionError.message.includes('does not exist')) {
-      result.connected = true;
-      result.details += 'Connection successful. ';
-      console.log('Basic Supabase connection successful');
-    } else {
-      result.details += `Connection failed: ${connectionError.message}. `;
+    try {
+      const { data, error: connectionError } = await supabase.from('user_uuids')
+        .select('count')
+        .limit(1);
+      
+      // If we get data or a specific error about the table not existing,
+      // then the connection works
+      if (data || 
+          (connectionError && connectionError.message.includes('does not exist')) ||
+          // For RLS policy errors, connection is working but permissions are restricted
+          (connectionError && connectionError.message.includes('policy'))
+         ) {
+        result.connected = true;
+        result.details += 'Connection successful. ';
+        console.log('Basic Supabase connection successful');
+      } else if (connectionError) {
+        result.details += `Connection failed: ${connectionError.message}. `;
+        console.error('Connection error:', connectionError);
+        return result;
+      }
+    } catch (connectionError) {
       console.error('Connection error:', connectionError);
       return result;
     }
@@ -41,15 +93,21 @@ export async function verifySupabaseSetup(): Promise<{
     // Step 2: Check if user_uuids table exists
     console.log('Checking if user_uuids table exists...');
     try {
-      const { error: tableError } = await supabase
+      const { data, error: tableError } = await supabase
         .from('user_uuids')
         .select('count')
         .limit(1);
       
-      if (!tableError) {
+      // If error is about RLS policies, the table exists but access is restricted
+      if (!tableError || (tableError && tableError.message.includes('policy'))) {
         result.tableExists = true;
         result.details += 'Table exists. ';
         console.log('user_uuids table exists');
+        
+        // If we have RLS policy issues, note that in the details
+        if (tableError && tableError.message.includes('policy')) {
+          result.details += 'RLS policies restricting access. ';
+        }
       } else {
         result.details += `Table error: ${tableError.message}. `;
         console.warn('Table check error:', tableError);
@@ -67,9 +125,9 @@ export async function verifySupabaseSetup(): Promise<{
         .select('*')
         .limit(5);
       
-      if (!readError) {
-        result.hasReadAccess = true;
-        result.details += `Read access OK (${readData?.length || 0} records). `;
+      if (!readError || (readError && readError.message.includes('policy'))) {
+        result.hasReadAccess = !readError; // Only true if no error at all
+        result.details += `Read access ${!readError ? 'OK' : 'restricted by RLS'} (${readData?.length || 0} records). `;
         console.log('Read access verified, retrieved:', readData?.length || 0, 'records');
       } else {
         result.details += `Read access error: ${readError.message}. `;
@@ -90,6 +148,7 @@ export async function verifySupabaseSetup(): Promise<{
           uuid: testUuid 
         });
       
+      // Check if write succeeded or if it's just an RLS policy restriction
       if (!writeError) {
         result.hasWriteAccess = true;
         result.details += 'Write access OK. ';
@@ -101,15 +160,21 @@ export async function verifySupabaseSetup(): Promise<{
           .delete()
           .eq('email', testEmail);
       } else {
-        result.details += `Write access error: ${writeError.message}. `;
-        console.error('Write access error:', writeError);
+        // If we have RLS policy errors, the table exists but we don't have write access
+        if (writeError.message.includes('policy')) {
+          result.details += 'Write access restricted by RLS policies. ';
+          console.warn('Write access restricted by RLS policies:', writeError);
+        } else {
+          result.details += `Write access error: ${writeError.message}. `;
+          console.error('Write access error:', writeError);
+        }
       }
     }
     
     return result;
   } catch (error) {
-    console.error('Supabase verification exception:', error);
-    result.details += `Verification exception: ${error}. `;
+    console.error('Verification internal exception:', error);
+    result.details += `Internal verification error: ${error}. `;
     return result;
   }
 }
@@ -156,7 +221,7 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
             uuid: 'test-uuid-for-table-creation'
           });
           
-        if (!sqlError || sqlError.message.includes('already exists')) {
+        if (!sqlError || sqlError.message.includes('already exists') || sqlError.message.includes('policy')) {
           tableCreated = true;
         } else {
           console.warn('Direct table creation failed:', sqlError);
@@ -167,16 +232,27 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
     }
     
     // Verify if fixes worked
-    const verification = await verifySupabaseSetup();
-    
-    if (verification.tableExists) {
-      toast.success('Successfully fixed Supabase setup!', { id: 'fixing-supabase' });
-      return true;
-    } else {
-      toast.error('Could not fix Supabase setup automatically', { 
-        id: 'fixing-supabase',
-        description: 'Please check your Supabase project settings'
+    try {
+      // Set timeout for verification to avoid getting stuck
+      const timeoutPromise = new Promise<null>((_, reject) => {
+        setTimeout(() => reject(new Error('Fix verification timeout')), 5000);
       });
+      
+      const verification = await Promise.race([verifySupabaseSetup(), timeoutPromise]) as any;
+      
+      if (verification.tableExists) {
+        toast.success('Successfully fixed Supabase setup!', { id: 'fixing-supabase' });
+        return true;
+      } else {
+        toast.error('Could not fix Supabase setup automatically', { 
+          id: 'fixing-supabase',
+          description: 'Please check your Supabase project settings'
+        });
+        return false;
+      }
+    } catch (timeoutError) {
+      console.error('Fix verification timed out:', timeoutError);
+      toast.error('Verification timed out', { id: 'fixing-supabase' });
       return false;
     }
   } catch (error) {

@@ -45,7 +45,12 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const handleAppVisible = async () => {
       if (userUuid && userEmail) {
         console.log('App is visible again, checking UUID sync status...');
-        await checkSyncStatus();
+        try {
+          await checkSyncStatus();
+        } catch (error) {
+          console.error('Error checking UUID sync status on visibility change:', error);
+          // Don't show toast to avoid spamming the user when returning to tab
+        }
       }
     };
 
@@ -54,7 +59,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // Check sync status on mount - always check regardless of current status
     if (userUuid && userEmail) {
       console.log('App loaded, verifying UUID sync status...');
-      checkSyncStatus();
+      checkSyncStatus().catch(error => {
+        console.error('Error on initial sync status check:', error);
+        // No need to show toast as this happens during initialization
+      });
     }
 
     return () => {
@@ -64,23 +72,38 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Initial sync attempt when provider loads
   useEffect(() => {
+    // Use a flag to ensure we don't have multiple sync attempts running
+    let syncAttemptInProgress = false;
+    
     const initialSync = async () => {
-      if (userUuid && userEmail && syncStatus === 'local-only') {
-        console.log('Initial load, attempting to sync local UUID to cloud...');
+      if (userUuid && userEmail && syncStatus === 'local-only' && !syncAttemptInProgress) {
         try {
-          const result = await forceSyncToCloud();
-          if (result) {
-            console.log('Initial sync succeeded');
-          } else {
-            console.log('Initial sync attempt failed, will retry later');
-            // Schedule a retry after 5 seconds
-            setTimeout(() => {
-              console.log('Retrying initial sync...');
-              forceSyncToCloud(true);
-            }, 5000);
+          syncAttemptInProgress = true;
+          console.log('Initial load, attempting to sync local UUID to cloud...');
+          
+          try {
+            const result = await forceSyncToCloud();
+            if (result) {
+              console.log('Initial sync succeeded');
+              syncAttemptInProgress = false;
+              return;
+            } else {
+              console.log('Initial sync attempt failed, will retry once more');
+              // Schedule a single retry after delay
+              setTimeout(() => {
+                console.log('Retrying initial sync...');
+                forceSyncToCloud(true)
+                  .then(() => { syncAttemptInProgress = false; })
+                  .catch(() => { syncAttemptInProgress = false; });
+              }, 5000);
+            }
+          } catch (error) {
+            console.error('Error during initial sync:', error);
+            syncAttemptInProgress = false;
           }
         } catch (error) {
-          console.error('Error during initial sync:', error);
+          console.error('Error in initialSync:', error);
+          syncAttemptInProgress = false;
         }
       }
     };
@@ -101,7 +124,11 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             'Your User ID is still stored locally only', 
             {
               description: 'Click "Verify Cloud Sync" to check database status',
-              duration: 8000
+              duration: 8000,
+              action: {
+                label: "Fix Now",
+                onClick: () => forceSyncToCloud()
+              }
             }
           );
         }
@@ -113,7 +140,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         clearTimeout(syncCheckTimeout);
       }
     };
-  }, [userUuid, userEmail, syncStatus]);
+  }, [userUuid, userEmail, syncStatus, forceSyncToCloud]);
   
   return (
     <TransactionContext.Provider
