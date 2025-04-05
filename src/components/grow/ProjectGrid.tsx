@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { CrowdfundingProject } from '@/types/crowdfunding';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, ExternalLink, Users } from 'lucide-react';
+import { Calendar, ExternalLink, Users, Trophy } from 'lucide-react';
 
 interface ProjectGridProps {
   projects: CrowdfundingProject[];
