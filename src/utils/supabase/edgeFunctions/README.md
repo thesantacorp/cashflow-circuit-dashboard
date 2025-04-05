@@ -15,7 +15,7 @@ You need to create the following three Edge Functions in your Supabase project:
 
 ### Function Structure
 
-Each function should have this basic structure:
+Each function has this basic structure:
 
 ```typescript
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
@@ -112,7 +112,7 @@ In your Supabase project settings, you need to add these environment variables:
 3. Go to Edge Functions in the left sidebar
 4. Click "Create a new function"
 5. Name it one of: `send-uuid-email`, `send-recovery-email`, or `send-verification-code`
-6. Paste the code template above, customizing as needed
+6. Paste the code from the corresponding file in the `src/utils/supabase/edgeFunctions/` directory
 7. Deploy the function
 8. Repeat for each of the three required functions
 
