@@ -15,7 +15,7 @@ export function useSupabaseSync() {
   const backupToSupabase = async () => {
     if (!user) {
       toast.error('You must be logged in to backup data');
-      return;
+      return false;
     }
 
     setIsSyncing(true);
@@ -26,34 +26,32 @@ export function useSupabaseSync() {
       
       // Insert transactions
       if (state.transactions.length > 0) {
-        const { error: transactionsError } = await supabase.from('transactions').insert(
-          state.transactions.map(transaction => ({
-            user_email: user.email,
-            transaction_id: transaction.id,
-            type: transaction.type,
-            category_id: transaction.categoryId,
-            amount: transaction.amount,
-            description: transaction.description,
-            date: transaction.date,
-            emotional_state: transaction.emotionalState
-          }))
-        );
-
+        const transactionRows = state.transactions.map(transaction => ({
+          user_email: user.email,
+          transaction_id: transaction.id,
+          type: transaction.type,
+          category_id: transaction.categoryId,
+          amount: transaction.amount,
+          description: transaction.description || '',
+          date: transaction.date,
+          emotional_state: transaction.emotionalState || 'neutral'
+        }));
+        
+        const { error: transactionsError } = await supabase.from('transactions').insert(transactionRows);
         if (transactionsError) throw transactionsError;
       }
       
       // Insert categories
       if (state.categories.length > 0) {
-        const { error: categoriesError } = await supabase.from('categories').insert(
-          state.categories.map(category => ({
-            user_email: user.email,
-            category_id: category.id,
-            name: category.name,
-            type: category.type,
-            color: category.color
-          }))
-        );
-
+        const categoryRows = state.categories.map(category => ({
+          user_email: user.email,
+          category_id: category.id,
+          name: category.name,
+          type: category.type,
+          color: category.color
+        }));
+        
+        const { error: categoriesError } = await supabase.from('categories').insert(categoryRows);
         if (categoriesError) throw categoriesError;
       }
       
@@ -87,7 +85,7 @@ export function useSupabaseSync() {
   const restoreFromSupabase = async () => {
     if (!user) {
       toast.error('You must be logged in to restore data');
-      return;
+      return false;
     }
 
     setIsSyncing(true);
@@ -110,7 +108,7 @@ export function useSupabaseSync() {
       
       // Transform data to match application state format
       const transformedData = {
-        transactions: transactionsData.map(t => ({
+        transactions: transactionsData.map((t: any) => ({
           id: t.transaction_id,
           type: t.type,
           categoryId: t.category_id,
@@ -119,7 +117,7 @@ export function useSupabaseSync() {
           date: t.date,
           emotionalState: t.emotional_state
         })),
-        categories: categoriesData.map(c => ({
+        categories: categoriesData.map((c: any) => ({
           id: c.category_id,
           name: c.name,
           type: c.type,
@@ -151,12 +149,12 @@ export function useSupabaseSync() {
         const hasLocalData = state.transactions.length > 0 || state.categories.length > 0;
         
         // Check if we have remote data
-        const { data: remoteTransactions } = await supabase
+        const { data: remoteTrans, error } = await supabase
           .from('transactions')
           .select('count', { count: 'exact', head: true })
           .eq('user_email', user.email);
         
-        const remoteCount = remoteTransactions?.count || 0;
+        const remoteCount = remoteTrans?.count ?? 0;
         
         // If we have remote data but no local data, restore from remote
         if (remoteCount > 0 && !hasLocalData) {

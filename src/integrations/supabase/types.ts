@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      categories: {
+        Row: {
+          category_id: string
+          color: string | null
+          created_at: string | null
+          id: string
+          name: string
+          type: string
+          user_email: string
+        }
+        Insert: {
+          category_id: string
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          type: string
+          user_email: string
+        }
+        Update: {
+          category_id?: string
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          type?: string
+          user_email?: string
+        }
+        Relationships: []
+      }
       ideas: {
         Row: {
           countdown_timer: string
@@ -48,7 +78,6 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
-          backup_approved: boolean | null
           backup_last_date: string | null
           created_at: string | null
           email: string
@@ -58,7 +87,6 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
-          backup_approved?: boolean | null
           backup_last_date?: string | null
           created_at?: string | null
           email: string
@@ -68,13 +96,51 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
-          backup_approved?: boolean | null
           backup_last_date?: string | null
           created_at?: string | null
           email?: string
           full_name?: string | null
           id?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          category_id: string | null
+          created_at: string | null
+          date: string
+          description: string | null
+          emotional_state: string | null
+          id: string
+          transaction_id: string
+          type: string
+          user_email: string
+        }
+        Insert: {
+          amount: number
+          category_id?: string | null
+          created_at?: string | null
+          date: string
+          description?: string | null
+          emotional_state?: string | null
+          id?: string
+          transaction_id: string
+          type: string
+          user_email: string
+        }
+        Update: {
+          amount?: number
+          category_id?: string | null
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          emotional_state?: string | null
+          id?: string
+          transaction_id?: string
+          type?: string
+          user_email?: string
         }
         Relationships: []
       }
