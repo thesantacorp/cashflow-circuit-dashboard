@@ -1,21 +1,21 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu } from "lucide-react";
 import {
   Drawer,
   DrawerTrigger,
   DrawerContent,
-  DrawerClose,
   DrawerHeader,
-  DrawerTitle,
   DrawerFooter,
 } from "@/components/ui/drawer";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Bell, Banknote, CreditCard, Cloud, Link2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import MobileNavMenu from "./mobile/MobileNavMenu";
-import MobileSettingsMenu from "./mobile/MobileSettingsMenu";
 import SettingsSheetContent from "./mobile/SettingsSheetContent";
+import MobileDrawerHeader from "./mobile/MobileDrawerHeader";
+import MobileDrawerContent from "./mobile/MobileDrawerContent";
+import MobileDrawerFooter from "./mobile/MobileDrawerFooter";
 
 const MobileNav: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -112,34 +112,18 @@ const MobileNav: React.FC = () => {
         
         <DrawerContent className="h-[85%] bg-gradient-to-b from-orange-50 to-white border-t-orange-200">
           <DrawerHeader className="flex justify-between border-b border-orange-200/50 pb-3">
-            <DrawerTitle className="text-orange-800 font-semibold">Menu</DrawerTitle>
-            <DrawerClose asChild>
-              <Button variant="ghost" size="icon" className="text-orange-800 hover:bg-orange-100">
-                <X className="h-6 w-6" />
-              </Button>
-            </DrawerClose>
+            <MobileDrawerHeader />
           </DrawerHeader>
           
-          <div className="flex-1 overflow-y-auto p-4">
-            <MobileNavMenu 
-              navigationItems={navigationItems} 
-              onNavigation={handleNavigation} 
-            />
-            
-            <MobileSettingsMenu 
-              settingsItems={settingsItems} 
-              onSettingSelect={openSettingsSheet} 
-            />
-          </div>
+          <MobileDrawerContent 
+            navigationItems={navigationItems}
+            settingsItems={settingsItems}
+            onNavigation={handleNavigation}
+            onSettingSelect={openSettingsSheet}
+          />
           
-          <DrawerFooter className="pt-2 border-t border-orange-200/50 bg-gradient-to-b from-orange-50 to-white">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsDrawerOpen(false)}
-              className="w-full border-orange-300 bg-white text-orange-800 hover:bg-orange-50"
-            >
-              Close Menu
-            </Button>
+          <DrawerFooter>
+            <MobileDrawerFooter />
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
