@@ -43,11 +43,8 @@ export const customClient = {
   ideas: {
     select: () => supabase.from('ideas').select(),
     insert: (data: IdeaInsert | IdeaInsert[]) => {
-      if (Array.isArray(data)) {
-        return supabase.from('ideas').insert(data);
-      } else {
-        return supabase.from('ideas').insert([data]);
-      }
+      const payload = Array.isArray(data) ? data : [data];
+      return supabase.from('ideas').insert(payload);
     },
     update: (data: IdeaUpdate) => supabase.from('ideas').update(data),
     delete: () => supabase.from('ideas').delete(),
@@ -56,11 +53,8 @@ export const customClient = {
   votes: {
     select: () => supabase.from('votes').select(),
     insert: (data: VoteInsert | VoteInsert[]) => {
-      if (Array.isArray(data)) {
-        return supabase.from('votes').insert(data);
-      } else {
-        return supabase.from('votes').insert([data]);
-      }
+      const payload = Array.isArray(data) ? data : [data];
+      return supabase.from('votes').insert(payload);
     },
     update: (data: VoteUpdate) => supabase.from('votes').update(data),
     delete: () => supabase.from('votes').delete(),
