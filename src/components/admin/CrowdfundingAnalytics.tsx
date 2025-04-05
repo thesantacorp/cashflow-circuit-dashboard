@@ -16,12 +16,13 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { format, differenceInDays } from 'date-fns';
+import { format } from 'date-fns';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#4CAF50', '#F44336', '#9C27B0'];
 
 const CrowdfundingAnalytics: React.FC = () => {
-  const { state: { projects, backers } } = useCrowdfunding();
+  const { state } = useCrowdfunding();
+  const { projects, backers } = state;
   const { currencySymbol } = useCurrency();
 
   // Calculate key metrics
