@@ -40,6 +40,11 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getTotalByType 
   } = useDataOperations(state, userUuid, dispatch);
 
+  // Add the getAllTransactions function
+  const getAllTransactions = () => {
+    return state.transactions;
+  };
+
   // Listen for app visibility changes to auto-sync
   useEffect(() => {
     const handleAppVisible = async () => {
@@ -139,6 +144,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         getTotalByType,
         importData,
         replaceAllData,
+        getAllTransactions,
       }}
     >
       {children}

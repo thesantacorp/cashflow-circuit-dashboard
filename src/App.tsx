@@ -13,6 +13,7 @@ import AdminNotificationDashboard from './pages/AdminNotificationDashboard';
 import RecoverPage from './pages/RecoverPage';
 import Index from './pages/Index';
 import './App.css';
+import { TransactionProvider } from '@/context/transaction';
 
 function App() {
   useEffect(() => {
@@ -25,19 +26,21 @@ function App() {
   }, []);
   
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/expenses" element={<ExpensesPage />} />
-        <Route path="/income" element={<IncomePage />} />
-        <Route path="/overview" element={<OverviewPage />} />
-        <Route path="/overview-enhanced" element={<OverviewPageEnhanced />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />
-        <Route path="/recover" element={<RecoverPage />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Router>
+    <TransactionProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/expenses" element={<ExpensesPage />} />
+          <Route path="/income" element={<IncomePage />} />
+          <Route path="/overview" element={<OverviewPage />} />
+          <Route path="/overview-enhanced" element={<OverviewPageEnhanced />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />
+          <Route path="/recover" element={<RecoverPage />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Router>
+    </TransactionProvider>
   );
 }
 

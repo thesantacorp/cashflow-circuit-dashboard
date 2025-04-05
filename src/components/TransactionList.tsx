@@ -29,11 +29,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ type = "expense", lim
 
   const filterTransactionsByTimePeriod = (transactions: Transaction[], period: TimePeriod): Transaction[] => {
     if (period === "all") return transactions;
-    
+
     const now = new Date();
     let startDate: Date;
     let endDate: Date;
-    
+
     switch (period) {
       case "day":
         startDate = startOfDay(now);
@@ -54,7 +54,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ type = "expense", lim
       default:
         return transactions;
     }
-    
+
     return transactions.filter(t => {
       const transactionDate = new Date(t.date);
       return isWithinInterval(transactionDate, { start: startDate, end: endDate });
