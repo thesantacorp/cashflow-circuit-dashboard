@@ -7,6 +7,10 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://xejnmpsmnakew
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhlam5tcHNtbmFrZXdpb2lmbGNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODM3MzA5NjYsImV4cCI6MTk5OTMwNjk2Nn0.R7JQITqV4ODsanBkyaKzeMpWh7cXGZMG7SSLWa8VuXw';
 
 let supabaseClient: any = null;
+let connectionChecked = false;
+let connectionAvailable = false;
+let lastConnectionCheck = 0;
+const CHECK_INTERVAL = 30000; // 30 seconds
 
 // Function to get or create the Supabase client
 export const getSupabaseClient = () => {
@@ -19,7 +23,6 @@ export const getSupabaseClient = () => {
         },
         global: {
           fetch: (...args: Parameters<typeof fetch>) => {
-            // Add retry logic and proper error handling
             return fetch(...args).catch(error => {
               console.error('Fetch error in Supabase client:', error);
               throw new Error(`Network error: ${error.message || 'Failed to connect to Supabase'}`);
@@ -34,6 +37,7 @@ export const getSupabaseClient = () => {
       toast.error('Failed to initialize database connection', {
         description: error instanceof Error ? error.message : 'Unknown error'
       });
+      return null;
     }
   }
   
@@ -59,6 +63,12 @@ export const isRlsPolicyError = (error: any) => {
 
 // Check if the database connection is working
 export const checkDatabaseConnection = async (): Promise<boolean> => {
+  // Check if we've recently verified the connection
+  const now = Date.now();
+  if (connectionChecked && now - lastConnectionCheck < CHECK_INTERVAL) {
+    return connectionAvailable;
+  }
+  
   try {
     const supabase = getSupabaseClient();
     if (!supabase) return false;
@@ -66,12 +76,15 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
     console.log('Checking Supabase connection...');
     
     // Try a simple query to see if we can connect
-    // Removed the .timeout(5000) method since it's not supported in the current Supabase version
     const { data, error, status } = await supabase
       .from('user_uuids')
-      .select('count(*)', { count: 'exact', head: true })
+      .select('count', { count: 'exact', head: true })
       .limit(1);
       
+    // Update connection status
+    connectionChecked = true;
+    lastConnectionCheck = now;
+    
     // Handle specific error types
     if (error) {
       console.error('Database connection check error:', error);
@@ -88,16 +101,22 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
       // If it's an RLS error, that actually means we connected
       if (isRlsPolicyError(error)) {
         console.log('RLS error during connection check, but connection succeeded');
+        connectionAvailable = true;
         return true;
       }
       
+      connectionAvailable = false;
       return false;
     }
     
     console.log('Database connection successful');
+    connectionAvailable = true;
     return true;
   } catch (error) {
     console.error('Exception during database connection check:', error);
+    connectionChecked = true;
+    lastConnectionCheck = now;
+    connectionAvailable = false;
     
     // More specific error feedback
     if (error instanceof Error) {
