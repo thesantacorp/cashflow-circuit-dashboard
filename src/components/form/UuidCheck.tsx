@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { KeyRound, Star, Rocket, Mail } from "lucide-react";
+import { KeyRound, Star, Rocket, Mail, Loader2, Cloud } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 
@@ -12,7 +12,7 @@ interface UuidCheckProps {
 }
 
 const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
-  const { userUuid, generateUserUuid } = useTransactions();
+  const { userUuid, generateUserUuid, syncStatus } = useTransactions();
   const [email, setEmail] = useState<string>("");
   const [showEmailInput, setShowEmailInput] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -79,6 +79,9 @@ const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
               placeholder="your.email@example.com"
               className="border-orange-200 focus-visible:ring-orange-400 mb-2"
             />
+            <p className="text-xs text-gray-600">
+              Your ID will be automatically synced to the cloud for easy recovery
+            </p>
           </div>
         )}
         
@@ -87,11 +90,19 @@ const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
           className="bg-orange-500 hover:bg-orange-600 text-white"
           disabled={isGenerating}
         >
-          {isGenerating 
-            ? "Generating..." 
-            : showEmailInput 
-              ? "Confirm and Generate ID" 
-              : "Generate User ID"}
+          {isGenerating ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Generating...
+            </>
+          ) : showEmailInput ? (
+            <>
+              <Cloud className="mr-2 h-4 w-4" />
+              Generate and Sync ID
+            </>
+          ) : (
+            "Generate User ID"
+          )}
         </Button>
       </AlertDescription>
     </Alert>

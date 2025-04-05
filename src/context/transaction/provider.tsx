@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { TransactionContext } from "./context";
 import { useUuidManagement } from "./hooks/useUuidManagement";
@@ -38,6 +38,27 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getCategoryById, 
     getTotalByType 
   } = useDataOperations(state, userUuid, dispatch);
+
+  // Listen for app visibility changes to auto-sync
+  useEffect(() => {
+    const handleAppVisible = async () => {
+      if (userUuid && userEmail && syncStatus === 'local-only') {
+        console.log('App is visible again, checking UUID sync status...');
+        await checkSyncStatus();
+      }
+    };
+
+    window.addEventListener('app-visible', handleAppVisible);
+    
+    // Also check sync status on mount
+    if (userUuid && userEmail) {
+      checkSyncStatus();
+    }
+
+    return () => {
+      window.removeEventListener('app-visible', handleAppVisible);
+    };
+  }, [userUuid, userEmail, syncStatus, checkSyncStatus]);
 
   return (
     <TransactionContext.Provider

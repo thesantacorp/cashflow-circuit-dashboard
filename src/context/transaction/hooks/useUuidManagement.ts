@@ -16,6 +16,7 @@ export function useUuidManagement() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [tableVerified, setTableVerified] = useState<boolean>(false);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'local-only' | 'unknown'>('unknown');
+  const [syncRetryCount, setSyncRetryCount] = useState<number>(0);
 
   // Verify database connection on mount
   useEffect(() => {
@@ -31,6 +32,11 @@ export function useUuidManagement() {
         } else {
           console.error('Supabase connection issue:', error);
         }
+
+        // Verify table exists
+        const tableExists = await ensureUuidTableExists();
+        setTableVerified(tableExists);
+        console.log('UUID table exists or created:', tableExists);
       } catch (error) {
         console.warn('Could not verify Supabase connection:', error);
       }
@@ -38,6 +44,20 @@ export function useUuidManagement() {
     
     verifyDatabase();
   }, []);
+
+  // Auto-sync UUID on app load if needed
+  useEffect(() => {
+    const autoSyncUuid = async () => {
+      if (userUuid && userEmail && syncStatus === 'local-only' && tableVerified) {
+        console.log('Attempting automatic sync of local UUID to cloud...');
+        await forceSyncToCloud(true);
+      }
+    };
+
+    if (tableVerified && userUuid && userEmail) {
+      autoSyncUuid();
+    }
+  }, [tableVerified, userUuid, userEmail, syncStatus]);
 
   // Check for saved UUID and email
   useEffect(() => {
@@ -92,24 +112,13 @@ export function useUuidManagement() {
               setUserUuid(localUuid);
               setSyncStatus('local-only');
               
-              // If table exists, try to migrate localStorage UUID to Supabase
+              // If table exists, try to migrate localStorage UUID to Supabase immediately
               if (tableVerified) {
                 try {
-                  console.log(`Attempting to migrate local UUID ${localUuid} to Supabase for ${savedEmail}`);
-                  const success = await storeUserUuid(savedEmail, localUuid);
-                  
-                  if (success) {
-                    console.log(`Migrated local UUID to Supabase for ${savedEmail}`);
-                    setSyncStatus('synced');
-                    toast.success('Successfully synced your User ID to the cloud');
-                  } else {
-                    console.error(`Failed to migrate local UUID to Supabase for ${savedEmail}`);
-                    toast.error('Failed to sync User ID to cloud', { 
-                      description: 'Your data is still stored locally' 
-                    });
-                  }
+                  console.log(`Attempting to sync local UUID ${localUuid} to Supabase for ${savedEmail}`);
+                  await forceSyncToCloud(true);
                 } catch (syncError) {
-                  console.error('Error during UUID migration to Supabase:', syncError);
+                  console.error('Error during initial UUID sync to Supabase:', syncError);
                 }
               }
             }
@@ -165,10 +174,21 @@ export function useUuidManagement() {
         console.error('Error ensuring table exists:', tableError);
       }
       
-      // Store in Supabase if table exists
+      // Store locally first to ensure we have a backup
+      localStorage.setItem("userUuid", newUuid);
+      localStorage.setItem("userEmail", email);
+      
+      setUserUuid(newUuid);
+      setUserEmail(email);
+      setSyncStatus('local-only');
+      
+      // Attempt immediate sync to Supabase
       let success = false;
       
       if (tableExists) {
+        // Show sync progress to user
+        toast.loading("Syncing your User ID to the cloud...", { id: "uuid-sync" });
+        
         // Try to store with retries
         let retryCount = 0;
         const maxRetries = 3;
@@ -182,8 +202,15 @@ export function useUuidManagement() {
             if (success) {
               console.log(`Successfully stored UUID in Supabase for ${email}`);
               setSyncStatus('synced');
+              toast.success(`User ID generated and synced to cloud`, { id: "uuid-sync" });
             } else {
               console.log(`Failed to store UUID in Supabase for ${email}`);
+              if (retryCount === maxRetries - 1) {
+                toast.error(`User ID stored locally only`, { 
+                  id: "uuid-sync",
+                  description: "We'll automatically sync to cloud next time you open the app" 
+                });
+              }
             }
           } catch (error) {
             console.error(`Error on attempt ${retryCount + 1}:`, error);
@@ -199,54 +226,36 @@ export function useUuidManagement() {
         }
       } else {
         console.warn('Table does not exist, skipping Supabase sync');
-      }
-      
-      // Store locally regardless of Supabase success
-      localStorage.setItem("userUuid", newUuid);
-      localStorage.setItem("userEmail", email);
-      
-      setUserUuid(newUuid);
-      setUserEmail(email);
-      
-      if (success) {
-        toast.success(`User ID generated and linked to ${email}`);
-      } else {
-        setSyncStatus('local-only');
-        toast.success(`User ID generated and linked to ${email} (stored locally)`, {
-          description: tableExists ? "We'll try to sync with the cloud later" : "Cloud sync isn't available right now"
+        toast.warning(`User ID stored locally only`, { 
+          id: "uuid-sync",
+          description: "Cloud sync will be attempted later" 
         });
       }
       
       return newUuid;
     } catch (error) {
       console.error("Error in generateUserUuid:", error);
-      
-      // Fallback to local storage if any error occurs
-      const newUuid = uuidv4();
-      localStorage.setItem("userUuid", newUuid);
-      if (email) localStorage.setItem("userEmail", email);
-      
-      setUserUuid(newUuid);
-      if (email) setUserEmail(email);
-      setSyncStatus('local-only');
-      
-      toast.warning("User ID stored locally due to an error", {
-        description: "Cloud sync will be attempted later"
+      toast.error("Error generating User ID", {
+        id: "uuid-sync",
+        description: "Please try again later"
       });
-      
-      return newUuid;
+      return "";
     }
   };
 
   // Force sync the current UUID to Supabase
-  const forceSyncToCloud = async (): Promise<boolean> => {
+  const forceSyncToCloud = async (silent: boolean = false): Promise<boolean> => {
     if (!userUuid || !userEmail) {
-      toast.error("No User ID or email to sync");
+      if (!silent) toast.error("No User ID or email to sync");
       return false;
     }
 
     try {
       console.log(`Force syncing UUID ${userUuid} for ${userEmail} to cloud...`);
+      
+      if (!silent) {
+        toast.loading("Syncing to cloud...", { id: "force-sync" });
+      }
       
       // Verify table exists before attempting sync
       let tableExists = false;
@@ -255,14 +264,17 @@ export function useUuidManagement() {
         setTableVerified(tableExists);
       } catch (tableError) {
         console.error('Error ensuring table exists during force sync:', tableError);
-        toast.error("Could not verify database table");
+        if (!silent) toast.error("Could not verify database table", { id: "force-sync" });
         return false;
       }
       
       if (!tableExists) {
-        toast.error("Database table doesn't exist", {
-          description: "Please check your Supabase project"
-        });
+        if (!silent) {
+          toast.error("Database table doesn't exist", {
+            id: "force-sync",
+            description: "Please check your Supabase project"
+          });
+        }
         return false;
       }
       
@@ -271,32 +283,65 @@ export function useUuidManagement() {
       try {
         exists = await verifyUuidInSupabase(userEmail, userUuid);
         console.log(`UUID already exists in Supabase: ${exists}`);
+        
+        if (exists) {
+          setSyncStatus('synced');
+          if (!silent) toast.success("User ID is already synced to the cloud", { id: "force-sync" });
+          return true;
+        }
       } catch (verifyError) {
         console.error('Error verifying UUID existence:', verifyError);
       }
       
-      if (exists) {
-        toast.success("User ID is already synced to the cloud");
-        setSyncStatus('synced');
-        return true;
+      // If not, try to store it with retries
+      let success = false;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (!success && attempts < maxAttempts) {
+        try {
+          console.log(`Attempt ${attempts + 1}/${maxAttempts} to sync UUID to Supabase`);
+          success = await storeUserUuid(userEmail, userUuid);
+          
+          if (success) {
+            console.log('UUID successfully synced to Supabase');
+            setSyncStatus('synced');
+            if (!silent) toast.success("User ID successfully synced to the cloud", { id: "force-sync" });
+            return true;
+          }
+        } catch (syncError) {
+          console.error(`Error on sync attempt ${attempts + 1}:`, syncError);
+        }
+        
+        if (!success && attempts < maxAttempts - 1) {
+          const delay = 1000 * (attempts + 1);
+          console.log(`Waiting ${delay}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        
+        attempts++;
       }
       
-      // If not, try to store it
-      const success = await storeUserUuid(userEmail, userUuid);
+      setSyncRetryCount(prevCount => prevCount + 1);
       
-      if (success) {
-        console.log('UUID successfully synced to Supabase');
-        toast.success("User ID successfully synced to the cloud");
-        setSyncStatus('synced');
-        return true;
-      } else {
-        console.error('Failed to sync UUID to Supabase');
-        toast.error("Failed to sync User ID to the cloud");
+      if (!success) {
+        console.error('Failed to sync UUID to Supabase after multiple attempts');
+        if (!silent) toast.error("Failed to sync User ID to the cloud", { id: "force-sync" });
+        
+        // Schedule another retry attempt later
+        if (syncRetryCount < 5) {
+          const retryDelay = 5000 * (syncRetryCount + 1);
+          console.log(`Scheduling another retry in ${retryDelay}ms`);
+          setTimeout(() => forceSyncToCloud(true), retryDelay);
+        }
+        
         return false;
       }
+      
+      return success;
     } catch (error) {
       console.error("Error forcing sync to cloud:", error);
-      toast.error("Error syncing to cloud");
+      if (!silent) toast.error("Error syncing to cloud", { id: "force-sync" });
       return false;
     }
   };
@@ -328,6 +373,13 @@ export function useUuidManagement() {
       console.log(`Sync status check result: ${isSynced ? 'synced' : 'local-only'}`);
       
       setSyncStatus(isSynced ? 'synced' : 'local-only');
+      
+      // If not synced, attempt to sync now
+      if (!isSynced) {
+        console.log('UUID not synced to Supabase, attempting sync now...');
+        await forceSyncToCloud(true);
+      }
+      
       return isSynced;
     } catch (error) {
       console.error("Error checking sync status:", error);

@@ -33,27 +33,37 @@ function App() {
 
   useEffect(() => {
     const initApp = async () => {
+      // Initialize Supabase connection first
+      try {
+        console.log("Initializing Supabase connection...");
+        toast.loading("Connecting to cloud database...", { id: "supabase-init" });
+        
+        const success = await initializeSupabase();
+        setSupabaseInitialized(success);
+        
+        if (success) {
+          toast.success("Connected to cloud database", { id: "supabase-init" });
+        } else {
+          console.warn("Supabase initialization was not fully successful");
+          toast.warning("Limited cloud database connection", { 
+            id: "supabase-init",
+            description: "Some cloud features may not work properly"
+          });
+        }
+      } catch (error) {
+        console.error("Failed to initialize Supabase:", error);
+        toast.error("Could not connect to the database", {
+          id: "supabase-init",
+          description: "Your data will be stored locally only",
+          duration: 5000,
+        });
+      }
+      
       // Initialize session tracking
       initSessionTracking();
       
       // Initialize recovery system
       initRecoverySystem();
-      
-      // Initialize Supabase connection
-      try {
-        const success = await initializeSupabase();
-        setSupabaseInitialized(success);
-        
-        if (!success) {
-          console.warn("Supabase initialization was not fully successful");
-        }
-      } catch (error) {
-        console.error("Failed to initialize Supabase:", error);
-        toast.error("Could not connect to the database", {
-          description: "Your data will be stored locally only",
-          duration: 5000,
-        });
-      }
       
       // Simulating app initialization time
       setTimeout(() => {
@@ -62,7 +72,22 @@ function App() {
     };
     
     initApp();
-  }, []);
+    
+    // Auto-sync check on app focus or visibility change
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && supabaseInitialized) {
+        console.log("App is visible again, checking for sync needs...");
+        // This will trigger the TransactionProvider to check if syncing is needed
+        window.dispatchEvent(new Event('app-visible'));
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [supabaseInitialized]);
 
   return (
     <QueryClientProvider client={queryClient}>
