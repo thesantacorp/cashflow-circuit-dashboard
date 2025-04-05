@@ -23,15 +23,15 @@ export function useUuidGeneration({
   setTableVerified,
   connectionVerified
 }: UseUuidGenerationProps) {
-  // Generate a new UUID for the user and bind it to an email
-  const generateUserUuid = async (email?: string): Promise<string> => {
+  // Generate a new UUID for the user and bind it to an email, or use an existing UUID if provided
+  const generateUserUuid = async (email?: string, existingUuid?: string): Promise<string> => {
     if (!email) {
       toast.error("Email is required to generate a User ID");
       return "";
     }
     
     try {
-      console.log(`Generating new UUID for email: ${email}`);
+      console.log(`${existingUuid ? 'Using existing' : 'Generating new'} UUID for email: ${email}`);
       
       // Validate email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -40,12 +40,13 @@ export function useUuidGeneration({
         return "";
       }
 
-      // Generate a new UUID
-      const newUuid = uuidv4();
-      console.log(`Generated new UUID: ${newUuid}`);
+      // Generate or use existing UUID
+      const newUuid = existingUuid || uuidv4();
+      console.log(`${existingUuid ? 'Using' : 'Generated'} UUID: ${newUuid}`);
       
-      // Show generating progress
-      toast.loading("Generating your unique User ID...", { id: "uuid-generate" });
+      // Show generating/importing progress
+      const actionText = existingUuid ? "Importing" : "Generating";
+      toast.loading(`${actionText} your User ID...`, { id: "uuid-generate" });
       
       // Store locally first to ensure we have a backup
       localStorage.setItem("userUuid", newUuid);
@@ -57,7 +58,7 @@ export function useUuidGeneration({
       
       // Mark as local first, will update if sync succeeds
       setSyncStatus('local-only');
-      toast.success("User ID generated successfully", { 
+      toast.success(`User ID ${existingUuid ? 'imported' : 'generated'} successfully`, { 
         id: "uuid-generate",
         description: "Your ID has been saved locally"
       });
@@ -143,7 +144,7 @@ export function useUuidGeneration({
         }
       } else {
         setSyncStatus('local-only');
-        toast.warning("User ID generated and stored locally", { 
+        toast.warning(`User ID ${existingUuid ? 'imported' : 'generated'} and stored locally`, { 
           id: "uuid-sync",
           description: "No connection to cloud database" 
         });
@@ -152,7 +153,7 @@ export function useUuidGeneration({
       return newUuid;
     } catch (error) {
       console.error("Error in generateUserUuid:", error);
-      toast.error("Error generating User ID", {
+      toast.error(`Error ${existingUuid ? 'importing' : 'generating'} User ID`, {
         id: "uuid-sync",
         description: "Please try again later"
       });
@@ -164,7 +165,7 @@ export function useUuidGeneration({
 }
 
 // For use from other hooks that need this function
-export const generateUserUuidFunction = async (params: UseUuidGenerationProps & { email: string }): Promise<string> => {
+export const generateUserUuidFunction = async (params: UseUuidGenerationProps & { email: string, existingUuid?: string }): Promise<string> => {
   const { generateUserUuid } = useUuidGeneration(params);
-  return await generateUserUuid(params.email);
+  return await generateUserUuid(params.email, params.existingUuid);
 };

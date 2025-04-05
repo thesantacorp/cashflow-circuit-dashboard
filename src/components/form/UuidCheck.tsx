@@ -3,16 +3,17 @@ import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { KeyRound, Star, Rocket, Mail, Loader2, Cloud } from "lucide-react";
+import { KeyRound, Star, Rocket, Mail, Loader2, Cloud, Download } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 interface UuidCheckProps {
   onUuidGenerated?: () => void;
 }
 
 const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
-  const { userUuid, generateUserUuid, syncStatus } = useTransactions();
+  const { userUuid, generateUserUuid } = useTransactions();
   const [email, setEmail] = useState<string>("");
   const [showEmailInput, setShowEmailInput] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -66,7 +67,7 @@ const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
           <span>Create Your Unique ID in seconds and make data recovery a breeze! 🚀</span>
         </p>
         
-        {showEmailInput && (
+        {showEmailInput ? (
           <div className="mb-3">
             <div className="flex items-center gap-1 mb-1 text-sm">
               <Mail className="h-4 w-4" />
@@ -83,27 +84,47 @@ const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
               Your ID will be automatically synced to the cloud for easy recovery
             </p>
           </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+            <Button 
+              onClick={handleGenerateUuid}
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              <Rocket className="mr-2 h-4 w-4" />
+              <span>Generate New User ID</span>
+            </Button>
+            
+            <Button 
+              onClick={() => window.location.href = '/#user-id-section'} 
+              className="bg-indigo-500 hover:bg-indigo-600 text-white"
+              as={Link} 
+              to="/#user-id-section"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              <span>Import Existing Data</span>
+            </Button>
+          </div>
         )}
         
-        <Button 
-          onClick={handleGenerateUuid}
-          className="bg-orange-500 hover:bg-orange-600 text-white"
-          disabled={isGenerating}
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generating...
-            </>
-          ) : showEmailInput ? (
-            <>
-              <Cloud className="mr-2 h-4 w-4" />
-              Generate and Sync ID
-            </>
-          ) : (
-            "Generate User ID"
-          )}
-        </Button>
+        {showEmailInput && (
+          <Button 
+            onClick={handleGenerateUuid}
+            className="bg-orange-500 hover:bg-orange-600 text-white"
+            disabled={isGenerating}
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Cloud className="mr-2 h-4 w-4" />
+                Generate and Sync ID
+              </>
+            )}
+          </Button>
+        )}
       </AlertDescription>
     </Alert>
   );

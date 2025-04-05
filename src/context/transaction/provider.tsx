@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+
+import React, { useEffect, useState } from "react";
 import { TransactionContext } from "./context";
 import { useUuidManagement } from "./hooks/useUuidManagement";
 import { useTransactionOperations } from "./hooks/useTransactionOperations";
@@ -8,6 +9,8 @@ import { checkSupabaseConnection } from "@/utils/supabaseInit";
 
 // Create provider
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  
   // Use the extracted hooks
   const { 
     userUuid, 
@@ -15,8 +18,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     generateUserUuid,
     syncStatus,
     connectionVerified,
-    forceSyncToCloud,
-    checkSyncStatus 
+    forceSyncToCloud: originalForceSyncToCloud,
+    checkSyncStatus: originalCheckSyncStatus 
   } = useUuidManagement();
   
   const { 
@@ -46,6 +49,24 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const getUserEmail = (): string | null => {
     return userEmail;
   };
+  
+  // Wrap the forceSyncToCloud to update lastSyncTime
+  const forceSyncToCloud = async (silent?: boolean): Promise<boolean> => {
+    const result = await originalForceSyncToCloud(silent);
+    if (result) {
+      setLastSyncTime(new Date());
+    }
+    return result;
+  };
+  
+  // Wrap checkSyncStatus to update lastSyncTime when synced
+  const checkSyncStatus = async (): Promise<boolean> => {
+    const result = await originalCheckSyncStatus();
+    if (result && syncStatus === 'synced') {
+      setLastSyncTime(new Date());
+    }
+    return result;
+  };
 
   // Listen for app visibility changes to auto-sync
   useEffect(() => {
@@ -60,7 +81,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           if (isConnected) {
             console.log('Supabase connection is available, checking UUID sync status...');
             try {
-              await checkSyncStatus();
+              const syncResult = await checkSyncStatus();
+              if (syncResult) {
+                setLastSyncTime(new Date());
+              }
             } catch (error) {
               console.error('Error checking UUID sync status on visibility change:', error);
               // Don't show toast to avoid spamming the user when returning to tab
@@ -94,6 +118,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // When transitioning to synced, show a confirmation
     if (syncStatus === 'synced' && userUuid && userEmail) {
       console.log('UUID is now synced with Supabase');
+      setLastSyncTime(new Date());
     }
     
     // When first receiving errors, try to auto-recover
@@ -125,6 +150,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         userEmail,
         syncStatus,
         connectionVerified,
+        lastSyncTime,
         generateUserUuid,
         checkUuidExists,
         getUserEmail,

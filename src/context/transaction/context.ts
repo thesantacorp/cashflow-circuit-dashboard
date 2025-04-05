@@ -10,7 +10,8 @@ interface TransactionContextProps {
   userEmail: string | null;
   syncStatus: 'synced' | 'syncing' | 'local-only' | 'error' | 'unknown';
   connectionVerified: boolean;
-  generateUserUuid: (email: string) => Promise<string>;
+  lastSyncTime: Date | null;
+  generateUserUuid: (email: string, existingUuid?: string) => Promise<string>;
   checkUuidExists: () => boolean;
   getUserEmail: () => string | null;
   forceSyncToCloud: (silent?: boolean) => Promise<boolean>;

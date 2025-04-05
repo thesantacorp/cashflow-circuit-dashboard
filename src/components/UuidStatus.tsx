@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
   KeyRound, Check, Star, Clock, Rocket, Zap, Mail, Loader2, 
-  Cloud, CloudOff, RefreshCw, AlertTriangle, Wifi, WifiOff, Shield
+  Cloud, CloudOff, RefreshCw, AlertTriangle, Wifi, WifiOff, Shield,
+  Download, Upload
 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import SyncVerification from "./SyncVerification";
 import RlsConfigGuide from "./RlsConfigGuide";
+import DataRestoration from "./DataRestoration";
 
 const UuidStatus: React.FC = () => {
   const { 
@@ -31,14 +33,20 @@ const UuidStatus: React.FC = () => {
   const [showVerification, setShowVerification] = useState<boolean>(false);
   const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
   const [hasRlsIssue, setHasRlsIssue] = useState<boolean>(false);
+  const [showDataRestoration, setShowDataRestoration] = useState<boolean>(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   useEffect(() => {
     if (userUuid && userEmail) {
       checkSyncStatus().then(() => {
         setLastCheckTime(new Date());
+        // Set last sync time if sync was successful
+        if (syncStatus === 'synced') {
+          setLastSyncTime(new Date());
+        }
       });
     }
-  }, [userUuid, userEmail, checkSyncStatus]);
+  }, [userUuid, userEmail, syncStatus, checkSyncStatus]);
 
   const validateEmail = (email: string): boolean => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -62,6 +70,7 @@ const UuidStatus: React.FC = () => {
       setShowEmailInput(false);
       setEmail("");
       setShowVerification(true);
+      setLastSyncTime(new Date());
     } catch (error) {
       console.error("Error generating UUID:", error);
       toast.error("Failed to generate User ID. Please try again.");
@@ -78,6 +87,7 @@ const UuidStatus: React.FC = () => {
         toast.success("Successfully synced to cloud!");
         setShowVerification(true);
         setLastCheckTime(new Date());
+        setLastSyncTime(new Date());
       }
     } catch (error) {
       console.error("Error syncing to cloud:", error);
@@ -89,6 +99,10 @@ const UuidStatus: React.FC = () => {
   const handleVerifyStatus = () => {
     checkSyncStatus().then(() => {
       setLastCheckTime(new Date());
+      
+      if (syncStatus === 'synced') {
+        setLastSyncTime(new Date());
+      }
       
       if (syncStatus === 'error') {
         checkForRlsIssues();
@@ -148,6 +162,17 @@ const UuidStatus: React.FC = () => {
   // Fix: Store the result of getSyncStatusDisplay() in a variable
   const statusDisplay = getSyncStatusDisplay();
 
+  // Format time for display
+  const formatTime = (date: Date | null): string => {
+    if (!date) return 'Never';
+    
+    return date.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  };
+
   return (
     <>
       <Card className="border-orange-200 shadow-lg bg-gradient-to-b from-white to-orange-50/30">
@@ -195,11 +220,12 @@ const UuidStatus: React.FC = () => {
                 <span>{statusDisplay.text}</span>
               </div>
               
-              {lastCheckTime && (
-                <div className="text-xs text-gray-500 mt-1">
-                  Last checked: {lastCheckTime.toLocaleTimeString()}
-                </div>
-              )}
+              <div className="flex flex-col gap-1 mt-1 text-xs text-gray-500">
+                <div>Last checked: {formatTime(lastCheckTime)}</div>
+                {lastSyncTime && (
+                  <div>Last synced: {formatTime(lastSyncTime)}</div>
+                )}
+              </div>
               
               <div className="flex flex-wrap gap-2 mt-2">
                 {(syncStatus === 'local-only' || syncStatus === 'error') && (
@@ -217,7 +243,7 @@ const UuidStatus: React.FC = () => {
                       </>
                     ) : (
                       <>
-                        <Cloud className="mr-2 h-4 w-4" />
+                        <Upload className="mr-2 h-4 w-4" />
                         Sync to Cloud
                       </>
                     )}
@@ -260,24 +286,16 @@ const UuidStatus: React.FC = () => {
                 Your transactions are securely linked to this ID. Keep it safe for data recovery.
               </p>
             </div>
+          ) : showDataRestoration ? (
+            <DataRestoration onCancel={() => setShowDataRestoration(false)} />
           ) : (
             <div className="flex flex-col gap-3">
               <h3 className="text-lg font-semibold text-orange-600 flex items-center gap-2">
                 <Star className="h-5 w-5" /> Never lose your data! 🌟
               </h3>
               
-              <div className="flex items-center gap-2 text-orange-600 mt-1">
-                <Clock className="h-5 w-5" />
-                <span className="font-medium">Create Your Unique ID in Seconds! ⏱️</span>
-              </div>
-              
-              <p className="text-sm text-muted-foreground flex items-start gap-2">
-                <Rocket className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span>Your ID makes data recovery a breeze. Let's get you set up in no time! 🚀</span>
-              </p>
-              
               {showEmailInput ? (
-                <div className="space-y-2 mt-2">
+                <div className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-medium flex items-center gap-1">
                     <Mail className="h-4 w-4" /> Your Email Address
                   </Label>
@@ -294,10 +312,34 @@ const UuidStatus: React.FC = () => {
                   </p>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground flex items-start gap-2">
-                  <Zap className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <span>Simply bind your email and you're all set up 🎉</span>
-                </p>
+                <>
+                  <div className="flex items-center gap-2 text-orange-600 mt-1">
+                    <Clock className="h-5 w-5" />
+                    <span className="font-medium">Choose Your Option 👇</span>
+                  </div>
+                  
+                  <p className="text-sm text-muted-foreground">
+                    You can generate a new User ID or import your existing data from another device.
+                  </p>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
+                    <Button 
+                      onClick={handleGenerateUuid} 
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
+                    >
+                      <Rocket className="mr-2 h-4 w-4" />
+                      <span>Generate New User ID</span>
+                    </Button>
+                    
+                    <Button 
+                      onClick={() => setShowDataRestoration(true)} 
+                      className="bg-indigo-500 hover:bg-indigo-600 text-white"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      <span>Import Existing Data</span>
+                    </Button>
+                  </div>
+                </>
               )}
               
               <div className={`flex items-center gap-2 text-sm ${
@@ -316,22 +358,22 @@ const UuidStatus: React.FC = () => {
                 )}
               </div>
               
-              <Button 
-                onClick={handleGenerateUuid} 
-                className="mt-2 bg-orange-500 hover:bg-orange-600 text-white w-full"
-                disabled={isGenerating}
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating...
-                  </>
-                ) : showEmailInput ? (
-                  "Confirm and Generate ID"
-                ) : (
-                  "Generate User ID"
-                )}
-              </Button>
+              {showEmailInput && (
+                <Button 
+                  onClick={handleGenerateUuid} 
+                  className="mt-2 bg-orange-500 hover:bg-orange-600 text-white w-full"
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    "Confirm and Generate ID"
+                  )}
+                </Button>
+              )}
             </div>
           )}
         </CardContent>
