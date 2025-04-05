@@ -1,72 +1,206 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import {
   Drawer,
   DrawerTrigger,
+  DrawerContent,
+  DrawerClose,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerFooter,
 } from "@/components/ui/drawer";
-import MobileNavDrawer from "./mobile-nav/MobileNavDrawer";
-import SettingsSheet from "./mobile-nav/SettingsSheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Bell, Banknote, CreditCard, Cloud, Link2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import NotificationSettings from "./NotificationSettings";
+import CurrencySelector from "./CurrencySelector";
+import DataExportImport from "./DataExportImport";
+import BackupManager from "./BackupManager";
+import DataRecovery from "./DataRecovery";
 
 const MobileNav: React.FC = () => {
-  const [open, setOpen] = useState(false);
-  const [activeSettingSheet, setActiveSettingSheet] = useState<string | null>(null);
-  const [menuDisabled, setMenuDisabled] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [activeSheet, setActiveSheet] = useState<string | null>(null);
+  const navigate = useNavigate();
 
-  const closeSettingSheet = () => {
-    setActiveSettingSheet(null);
-    // Re-enable the menu button after a short delay
-    setMenuDisabled(true);
+  // Helper to safely close drawer
+  const closeDrawer = () => {
+    setIsDrawerOpen(false);
+  };
+
+  // Helper to safely open a settings sheet
+  const openSettingsSheet = (setting: string) => {
+    closeDrawer();
     setTimeout(() => {
-      setMenuDisabled(false);
+      setActiveSheet(setting);
     }, 300);
   };
 
-  const openSettingSheet = (setting: string) => {
-    // Close drawer first
-    setOpen(false);
-    
-    // Add a longer delay before opening the settings sheet to ensure drawer is fully closed
-    setTimeout(() => {
-      setActiveSettingSheet(setting);
-    }, 300);
+  // Helper to safely close a settings sheet
+  const closeSettingsSheet = () => {
+    setActiveSheet(null);
+  };
+
+  // Navigation items
+  const navigationItems = [
+    { name: "Overview", path: "/" },
+    { name: "Expenses", path: "/expenses" },
+    { name: "Income", path: "/income" },
+    { name: "Grow", path: "/grow" }
+  ];
+
+  // Settings items
+  const settingsItems = [
+    { 
+      name: "Notifications", 
+      icon: <Bell className="h-5 w-5 mr-2" />,
+      setting: "notifications"
+    },
+    { 
+      name: "Currency Settings", 
+      icon: <Banknote className="h-5 w-5 mr-2" />,
+      setting: "currency"
+    },
+    { 
+      name: "Data Management", 
+      icon: <CreditCard className="h-5 w-5 mr-2" />,
+      setting: "data"
+    },
+    { 
+      name: "Google Drive Backup", 
+      icon: <Cloud className="h-5 w-5 mr-2" />,
+      setting: "backup"
+    },
+    { 
+      name: "Data Recovery", 
+      icon: <Link2 className="h-5 w-5 mr-2" />,
+      setting: "recovery"
+    }
+  ];
+
+  // Navigation handler
+  const handleNavigation = (path: string) => {
+    navigate(path);
+    closeDrawer();
+  };
+
+  // Render Settings Sheet content
+  const renderSettingContent = () => {
+    switch (activeSheet) {
+      case "currency":
+        return <CurrencySelector />;
+      case "data":
+        return <DataExportImport />;
+      case "notifications":
+        return <NotificationSettings />;
+      case "backup":
+        return <BackupManager onClose={closeSettingsSheet} />;
+      case "recovery":
+        return <DataRecovery />;
+      default:
+        return null;
+    }
   };
 
   return (
     <>
-      <Drawer open={open} onOpenChange={(isOpen) => {
-        // Only allow setting open to true if no active setting sheet and not disabled
-        if (isOpen && activeSettingSheet === null && !menuDisabled) {
-          setOpen(true);
-        } else if (!isOpen) {
-          setOpen(false);
-        }
-      }}>
+      {/* Mobile Menu Button */}
+      <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
         <DrawerTrigger asChild>
           <Button 
             variant="ghost" 
             size="icon" 
             className="md:hidden text-white"
-            onClick={(e) => {
-              if (activeSettingSheet !== null || menuDisabled) {
-                e.preventDefault();
-                return;
-              }
-              setOpen(true);
-            }}
-            disabled={activeSettingSheet !== null || menuDisabled}
           >
             <Menu className="h-6 w-6" />
           </Button>
         </DrawerTrigger>
-        <MobileNavDrawer setOpen={setOpen} openSettingSheet={openSettingSheet} />
+        
+        {/* Drawer Content */}
+        <DrawerContent className="h-[85%]">
+          <DrawerHeader className="flex justify-between border-b pb-3">
+            <DrawerTitle>Menu</DrawerTitle>
+            <DrawerClose asChild>
+              <Button variant="ghost" size="icon">
+                <X className="h-6 w-6" />
+              </Button>
+            </DrawerClose>
+          </DrawerHeader>
+          
+          <div className="flex-1 overflow-y-auto p-4">
+            {/* Navigation Section */}
+            <h3 className="font-medium text-sm text-muted-foreground mb-2">Navigation</h3>
+            <div className="grid gap-2 mb-6">
+              {navigationItems.map((item) => (
+                <Button
+                  key={item.name}
+                  variant="ghost"
+                  className="w-full justify-start text-lg h-12"
+                  onClick={() => handleNavigation(item.path)}
+                >
+                  {item.name}
+                </Button>
+              ))}
+            </div>
+            
+            {/* Settings Section */}
+            <h3 className="font-medium text-sm text-muted-foreground mb-2 mt-4">Settings</h3>
+            <div className="grid gap-2">
+              {settingsItems.map((item) => (
+                <Button
+                  key={item.name}
+                  variant="ghost"
+                  className="w-full justify-start text-lg h-12"
+                  onClick={() => openSettingsSheet(item.setting)}
+                >
+                  {item.icon}
+                  {item.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+          
+          <DrawerFooter className="pt-2 border-t">
+            <Button 
+              variant="outline" 
+              onClick={closeDrawer}
+              className="w-full"
+            >
+              Close Menu
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
       </Drawer>
 
-      <SettingsSheet 
-        activeSettingSheet={activeSettingSheet} 
-        closeSettingSheet={closeSettingSheet} 
-      />
+      {/* Settings Sheets */}
+      <Sheet 
+        open={activeSheet !== null} 
+        onOpenChange={(open) => {
+          if (!open) closeSettingsSheet();
+        }}
+      >
+        <SheetContent className="w-full sm:max-w-md pt-12">
+          <SheetHeader>
+            <SheetTitle>
+              {activeSheet === "currency" && "Currency Settings"}
+              {activeSheet === "data" && "Data Management"}
+              {activeSheet === "notifications" && "Notifications"}
+              {activeSheet === "backup" && "Google Drive Backup"}
+              {activeSheet === "recovery" && "Data Recovery"}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="py-6 h-[calc(100vh-170px)] overflow-y-auto">
+            {renderSettingContent()}
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background">
+            <Button variant="outline" onClick={closeSettingsSheet} className="w-full">
+              Close
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </>
   );
 };

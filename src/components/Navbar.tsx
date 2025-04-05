@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -15,8 +16,6 @@ import { useCurrency } from "@/context/CurrencyContext";
 import MobileNav from "./MobileNav";
 import { useIsMobile } from "@/hooks/use-mobile";
 import AppLogo from "./AppLogo";
-import { createRoot } from "react-dom/client";
-import NotificationSettings from "./NotificationSettings";
 import { useNotifications } from "@/context/NotificationContext";
 import {
   Dialog,
@@ -25,6 +24,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import NotificationSettings from "./NotificationSettings";
 
 const Navbar: React.FC = () => {
   const location = useLocation();

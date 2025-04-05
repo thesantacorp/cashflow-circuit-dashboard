@@ -1,14 +1,15 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCrowdfunding } from '@/context/CrowdfundingContext';
 import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Sprout, Calendar, ExternalLink, ThumbsUp, ThumbsDown } from 'lucide-react';
-import { ProjectStats } from '@/types/crowdfunding';
+import { Sprout, Calendar, ExternalLink, ThumbsUp, ThumbsDown, Users, Trophy } from 'lucide-react';
+import { ProjectStats, CrowdfundingProject } from '@/types/crowdfunding';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const GrowPage = () => {
   const { 
@@ -20,6 +21,9 @@ const GrowPage = () => {
   } = useCrowdfunding();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const [projects, setProjects] = useState<CrowdfundingProject[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("ideas");
   
   // Calculate project statistics
   const getProjectStats = (ideaId: string): ProjectStats => {
@@ -42,6 +46,21 @@ const GrowPage = () => {
     };
   };
 
+  // Load projects from localStorage
+  useEffect(() => {
+    setLoading(true);
+    try {
+      const storedProjects = localStorage.getItem('crowdfundingProjects');
+      if (storedProjects) {
+        setProjects(JSON.parse(storedProjects));
+      }
+    } catch (error) {
+      console.error("Error loading projects:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const handleViewDetails = (ideaId: string) => {
     navigate(`/grow/${ideaId}`);
   };
@@ -63,6 +82,11 @@ const GrowPage = () => {
     }
   };
 
+  // Calculate percentage of funding for projects
+  const getFundingPercentage = (project: CrowdfundingProject) => {
+    return Math.min(100, Math.round((project.raisedAmount / project.targetAmount) * 100));
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center mb-6">
@@ -71,98 +95,189 @@ const GrowPage = () => {
       </div>
       
       <p className="text-gray-600 mb-8">
-        Discover new Ideas. Explore a curated list of innovative product ideas to spark your entrepreneurial spirit. 
-        Vote on the concepts you believe have the most potential, find talents to help you build and scale ideas in our community.
+        Discover new Ideas and Projects. Explore a curated list of innovative ideas, back active projects, and vote on concepts you believe have potential.
       </p>
-      
-      {ideas.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-12 text-center bg-gray-50 rounded-lg">
-          <Sprout className="h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-xl font-medium mb-2">No Ideas Available Yet</h3>
-          <p className="text-gray-500 max-w-md">
-            Check back soon for a collection of exciting new ideas.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {ideas.map(idea => {
-            const stats = getProjectStats(idea.id);
-            const userVoteType = getVoteType(idea.id);
-            const currencySymbol = idea.currencySymbol || "$";
-            
-            return (
-              <Card key={idea.id} className="h-full flex flex-col">
-                <CardHeader>
-                  <CardTitle className="text-xl">{idea.title}</CardTitle>
-                  <CardDescription>{idea.description}</CardDescription>
-                </CardHeader>
+
+      <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="mb-8">
+        <TabsList className="mb-6">
+          <TabsTrigger value="ideas">Community Ideas</TabsTrigger>
+          <TabsTrigger value="projects">Active Projects</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="ideas">
+          {ideas.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 text-center bg-gray-50 rounded-lg">
+              <Sprout className="h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-xl font-medium mb-2">No Ideas Available Yet</h3>
+              <p className="text-gray-500 max-w-md">
+                Check back soon for a collection of exciting new ideas.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {ideas.map(idea => {
+                const stats = getProjectStats(idea.id);
+                const userVoteType = getVoteType(idea.id);
+                const currencySymbol = idea.currencySymbol || "$";
                 
-                <CardContent className="flex-grow">
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center text-gray-600">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      <span>Posted on {format(new Date(idea.createdAt), 'MMM d, yyyy')}</span>
-                    </div>
+                return (
+                  <Card key={idea.id} className="h-full flex flex-col">
+                    <CardHeader>
+                      <CardTitle className="text-xl">{idea.title}</CardTitle>
+                      <CardDescription>{idea.description}</CardDescription>
+                    </CardHeader>
                     
-                    <div className="bg-gray-50 p-3 rounded-md mt-3">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center">
-                          <span className="font-medium mr-1">Score:</span> 
-                          <span className={stats.score > 0 ? "text-green-600" : stats.score < 0 ? "text-red-600" : ""}>
-                            {stats.score}
-                          </span>
+                    <CardContent className="flex-grow">
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center text-gray-600">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          <span>Posted on {format(new Date(idea.createdAt), 'MMM d, yyyy')}</span>
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {stats.totalVotes} total votes
+                        
+                        <div className="bg-gray-50 p-3 rounded-md mt-3">
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center">
+                              <span className="font-medium mr-1">Score:</span> 
+                              <span className={stats.score > 0 ? "text-green-600" : stats.score < 0 ? "text-red-600" : ""}>
+                                {stats.score}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {stats.totalVotes} total votes
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </CardContent>
+                    </CardContent>
+                    
+                    <CardFooter className="flex flex-col gap-2">
+                      <div className="flex justify-between w-full mb-2">
+                        <Button 
+                          variant={userVoteType === true ? "default" : "outline"} 
+                          size="sm" 
+                          className="flex-1 mr-1"
+                          onClick={() => handleVote(idea.id, true)}
+                        >
+                          <ThumbsUp className="h-4 w-4 mr-1" />
+                          <span>{stats.upvotes}</span>
+                        </Button>
+                        <Button 
+                          variant={userVoteType === false ? "default" : "outline"} 
+                          size="sm" 
+                          className="flex-1 ml-1"
+                          onClick={() => handleVote(idea.id, false)}
+                        >
+                          <ThumbsDown className="h-4 w-4 mr-1" />
+                          <span>{stats.downvotes}</span>
+                        </Button>
+                      </div>
+                      
+                      <Button 
+                        className="w-full" 
+                        onClick={() => handleViewDetails(idea.id)}
+                      >
+                        View Details
+                      </Button>
+                      
+                      {idea.externalLink && (
+                        <Button variant="outline" className="w-full flex items-center" asChild>
+                          <a href={idea.externalLink} target="_blank" rel="noopener noreferrer">
+                            Visit Project Website
+                            <ExternalLink className="h-4 w-4 ml-1" />
+                          </a>
+                        </Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="projects">
+          {projects.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 text-center bg-gray-50 rounded-lg">
+              <Trophy className="h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-xl font-medium mb-2">No Active Projects Yet</h3>
+              <p className="text-gray-500 max-w-md">
+                Check back soon for projects you can support and help grow.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {projects.map(project => {
+                const fundingPercentage = getFundingPercentage(project);
                 
-                <CardFooter className="flex flex-col gap-2">
-                  <div className="flex justify-between w-full mb-2">
-                    <Button 
-                      variant={userVoteType === true ? "default" : "outline"} 
-                      size="sm" 
-                      className="flex-1 mr-1"
-                      onClick={() => handleVote(idea.id, true)}
-                    >
-                      <ThumbsUp className="h-4 w-4 mr-1" />
-                      <span>{stats.upvotes}</span>
-                    </Button>
-                    <Button 
-                      variant={userVoteType === false ? "default" : "outline"} 
-                      size="sm" 
-                      className="flex-1 ml-1"
-                      onClick={() => handleVote(idea.id, false)}
-                    >
-                      <ThumbsDown className="h-4 w-4 mr-1" />
-                      <span>{stats.downvotes}</span>
-                    </Button>
-                  </div>
-                  
-                  <Button 
-                    className="w-full" 
-                    onClick={() => handleViewDetails(idea.id)}
-                  >
-                    View Details
-                  </Button>
-                  
-                  {idea.externalLink && (
-                    <Button variant="outline" className="w-full flex items-center" asChild>
-                      <a href={idea.externalLink} target="_blank" rel="noopener noreferrer">
-                        Visit Project Website
-                        <ExternalLink className="h-4 w-4 ml-1" />
-                      </a>
-                    </Button>
-                  )}
-                </CardFooter>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+                return (
+                  <Card key={project.id} className="h-full flex flex-col">
+                    <CardHeader>
+                      <CardTitle className="text-xl">{project.title}</CardTitle>
+                      <CardDescription>{project.description}</CardDescription>
+                    </CardHeader>
+                    
+                    <CardContent className="flex-grow">
+                      <div className="space-y-4 text-sm">
+                        <div className="flex items-center text-gray-600">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          <span>Ends on {format(new Date(project.endDate), 'MMM d, yyyy')}</span>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span>Funding Progress</span>
+                            <span className="font-medium">{fundingPercentage}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2.5">
+                            <div 
+                              className="bg-green-600 h-2.5 rounded-full" 
+                              style={{ width: `${fundingPercentage}%` }}
+                            ></div>
+                          </div>
+                          <div className="flex justify-between text-sm mt-1">
+                            <span className="font-medium">
+                              {project.currencySymbol}{project.raisedAmount.toLocaleString()}
+                            </span>
+                            <span className="text-gray-500">
+                              of {project.currencySymbol}{project.targetAmount.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center">
+                          <Users className="h-4 w-4 mr-2 text-gray-500" />
+                          <span className="text-gray-600">
+                            {Math.floor(Math.random() * 50) + 5} backers
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                    
+                    <CardFooter className="flex flex-col gap-2">
+                      <Button 
+                        className="w-full" 
+                        variant={project.isFullyFunded ? "outline" : "default"}
+                        disabled={project.isFullyFunded}
+                      >
+                        {project.isFullyFunded ? "Fully Funded!" : "Support Project"}
+                      </Button>
+                      
+                      {project.externalLink && (
+                        <Button variant="outline" className="w-full flex items-center" asChild>
+                          <a href={project.externalLink} target="_blank" rel="noopener noreferrer">
+                            Visit Project Site
+                            <ExternalLink className="h-4 w-4 ml-1" />
+                          </a>
+                        </Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
