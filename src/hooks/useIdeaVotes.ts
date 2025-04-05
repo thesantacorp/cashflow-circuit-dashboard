@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
@@ -6,11 +5,12 @@ import { customClient, Idea, Vote } from '@/integrations/supabase/customClient';
 
 type VoteStats = Record<string, {upvotes: number, downvotes: number}>;
 
-export const useIdeaVotes = (ideas: Idea[] = []) => {
+export const useIdeaVotes = () => {
   const { user } = useAuth();
   const [userVotes, setUserVotes] = useState<Record<string, Vote>>({});
   const [voteStats, setVoteStats] = useState<VoteStats>({});
   const [loading, setLoading] = useState(true);
+  const [ideas, setIdeas] = useState<Idea[]>([]);
 
   const fetchVoteStats = async () => {
     try {
@@ -154,6 +154,10 @@ export const useIdeaVotes = (ideas: Idea[] = []) => {
     }
   };
 
+  const updateIdeas = (newIdeas: Idea[]) => {
+    setIdeas(newIdeas);
+  };
+
   useEffect(() => {
     if (ideas && ideas.length > 0) {
       fetchVoteStats();
@@ -162,5 +166,5 @@ export const useIdeaVotes = (ideas: Idea[] = []) => {
     }
   }, [ideas, user?.id]);
 
-  return { userVotes, voteStats, loading, handleVote };
+  return { userVotes, voteStats, loading, handleVote, updateIdeas };
 };
