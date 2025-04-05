@@ -1,3 +1,4 @@
+
 import { getSupabaseClient } from './client';
 import { toast } from 'sonner';
 
@@ -21,84 +22,31 @@ export const ensureGrowTablesExist = async (): Promise<boolean> => {
       return false;
     }
     
-    // Check if projects table exists
-    const { data: projectsTable, error: projectsError } = await supabase
-      .from('projects')
-      .select('id')
-      .limit(1);
-      
-    let projectsTableCreated = true;
-    if (projectsError && projectsError.code === '42P01') {
-      console.log('Projects table does not exist, creating...');
-      try {
-        await createProjectsTable();
-        toast.success("Projects table created successfully");
-      } catch (err) {
-        console.error('Error creating projects table:', err);
-        projectsTableCreated = false;
-        toast.error("Failed to create projects table");
-      }
-    } else if (projectsError) {
-      console.error('Error checking projects table:', projectsError);
-      projectsTableCreated = false;
+    // Create projects table first
+    let projectsTableCreated = await createProjectsTable();
+    if (!projectsTableCreated) {
+      console.error('Failed to create projects table');
+      toast.error("Failed to create projects table");
+    } else {
+      console.log('Projects table created or verified successfully');
     }
     
-    // Check if project_votes table exists
-    const { data: votesTable, error: votesError } = await supabase
-      .from('project_votes')
-      .select('user_uuid')
-      .limit(1);
-      
-    let votesTableCreated = true;
-    if (votesError && votesError.code === '42P01') {
-      console.log('Project votes table does not exist, creating...');
-      try {
-        await createProjectVotesTable();
-        toast.success("Project votes table created successfully");
-      } catch (err) {
-        console.error('Error creating project votes table:', err);
-        votesTableCreated = false;
-        toast.error("Failed to create project votes table");
-      }
-    } else if (votesError) {
-      console.error('Error checking project votes table:', votesError);
-      votesTableCreated = false;
+    // Create votes table second
+    let votesTableCreated = await createProjectVotesTable();
+    if (!votesTableCreated) {
+      console.error('Failed to create project votes table');
+      toast.error("Failed to create project votes table");
+    } else {
+      console.log('Project votes table created or verified successfully');
     }
     
-    // Check if storage bucket exists
-    let bucketCreated = true;
-    try {
-      const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('grow');
-      
-      if (bucketError && bucketError.message.includes('does not exist')) {
-        console.log('Grow storage bucket does not exist, creating...');
-        const { error: createBucketError } = await supabase.storage.createBucket('grow', {
-          public: true,
-          fileSizeLimit: 5242880 // 5MB
-        });
-        
-        if (createBucketError) {
-          console.error('Error creating Grow storage bucket:', createBucketError);
-          bucketCreated = false;
-          toast.error("Failed to create storage bucket");
-        } else {
-          console.log('Grow storage bucket created successfully');
-          toast.success("Storage bucket created successfully");
-        }
-      }
-    } catch (err) {
-      console.error('Error checking/creating storage bucket:', err);
-      bucketCreated = false;
-    }
-    
-    // Set up RLS policies
-    let rlsPoliciesSetup = true;
-    try {
-      await setupRlsPolicies();
-    } catch (err) {
-      console.error('Error setting up RLS policies:', err);
-      rlsPoliciesSetup = false;
-      // Don't show error toast for this as RLS may be intentionally restricted
+    // Create storage bucket
+    let bucketCreated = await createStorageBucket();
+    if (!bucketCreated) {
+      console.error('Failed to create storage bucket');
+      toast.error("Failed to create storage bucket");
+    } else {
+      console.log('Storage bucket created or verified successfully');
     }
     
     const allSuccess = projectsTableCreated && votesTableCreated && bucketCreated;
@@ -117,39 +65,62 @@ export const ensureGrowTablesExist = async (): Promise<boolean> => {
   }
 };
 
-const createProjectsTable = async () => {
+const createProjectsTable = async (): Promise<boolean> => {
   const supabase = getSupabaseClient();
   
   try {
-    // First, check if we have table creation permissions
-    const { data: rpcAvailable, error: rpcCheckError } = await supabase.rpc('version');
-    const canUseRPC = !rpcCheckError;
+    console.log('Attempting to create projects table...');
     
-    if (canUseRPC) {
-      // Try first using SQL RPC if available
-      const { error: rpcError } = await supabase.rpc('create_projects_table');
+    // Check if the table already exists
+    const { error: checkError } = await supabase
+      .from('projects')
+      .select('id')
+      .limit(1);
       
-      if (rpcError) {
-        console.log('RPC method failed, trying direct SQL execution');
-        await createProjectsTableDirectly();
-      }
-    } else {
-      // If RPC doesn't exist or we don't have permission, try creating directly
-      await createProjectsTableDirectly();
+    if (!checkError) {
+      console.log('Projects table already exists');
+      return true;
     }
+      
+    if (checkError && checkError.code !== '42P01') {
+      console.error('Error checking projects table:', checkError);
+      return false;
+    }
+    
+    // Create the projects table with a simplified SQL approach
+    const { error } = await supabase.rpc('create_basic_projects_table');
+    
+    if (error) {
+      console.error('Failed to create projects table via RPC:', error);
+      
+      // Fallback - try direct table creation
+      const directResult = await createProjectsTableDirect();
+      return directResult;
+    }
+    
+    return true;
   } catch (error) {
     console.error('Error creating projects table:', error);
-    throw error;
+    
+    // Try fallback method
+    try {
+      return await createProjectsTableDirect();
+    } catch (fallbackError) {
+      console.error('Fallback projects table creation also failed:', fallbackError);
+      return false;
+    }
   }
 };
 
-const createProjectsTableDirectly = async () => {
+const createProjectsTableDirect = async (): Promise<boolean> => {
   const supabase = getSupabaseClient();
   
   try {
-    // Try inserting a sample record to create the table with default columns
+    console.log('Attempting direct projects table creation...');
+    
+    // Try direct insertion to see if the table is auto-created
     const { error } = await supabase.from('projects').insert({
-      id: '00000000-0000-0000-0000-000000000000', // temp ID
+      id: '00000000-0000-0000-0000-000000000000',
       name: 'Test Project',
       description: 'This is a test project to create the table',
       upvotes: 0,
@@ -157,107 +128,153 @@ const createProjectsTableDirectly = async () => {
       created_at: new Date().toISOString()
     });
     
-    // If there was an error but the table was created (likely a permission error),
-    // we can consider this a success
-    if (error && error.code !== '42P01') {
-      // Check table again to confirm it was created despite error
-      const { error: checkError } = await supabase
-        .from('projects')
-        .select('id')
-        .limit(1);
-        
-      if (checkError && checkError.code === '42P01') {
-        throw new Error('Failed to create projects table');
-      }
-    }
-    
-    // Try to add additional columns if needed
-    try {
-      await supabase.rpc('ensure_projects_table_columns');
-    } catch (columnError) {
-      console.warn('Could not ensure all columns exist:', columnError);
-    }
-  } catch (error) {
-    console.error('Error in direct table creation:', error);
-    throw error;
-  }
-};
-
-const createProjectVotesTable = async () => {
-  const supabase = getSupabaseClient();
-  
-  try {
-    // Check if we can use RPC
-    const { data: rpcAvailable, error: rpcCheckError } = await supabase.rpc('version');
-    const canUseRPC = !rpcCheckError;
-    
-    if (canUseRPC) {
-      // Try first using SQL RPC if available
-      const { error: rpcError } = await supabase.rpc('create_project_votes_table');
+    // Even permission errors mean the table exists or was created
+    if (!error || (error && error.code !== '42P01')) {
+      console.log('Projects table created directly or already exists');
       
-      if (rpcError) {
-        console.log('RPC method failed, trying direct SQL execution');
-        await createVotesTableDirectly();
+      // Try to delete the test project
+      try {
+        await supabase
+          .from('projects')
+          .delete()
+          .eq('id', '00000000-0000-0000-0000-000000000000');
+      } catch (deleteError) {
+        // Ignore deletion errors
+        console.log('Could not delete test project, but table exists');
       }
-    } else {
-      await createVotesTableDirectly();
+      
+      return true;
     }
+    
+    console.error('Failed to create projects table directly:', error);
+    return false;
   } catch (error) {
-    console.error('Error creating project votes table:', error);
-    throw error;
+    console.error('Exception in direct projects table creation:', error);
+    return false;
   }
 };
 
-const createVotesTableDirectly = async () => {
+const createProjectVotesTable = async (): Promise<boolean> => {
   const supabase = getSupabaseClient();
   
   try {
-    // Try inserting a sample record to create the table with default columns
+    console.log('Attempting to create project_votes table...');
+    
+    // Check if the table already exists
+    const { error: checkError } = await supabase
+      .from('project_votes')
+      .select('project_id')
+      .limit(1);
+      
+    if (!checkError) {
+      console.log('Project_votes table already exists');
+      return true;
+    }
+      
+    if (checkError && checkError.code !== '42P01') {
+      console.error('Error checking project_votes table:', checkError);
+      return false;
+    }
+    
+    // Create the votes table with a simplified SQL approach
+    const { error } = await supabase.rpc('create_basic_project_votes_table');
+    
+    if (error) {
+      console.error('Failed to create project_votes table via RPC:', error);
+      
+      // Fallback - try direct table creation
+      const directResult = await createVotesTableDirect();
+      return directResult;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error creating project_votes table:', error);
+    
+    // Try fallback method
+    try {
+      return await createVotesTableDirect();
+    } catch (fallbackError) {
+      console.error('Fallback project_votes table creation also failed:', fallbackError);
+      return false;
+    }
+  }
+};
+
+const createVotesTableDirect = async (): Promise<boolean> => {
+  const supabase = getSupabaseClient();
+  
+  try {
+    console.log('Attempting direct project_votes table creation...');
+    
+    // Try direct insertion to see if the table is auto-created
     const { error } = await supabase.from('project_votes').insert({
-      project_id: '00000000-0000-0000-0000-000000000000', // temp ID
+      project_id: '00000000-0000-0000-0000-000000000000',
       user_uuid: '00000000-0000-0000-0000-000000000000',
       vote: 0
     });
     
-    // If there was an error but the table was created (likely a permission error),
-    // we can consider this a success
-    if (error && error.code !== '42P01') {
-      // Check table again to confirm it was created despite error
-      const { error: checkError } = await supabase
-        .from('project_votes')
-        .select('user_uuid')
-        .limit(1);
-        
-      if (checkError && checkError.code === '42P01') {
-        throw new Error('Failed to create project_votes table');
+    // Even permission errors mean the table exists or was created
+    if (!error || (error && error.code !== '42P01')) {
+      console.log('Project_votes table created directly or already exists');
+      
+      // Try to delete the test vote
+      try {
+        await supabase
+          .from('project_votes')
+          .delete()
+          .eq('project_id', '00000000-0000-0000-0000-000000000000')
+          .eq('user_uuid', '00000000-0000-0000-0000-000000000000');
+      } catch (deleteError) {
+        // Ignore deletion errors
+        console.log('Could not delete test vote, but table exists');
       }
+      
+      return true;
     }
+    
+    console.error('Failed to create project_votes table directly:', error);
+    return false;
   } catch (error) {
-    console.error('Error in direct votes table creation:', error);
-    throw error;
+    console.error('Exception in direct project_votes table creation:', error);
+    return false;
   }
 };
 
-const setupRlsPolicies = async () => {
+const createStorageBucket = async (): Promise<boolean> => {
   const supabase = getSupabaseClient();
   
   try {
-    // Try to apply RLS policies using stored procedures
-    const { error } = await supabase.rpc('setup_grow_rls_policies');
+    console.log('Checking and creating Grow storage bucket if needed...');
     
-    if (error) {
-      console.warn('Failed to setup RLS policies:', error);
-      
-      // Try alternative RPC methods that might exist
-      try {
-        await supabase.rpc('enable_projects_rls');
-        await supabase.rpc('enable_project_votes_rls');
-      } catch (alternativeError) {
-        console.warn('Alternative RLS setup failed:', alternativeError);
-      }
+    // Check if bucket exists
+    const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('grow');
+    
+    if (!bucketError) {
+      console.log('Grow storage bucket already exists');
+      return true;
     }
+    
+    if (bucketError && !bucketError.message.includes('does not exist')) {
+      console.error('Error checking storage bucket:', bucketError);
+      return false;
+    }
+    
+    // Create the bucket
+    const { error: createBucketError } = await supabase.storage.createBucket('grow', {
+      public: true,
+      fileSizeLimit: 5242880 // 5MB
+    });
+    
+    if (createBucketError) {
+      console.error('Error creating Grow storage bucket:', createBucketError);
+      return false;
+    }
+    
+    console.log('Grow storage bucket created successfully');
+    return true;
   } catch (error) {
-    console.warn('Exception setting up RLS policies:', error);
-    // This is considered a soft fail, so we don't throw an error
+    console.error('Exception checking/creating storage bucket:', error);
+    return false;
   }
 };

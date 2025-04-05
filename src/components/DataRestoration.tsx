@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getSupabaseClient } from "@/utils/supabase/client";
 
 interface DataRestorationProps {
   onCancel: () => void;
@@ -31,7 +31,6 @@ const DataRestoration: React.FC<DataRestorationProps> = ({ onCancel }) => {
   // Add verification states
   const [verificationSent, setVerificationSent] = useState<boolean>(false);
   const [verificationCode, setVerificationCode] = useState<string>("");
-  const [actualCode, setActualCode] = useState<string>("");
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   
   const validateEmail = (email: string): boolean => {
@@ -50,15 +49,40 @@ const DataRestoration: React.FC<DataRestorationProps> = ({ onCancel }) => {
     try {
       // Generate a random 6-digit code
       const code = Math.floor(100000 + Math.random() * 900000).toString();
-      setActualCode(code);
       
-      // In a real implementation, we would send this code via email
-      // For demo purposes, we'll just simulate sending and show it
-      toast.success("Verification code sent!", {
-        description: `Code: ${code} (normally this would be sent to your email)`
-      });
+      // Send the verification code via Supabase email (if available)
+      const supabase = getSupabaseClient();
       
-      setVerificationSent(true);
+      try {
+        // Try to send via Supabase function if available
+        const { error } = await supabase.functions.invoke('send-verification-email', {
+          body: { email: email, code: code }
+        });
+        
+        if (error) {
+          console.error('Error sending verification email:', error);
+          throw new Error('Email service unavailable');
+        }
+        
+        toast.success("Verification code sent to your email", {
+          description: "Please check your inbox and enter the code"
+        });
+        
+        // Save the code in localStorage with expiration
+        const codeData = {
+          code: code,
+          email: email,
+          expires: Date.now() + (10 * 60 * 1000) // 10 minutes
+        };
+        localStorage.setItem('verification_data', JSON.stringify(codeData));
+        
+        setVerificationSent(true);
+      } catch (emailError) {
+        console.error('Failed to send email via Supabase:', emailError);
+        toast.error("Could not send verification email", {
+          description: "Please try again later"
+        });
+      }
     } catch (error) {
       console.error("Error sending verification code:", error);
       toast.error("Failed to send verification code");
@@ -68,12 +92,44 @@ const DataRestoration: React.FC<DataRestorationProps> = ({ onCancel }) => {
   };
   
   const handleVerifyAndImport = async () => {
-    if (verificationCode !== actualCode) {
+    if (!verificationCode) {
+      toast.error("Please enter the verification code");
+      return;
+    }
+    
+    // Verify against stored code
+    const storedVerification = localStorage.getItem('verification_data');
+    
+    if (!storedVerification) {
+      toast.error("Verification session expired", {
+        description: "Please request a new code"
+      });
+      setVerificationSent(false);
+      return;
+    }
+    
+    const verificationData = JSON.parse(storedVerification);
+    
+    // Check if code is expired
+    if (Date.now() > verificationData.expires) {
+      localStorage.removeItem('verification_data');
+      toast.error("Verification code expired", {
+        description: "Please request a new code"
+      });
+      setVerificationSent(false);
+      return;
+    }
+    
+    // Check if code matches
+    if (verificationCode !== verificationData.code || email !== verificationData.email) {
       toast.error("Invalid verification code");
       return;
     }
     
-    // Proceed with import after verification
+    // Code is valid, clear verification data
+    localStorage.removeItem('verification_data');
+    
+    // Proceed with import
     handleImport();
   };
   

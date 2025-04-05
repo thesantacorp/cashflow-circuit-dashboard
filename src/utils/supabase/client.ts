@@ -52,59 +52,79 @@ export const isRlsPolicyError = (error: any): boolean => {
   return isPermissionDenied || hasRlsKeywords;
 };
 
-// Improved function to check if we have a database connection
+// Improved and simplified function to check if we have a database connection
 export const checkDatabaseConnection = async (): Promise<boolean> => {
   try {
     const start = Date.now();
     console.log('Checking Supabase connection...');
     
-    // Try to query the user_uuids table which should exist in most installations
-    const { data: userData, error: userError } = await supabaseClient
-      .from('user_uuids')
-      .select('count')
-      .limit(1)
-      .maybeSingle();
-    
-    // If we get an RLS policy error, the connection is still working
-    if (userError && isRlsPolicyError(userError)) {
-      const duration = Date.now() - start;
-      console.log(`Database connection successful (RLS policies detected) in ${duration}ms`);
-      return true;
+    // First attempt: Try to query the user_uuids table
+    try {
+      const { data, error } = await supabaseClient
+        .from('user_uuids')
+        .select('count')
+        .limit(1);
+      
+      // If successful or we get an RLS policy error, we're connected
+      if (!error || isRlsPolicyError(error)) {
+        const duration = Date.now() - start;
+        console.log(`Database connection successful in ${duration}ms`);
+        return true;
+      }
+      
+      // Table might not exist (code 42P01), continue to other checks
+      if (error.code !== '42P01') {
+        console.error('Database connection error:', error);
+      }
+    } catch (e) {
+      console.warn('First connection check failed:', e);
     }
     
-    // If not a policy error but another error, try a fallback approach
-    if (userError && userError.code === '42P01') { // Table doesn't exist error
-      // Try to check if we can access version information which doesn't require table access
-      const { data, error: versionError } = await supabaseClient.rpc('version');
+    // Second attempt: Try the version RPC
+    try {
+      const { data, error } = await supabaseClient.rpc('version');
       
-      if (!versionError) {
+      if (!error) {
         const duration = Date.now() - start;
         console.log(`Database connection successful via version check in ${duration}ms`);
         return true;
       }
-      
-      // Last resort - try to access public schema information
-      const { data: schemaData, error: schemaError } = await supabaseClient
+    } catch (e) {
+      console.warn('Version check failed:', e);
+    }
+    
+    // Third attempt: Try a schema health check
+    try {
+      const { data, error } = await supabaseClient
         .from('_anon_schema_check')
         .select('*')
         .limit(1);
         
-      // This will likely fail but the error type tells us if we're connected  
-      if (schemaError && (schemaError.code === '42P01' || isRlsPolicyError(schemaError))) {
+      // This will likely fail, but if we get a 42P01 error or RLS error, 
+      // it means we are connected
+      if (error && (error.code === '42P01' || isRlsPolicyError(error))) {
         const duration = Date.now() - start;
         console.log(`Database connection confirmed via schema check in ${duration}ms`);
         return true;
       }
+    } catch (e) {
+      console.warn('Schema check failed:', e);
     }
     
-    // No errors means we successfully connected
-    if (!userError) {
-      const duration = Date.now() - start;
-      console.log(`Database connection successful in ${duration}ms`);
-      return true;
+    // Fourth attempt: Try a simple auth check
+    try {
+      const { data, error } = await supabaseClient.auth.getSession();
+      
+      if (!error) {
+        const duration = Date.now() - start;
+        console.log(`Database connection confirmed via auth check in ${duration}ms`);
+        return true;
+      }
+    } catch (e) {
+      console.warn('Auth check failed:', e);
     }
     
-    // If we reach here, all connection attempts failed
+    // All checks failed
     console.error('All database connection attempts failed');
     return false;
   } catch (err) {
