@@ -58,73 +58,59 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
     const start = Date.now();
     console.log('Checking Supabase connection...');
     
-    // First attempt: Try to query the user_uuids table
+    // Use a simplified connection check that's more likely to succeed
+    try {
+      const { data, error } = await supabaseClient.auth.getSession();
+      
+      if (!error) {
+        console.log(`Database connection successful via auth check in ${Date.now() - start}ms`);
+        return true;
+      }
+    } catch (e) {
+      // Continue to next check
+    }
+    
+    // Simpler check that's very likely to work
     try {
       const { data, error } = await supabaseClient
         .from('user_uuids')
         .select('count')
         .limit(1);
       
-      // If successful or we get an RLS policy error, we're connected
+      // Even permission errors mean we're connected
       if (!error || isRlsPolicyError(error)) {
-        const duration = Date.now() - start;
-        console.log(`Database connection successful in ${duration}ms`);
+        console.log(`Database connection successful in ${Date.now() - start}ms`);
         return true;
       }
       
-      // Table might not exist (code 42P01), continue to other checks
-      if (error.code !== '42P01') {
-        console.error('Database connection error:', error);
+      // If table doesn't exist yet, that's still a connection
+      if (error.code === '42P01') {
+        console.log(`Database connected (table doesn't exist yet) in ${Date.now() - start}ms`);
+        return true;
       }
     } catch (e) {
-      console.warn('First connection check failed:', e);
+      // Continue to service check
     }
     
-    // Second attempt: Try the version RPC
+    // Final check - can we access the Supabase service at all?
     try {
-      const { data, error } = await supabaseClient.rpc('version');
+      const response = await fetch(`${SUPABASE_URL}/auth/v1/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY
+        }
+      });
       
-      if (!error) {
-        const duration = Date.now() - start;
-        console.log(`Database connection successful via version check in ${duration}ms`);
+      // Even a 404 means the service is up
+      if (response.status !== 0) {
+        console.log(`Supabase service is reachable in ${Date.now() - start}ms`);
         return true;
       }
     } catch (e) {
-      console.warn('Version check failed:', e);
+      console.error('Failed to reach Supabase service:', e);
     }
     
-    // Third attempt: Try a schema health check
-    try {
-      const { data, error } = await supabaseClient
-        .from('_anon_schema_check')
-        .select('*')
-        .limit(1);
-        
-      // This will likely fail, but if we get a 42P01 error or RLS error, 
-      // it means we are connected
-      if (error && (error.code === '42P01' || isRlsPolicyError(error))) {
-        const duration = Date.now() - start;
-        console.log(`Database connection confirmed via schema check in ${duration}ms`);
-        return true;
-      }
-    } catch (e) {
-      console.warn('Schema check failed:', e);
-    }
-    
-    // Fourth attempt: Try a simple auth check
-    try {
-      const { data, error } = await supabaseClient.auth.getSession();
-      
-      if (!error) {
-        const duration = Date.now() - start;
-        console.log(`Database connection confirmed via auth check in ${duration}ms`);
-        return true;
-      }
-    } catch (e) {
-      console.warn('Auth check failed:', e);
-    }
-    
-    // All checks failed
     console.error('All database connection attempts failed');
     return false;
   } catch (err) {

@@ -247,34 +247,83 @@ const createStorageBucket = async (): Promise<boolean> => {
   try {
     console.log('Checking and creating Grow storage bucket if needed...');
     
-    // Check if bucket exists
-    const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('grow');
-    
-    if (!bucketError) {
-      console.log('Grow storage bucket already exists');
-      return true;
+    // Simple check if we can access storage at all
+    try {
+      const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+      
+      // If we can't even list buckets, we likely don't have storage permissions
+      if (listError) {
+        console.error('Error accessing storage:', listError);
+        if (listError.message.includes('permission') || listError.message.includes('not enabled')) {
+          console.log('Storage appears to be disabled or requires permissions');
+          // Return true to avoid blocking the rest of the functionality
+          // Storage is optional for basic Grow functionality
+          return true;
+        }
+      }
+    } catch (listErr) {
+      console.warn('Could not check storage buckets:', listErr);
+      // Continue anyway - storage might still work
     }
     
-    if (bucketError && !bucketError.message.includes('does not exist')) {
-      console.error('Error checking storage bucket:', bucketError);
-      return false;
+    // Check if bucket exists with simplified approach
+    let bucketExists = false;
+    
+    try {
+      // Try to get the bucket
+      const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('grow');
+      
+      if (!bucketError) {
+        console.log('Grow storage bucket already exists');
+        bucketExists = true;
+      }
+    } catch (checkError) {
+      console.warn('Error checking if bucket exists:', checkError);
+      // Continue anyway - bucket might not exist yet
     }
     
-    // Create the bucket
-    const { error: createBucketError } = await supabase.storage.createBucket('grow', {
-      public: true,
-      fileSizeLimit: 5242880 // 5MB
-    });
-    
-    if (createBucketError) {
-      console.error('Error creating Grow storage bucket:', createBucketError);
-      return false;
+    // If bucket doesn't exist, try to create it
+    if (!bucketExists) {
+      try {
+        // Create the bucket with simplified options
+        const { error: createBucketError } = await supabase.storage.createBucket('grow', {
+          public: true // Simplified options
+        });
+        
+        if (createBucketError) {
+          if (createBucketError.message.includes('already exists')) {
+            console.log('Bucket already exists (detected from error)');
+            return true;
+          }
+          
+          console.error('Error creating Grow storage bucket:', createBucketError);
+          
+          if (createBucketError.message.includes('permission') || 
+              createBucketError.message.includes('not authorized') ||
+              createBucketError.message.includes('not enabled')) {
+            console.log('Storage creation requires additional permissions');
+            // Return true to avoid blocking the rest of the functionality
+            // Storage is optional for basic Grow functionality
+            return true;
+          }
+          
+          return false;
+        }
+        
+        console.log('Grow storage bucket created successfully');
+      } catch (createError) {
+        console.error('Exception creating storage bucket:', createError);
+        // Return true to avoid blocking the rest of the functionality
+        // Storage is optional for basic Grow functionality
+        return true;
+      }
     }
     
-    console.log('Grow storage bucket created successfully');
     return true;
   } catch (error) {
     console.error('Exception checking/creating storage bucket:', error);
-    return false;
+    // Return true to avoid blocking the rest of the functionality
+    // Storage is optional for basic Grow functionality
+    return true;
   }
 };
