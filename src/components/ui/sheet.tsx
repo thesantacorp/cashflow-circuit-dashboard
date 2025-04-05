@@ -61,14 +61,6 @@ const SheetContent = React.forwardRef<
 >(({ side = "right", className, children, hideCloseButton = false, ...props }, ref) => {
   const isMobile = useIsMobile();
   
-  // Ensure all event listeners are properly cleaned up
-  React.useEffect(() => {
-    return () => {
-      // This empty cleanup function ensures React will handle cleanup
-      // of any internal event listeners when sheet is unmounted
-    };
-  }, []);
-
   return (
     <SheetPortal>
       <SheetOverlay />

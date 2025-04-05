@@ -142,9 +142,9 @@ const MobileNav: React.FC = () => {
           if (!open) closeSettingsSheet();
         }}
       >
-        <SheetContent className="w-full sm:max-w-md pt-12">
+        <SheetContent className="w-full sm:max-w-md pt-12 bg-gradient-to-r from-orange-500 to-amber-500 text-white">
           <SheetHeader>
-            <SheetTitle>
+            <SheetTitle className="text-white">
               {activeSheet === "currency" && "Currency Settings"}
               {activeSheet === "data" && "Data Management"}
               {activeSheet === "notifications" && "Notifications"}
@@ -158,9 +158,13 @@ const MobileNav: React.FC = () => {
               onClose={closeSettingsSheet} 
             />
           </div>
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background">
-            <Button variant="outline" onClick={closeSettingsSheet} className="w-full">
-              Close
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-orange-500/90">
+            <Button 
+              variant="secondary" 
+              onClick={closeSettingsSheet} 
+              className="w-full bg-white/20 text-white hover:bg-white/30 border-white/10"
+            >
+              Close Menu
             </Button>
           </div>
         </SheetContent>

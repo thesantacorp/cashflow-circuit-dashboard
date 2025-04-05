@@ -12,6 +12,7 @@ interface SettingsSheetContentProps {
 }
 
 const SettingsSheetContent: React.FC<SettingsSheetContentProps> = ({ activeSheet, onClose }) => {
+  // We're passing the onClose prop to all components that might need it
   switch (activeSheet) {
     case "currency":
       return <CurrencySelector />;
