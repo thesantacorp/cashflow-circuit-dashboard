@@ -60,13 +60,21 @@ export function useUuidGeneration({
       // Mark as local first, will update if sync succeeds
       setSyncStatus('local-only');
       
-      // Send email with UUID recovery information
+      // Send email with UUID recovery information using Supabase function
       try {
-        await sendEmailWithUuid(email, newUuid);
-        toast.success(`User ID ${existingUuid ? 'imported' : 'generated'} successfully`, { 
-          id: "uuid-generate",
-          description: "Your ID has been saved locally and sent to your email"
-        });
+        const emailSent = await sendEmailWithUuid(email, newUuid);
+        
+        if (emailSent) {
+          toast.success(`User ID ${existingUuid ? 'imported' : 'generated'} successfully`, { 
+            id: "uuid-generate",
+            description: "Your ID has been saved locally and sent to your email"
+          });
+        } else {
+          toast.warning(`User ID ${existingUuid ? 'imported' : 'generated'} successfully`, { 
+            id: "uuid-generate",
+            description: "Your ID has been saved locally, but we couldn't send it to your email"
+          });
+        }
       } catch (emailError) {
         console.error('Error sending UUID via email:', emailError);
         toast.warning(`User ID ${existingUuid ? 'imported' : 'generated'} successfully`, { 

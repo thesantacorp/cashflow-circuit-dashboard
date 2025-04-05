@@ -1,31 +1,31 @@
 
+import { getSupabaseClient } from "./supabase/client";
 import { toast } from "sonner";
 
-// In a real production environment, this would connect to a backend service
-// Since we can't directly send emails from the frontend, we'll simulate the email sending process
-// and provide clear instructions to the user
-
+// Send email with UUID using Supabase Edge Function
 export async function sendEmailWithUuid(email: string, uuid: string): Promise<boolean> {
   try {
     console.log(`Sending UUID ${uuid} to email ${email}...`);
     
-    // For now, we'll use the mailto: protocol as a fallback
-    const subject = encodeURIComponent('Your Stack\'d Finance User ID');
-    const body = encodeURIComponent(
-      `Hello,\n\nThank you for using Stack'd Finance. Your User ID for data recovery is:\n\n${uuid}\n\nPlease keep this ID safe as you will need it to recover your data.\n\nRegards,\nStack'd Finance Team`
-    );
+    const { error } = await getSupabaseClient().functions.invoke('send-uuid-email', {
+      body: { 
+        email, 
+        uuid,
+        subject: 'Your Stack\'d Finance User ID',
+        message: `Hello,\n\nThank you for using Stack'd Finance. Your User ID for data recovery is:\n\n${uuid}\n\nPlease keep this ID safe as you will need it to recover your data.\n\nRegards,\nStack'd Finance Team`
+      }
+    });
     
-    // Open email client
-    window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+    if (error) {
+      console.error('Error sending email via Supabase function:', error);
+      toast.error("Failed to send email with User ID", {
+        description: "Please make note of your User ID displayed on screen"
+      });
+      return false;
+    }
     
-    // In a real scenario, we would call a backend API to send the email
-    // For now, we'll consider this a "successful" send since we've opened the user's email client
-    // This is a temporary solution until we implement a proper backend email service
-    
-    // Display clear instructions to the user about what's happening
-    toast.info("Email client opened", {
-      description: "We've opened your email client with your User ID. If it didn't open automatically, please make note of your ID.",
-      duration: 10000
+    toast.success("Email sent successfully", {
+      description: "Your User ID has been sent to your email address"
     });
     
     return true;
@@ -38,25 +38,34 @@ export async function sendEmailWithUuid(email: string, uuid: string): Promise<bo
   }
 }
 
-// This would be implemented with a proper backend in production
+// Send data recovery link email using Supabase Edge Function
 export async function sendDataRecoveryLink(email: string, recoveryLink: string): Promise<boolean> {
   try {
-    const subject = encodeURIComponent('Stack\'d Finance Data Recovery Link');
-    const body = encodeURIComponent(
-      `Hello,\n\nHere is your data recovery link for Stack'd Finance:\n\n${recoveryLink}\n\nThis link will expire in 24 hours.\n\nRegards,\nStack'd Finance Team`
-    );
+    const { error } = await getSupabaseClient().functions.invoke('send-recovery-email', {
+      body: { 
+        email,
+        recoveryLink,
+        subject: 'Stack\'d Finance Data Recovery Link',
+        message: `Hello,\n\nHere is your data recovery link for Stack'd Finance:\n\n${recoveryLink}\n\nThis link will expire in 24 hours.\n\nRegards,\nStack'd Finance Team`
+      }
+    });
     
-    // Open email client
-    window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+    if (error) {
+      console.error('Error sending recovery link email via Supabase function:', error);
+      toast.error("Failed to send recovery link email", {
+        description: "Please copy and save the recovery link"
+      });
+      return false;
+    }
     
-    toast.info("Email client opened", {
-      description: "We've opened your email client with your recovery link. If it didn't open automatically, please make note of the link.",
-      duration: 8000
+    toast.success("Recovery link email sent", {
+      description: "Please check your email inbox"
     });
     
     return true;
   } catch (error) {
     console.error('Error sending recovery link email:', error);
+    toast.error("Failed to send recovery link email");
     return false;
   }
 }
@@ -64,17 +73,25 @@ export async function sendDataRecoveryLink(email: string, recoveryLink: string):
 // Send verification code via email for data recovery
 export async function sendDataRecoveryVerificationCode(email: string, code: string): Promise<boolean> {
   try {
-    const subject = encodeURIComponent('Stack\'d Finance Verification Code');
-    const body = encodeURIComponent(
-      `Hello,\n\nYour verification code for Stack'd Finance data recovery is:\n\n${code}\n\nThis code will expire in 10 minutes.\n\nRegards,\nStack'd Finance Team`
-    );
+    const { error } = await getSupabaseClient().functions.invoke('send-verification-code', {
+      body: { 
+        email,
+        code,
+        subject: 'Stack\'d Finance Verification Code',
+        message: `Hello,\n\nYour verification code for Stack'd Finance data recovery is:\n\n${code}\n\nThis code will expire in 10 minutes.\n\nRegards,\nStack'd Finance Team`
+      }
+    });
     
-    // Open email client
-    window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+    if (error) {
+      console.error('Error sending verification code email via Supabase function:', error);
+      toast.error("Failed to send verification code", {
+        description: "Please try again later or contact support"
+      });
+      return false;
+    }
     
-    toast.info("Email client opened", {
-      description: "We've opened your email client with your verification code. If it didn't open automatically, please contact support.",
-      duration: 8000
+    toast.success("Verification code sent", {
+      description: "Please check your email inbox"
     });
     
     return true;

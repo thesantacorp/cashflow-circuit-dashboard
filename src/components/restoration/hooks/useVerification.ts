@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { getSupabaseClient } from "@/utils/supabase/client";
 import { VerificationData } from "../types";
+import { sendDataRecoveryVerificationCode } from "@/utils/emailService";
 
 export function useVerification() {
   const [verificationSent, setVerificationSent] = useState<boolean>(false);
@@ -24,59 +25,21 @@ export function useVerification() {
     try {
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       
-      let emailSent = false;
+      // Store the code securely in localStorage with expiration
+      const codeData: VerificationData = {
+        code: code,
+        email: email,
+        expires: Date.now() + (10 * 60 * 1000) // 10 minutes expiration
+      };
+      localStorage.setItem('verification_data', JSON.stringify(codeData));
       
-      try {
-        const { error } = await getSupabaseClient().functions.invoke('send-verification-email', {
-          body: { email: email, code: code }
-        });
-        
-        if (error) {
-          console.error('Error sending verification email via Supabase function:', error);
-          throw new Error('Supabase email service unavailable');
-        } else {
-          emailSent = true;
-          console.log('Email sent successfully via Supabase function');
-        }
-      } catch (supabaseError) {
-        console.warn('Failed to send email via Supabase function, trying alternative method:', supabaseError);
-        
-        try {
-          // Store the code securely in localStorage with no display to user
-          const codeData: VerificationData = {
-            code: code,
-            email: email,
-            expires: Date.now() + (10 * 60 * 1000)
-          };
-          localStorage.setItem('verification_data', JSON.stringify(codeData));
-          
-          // Attempt to send email through alternative method
-          const { sendDataRecoveryVerificationCode } = await import('@/utils/emailService');
-          const altEmailSent = await sendDataRecoveryVerificationCode(email, code);
-          
-          if (altEmailSent) {
-            console.log('Code sent via alternative method');
-            emailSent = true;
-          } else {
-            throw new Error('All email methods failed');
-          }
-        } catch (fallbackError) {
-          console.error('All email sending methods failed:', fallbackError);
-        }
-      }
+      // Send verification code via email service
+      const emailSent = await sendDataRecoveryVerificationCode(email, code);
       
       if (emailSent) {
         toast.success("Verification code sent", {
           description: "Please check your email for the verification code"
         });
-        
-        const codeData: VerificationData = {
-          code: code,
-          email: email,
-          expires: Date.now() + (10 * 60 * 1000)
-        };
-        localStorage.setItem('verification_data', JSON.stringify(codeData));
-        
         setVerificationSent(true);
         return true;
       } else {
