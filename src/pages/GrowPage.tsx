@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const GrowPage = () => {
   const { 
-    state: { ideas, votes }, 
+    state: { ideas, votes, projects }, 
     addVote, 
     removeVote, 
     hasVoted, 
@@ -21,8 +21,6 @@ const GrowPage = () => {
   } = useCrowdfunding();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const [projects, setProjects] = useState<CrowdfundingProject[]>([]);
-  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("ideas");
   
   // Calculate project statistics
@@ -45,21 +43,6 @@ const GrowPage = () => {
       score: idea.upvotes - idea.downvotes
     };
   };
-
-  // Load projects from localStorage
-  useEffect(() => {
-    setLoading(true);
-    try {
-      const storedProjects = localStorage.getItem('crowdfundingProjects');
-      if (storedProjects) {
-        setProjects(JSON.parse(storedProjects));
-      }
-    } catch (error) {
-      console.error("Error loading projects:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   const handleViewDetails = (ideaId: string) => {
     navigate(`/grow/${ideaId}`);

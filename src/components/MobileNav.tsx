@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import {
@@ -23,25 +23,8 @@ import DataRecovery from "./DataRecovery";
 const MobileNav: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [activeSheet, setActiveSheet] = useState<string | null>(null);
+  const [sheetTrigger, setSheetTrigger] = useState(0); // Using a counter to force sheet re-render
   const navigate = useNavigate();
-
-  // Helper to safely close drawer
-  const closeDrawer = () => {
-    setIsDrawerOpen(false);
-  };
-
-  // Helper to safely open a settings sheet
-  const openSettingsSheet = (setting: string) => {
-    closeDrawer();
-    setTimeout(() => {
-      setActiveSheet(setting);
-    }, 300);
-  };
-
-  // Helper to safely close a settings sheet
-  const closeSettingsSheet = () => {
-    setActiveSheet(null);
-  };
 
   // Navigation items
   const navigationItems = [
@@ -83,7 +66,24 @@ const MobileNav: React.FC = () => {
   // Navigation handler
   const handleNavigation = (path: string) => {
     navigate(path);
-    closeDrawer();
+    setIsDrawerOpen(false);
+  };
+  
+  // Helper to safely open a settings sheet
+  const openSettingsSheet = (setting: string) => {
+    // First close the drawer
+    setIsDrawerOpen(false);
+    
+    // Wait for drawer animation to complete before opening sheet
+    setTimeout(() => {
+      setActiveSheet(setting);
+      setSheetTrigger(prev => prev + 1); // Increment to force re-render of Sheet
+    }, 300);
+  };
+
+  // Helper to safely close a settings sheet
+  const closeSettingsSheet = () => {
+    setActiveSheet(null);
   };
 
   // Render Settings Sheet content
@@ -165,7 +165,7 @@ const MobileNav: React.FC = () => {
           <DrawerFooter className="pt-2 border-t">
             <Button 
               variant="outline" 
-              onClick={closeDrawer}
+              onClick={() => setIsDrawerOpen(false)}
               className="w-full"
             >
               Close Menu
@@ -174,8 +174,9 @@ const MobileNav: React.FC = () => {
         </DrawerContent>
       </Drawer>
 
-      {/* Settings Sheets */}
+      {/* Settings Sheets - key forces re-creation of the component when sheets are opened/closed */}
       <Sheet 
+        key={`sheet-${sheetTrigger}`}
         open={activeSheet !== null} 
         onOpenChange={(open) => {
           if (!open) closeSettingsSheet();
