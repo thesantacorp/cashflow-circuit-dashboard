@@ -1,173 +1,122 @@
 
 import { createClient } from '@supabase/supabase-js';
+import { toast } from 'sonner';
 
-// Store Supabase credentials directly in the code
-// These are safe to store in the frontend code as they are public anon keys
-export const SUPABASE_URL = 'https://tsidnalhlgcmcnqawgux.supabase.co';
-export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzaWRuYWxobGdjbWNucWF3Z3V4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM4MjkzNTIsImV4cCI6MjA1OTQwNTM1Mn0.G9voKlG0s22kFnNX2qE8Tfv5xq8amdion7J6Xfi8rKQ';
+// Check for valid Supabase URL and key
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://xejnmpsmnakewioiflcj.supabase.co';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhlam5tcHNtbmFrZXdpb2lmbGNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODM3MzA5NjYsImV4cCI6MTk5OTMwNjk2Nn0.R7JQITqV4ODsanBkyaKzeMpWh7cXGZMG7SSLWa8VuXw';
 
-// Create a single Supabase client instance for use throughout the app
-const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    // Email configuration
-    flowType: 'pkce',
-  },
-  global: {
-    // Enhanced fetch with improved timeout and error handling
-    fetch: (url, options) => {
-      // Create an abort controller to manage the timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000); // Extended timeout to 45 seconds
-      
-      // Add custom headers for better tracking and debugging
-      const enhancedOptions = {
-        ...options,
-        signal: controller.signal,
-        headers: {
-          ...options?.headers,
-          'apikey': SUPABASE_ANON_KEY, // Always include the API key in request headers
-          'X-Client-Info': 'financial-app-production'
-        }
-      };
-      
-      return fetch(url, enhancedOptions)
-        .finally(() => clearTimeout(timeoutId));
-    }
-  }
-});
+let supabaseClient: any = null;
 
-// Helper method to set the redirect URL for email verification
-export const getRedirectUrl = (): string => {
-  return `${window.location.origin}/email-verified`;
-};
-
-// Export the client directly to avoid creating multiple instances
-export const getSupabaseClient = () => supabaseClient;
-
-// Enhanced function to send verification emails
-export const sendEmailVerification = async (email: string): Promise<{success: boolean, message: string}> => {
-  try {
-    console.log('Sending email verification to:', email);
-    
-    // Production-ready email verification via Supabase Auth
-    const { error } = await supabaseClient.auth.resend({
-      type: 'signup',
-      email: email,
-      options: {
-        emailRedirectTo: getRedirectUrl()
-      }
-    });
-    
-    if (error) {
-      console.error('Error sending verification email:', error);
-      return { 
-        success: false, 
-        message: 'Failed to send verification email. Please check your email address and try again.'
-      };
-    }
-    
-    return { 
-      success: true, 
-      message: 'Verification email sent successfully. Please check your inbox.'
-    };
-  } catch (error) {
-    console.error('Exception sending verification email:', error);
-    return { 
-      success: false, 
-      message: 'An error occurred while sending the verification email. Please try again.'
-    };
-  }
-};
-
-// Enhanced function to check if this is a RLS policy error with more specific detection
-export const isRlsPolicyError = (error: any): boolean => {
-  if (!error) return false;
-  
-  // Check for specific PostgreSQL permission denied code
-  const isPermissionDenied = error.code === '42501';
-  
-  // Check error message for RLS policy violation keywords
-  const messageIncludes = (str: string) => 
-    error.message?.toLowerCase().includes(str.toLowerCase());
-    
-  const hasRlsKeywords = 
-    messageIncludes('policy') || 
-    messageIncludes('violates row-level security') ||
-    messageIncludes('permission denied') ||
-    messageIncludes('rls') ||
-    messageIncludes('permission'); // Added for broader detection
-    
-  // Return true if any of the checks indicate an RLS policy error
-  return isPermissionDenied || hasRlsKeywords;
-};
-
-// Improved and simplified function to check if we have a database connection
-export const checkDatabaseConnection = async (): Promise<boolean> => {
-  try {
-    const start = Date.now();
-    console.log('Checking Supabase connection...');
-    
-    // Use a simplified connection check that's more likely to succeed
+// Function to get or create the Supabase client
+export const getSupabaseClient = () => {
+  if (!supabaseClient) {
     try {
-      const { data, error } = await supabaseClient.auth.getSession();
-      
-      if (!error) {
-        console.log(`Database connection successful via auth check in ${Date.now() - start}ms`);
-        return true;
-      }
-    } catch (e) {
-      // Continue to next check
-    }
-    
-    // Simpler check that's very likely to work
-    try {
-      const { data, error } = await supabaseClient
-        .from('user_uuids')
-        .select('count')
-        .limit(1);
-      
-      // Even permission errors mean we're connected
-      if (!error || isRlsPolicyError(error)) {
-        console.log(`Database connection successful in ${Date.now() - start}ms`);
-        return true;
-      }
-      
-      // If table doesn't exist yet, that's still a connection
-      if (error.code === '42P01') {
-        console.log(`Database connected (table doesn't exist yet) in ${Date.now() - start}ms`);
-        return true;
-      }
-    } catch (e) {
-      // Continue to service check
-    }
-    
-    // Final check - can we access the Supabase service at all?
-    try {
-      const response = await fetch(`${SUPABASE_URL}/auth/v1/`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'X-Client-Info': 'financial-app-production'
-        }
+      supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+        },
+        global: {
+          fetch: (...args) => {
+            // Add retry logic and proper error handling
+            return fetch(...args).catch(error => {
+              console.error('Fetch error in Supabase client:', error);
+              throw new Error(`Network error: ${error.message || 'Failed to connect to Supabase'}`);
+            });
+          },
+        },
       });
       
-      // Even a 404 means the service is up
-      if (response.status !== 0) {
-        console.log(`Supabase service is reachable in ${Date.now() - start}ms`);
+      console.log('Supabase client created successfully');
+    } catch (error) {
+      console.error('Error creating Supabase client:', error);
+      toast.error('Failed to initialize database connection', {
+        description: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+  
+  return supabaseClient;
+};
+
+// Check if an error is a Row Level Security policy error
+export const isRlsPolicyError = (error: any) => {
+  if (!error) return false;
+  
+  // Check common RLS error patterns
+  const errorMessage = error.message || '';
+  const errorCode = error.code || '';
+  
+  return (
+    errorCode === '42501' || 
+    errorMessage.includes('permission denied') ||
+    errorMessage.includes('RLS') || 
+    errorMessage.includes('policy') ||
+    errorMessage.includes('row level security')
+  );
+};
+
+// Check if the database connection is working
+export const checkDatabaseConnection = async (): Promise<boolean> => {
+  try {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false;
+    
+    console.log('Checking Supabase connection...');
+    
+    // Try a simple query to see if we can connect
+    const { data, error, status } = await supabase
+      .from('user_uuids')
+      .select('count(*)', { count: 'exact', head: true })
+      .limit(1)
+      .timeout(5000);
+      
+    // Handle specific error types
+    if (error) {
+      console.error('Database connection check error:', error);
+      
+      // If it's a content-type error, log specifically
+      if (error.message.includes('Content-Type')) {
+        console.error('Content-Type error detected in database connection');
+        toast.error('Database connection error', { 
+          description: 'Content-Type issue detected. This is often a temporary problem.',
+          duration: 8000
+        });
+      }
+      
+      // If it's an RLS error, that actually means we connected
+      if (isRlsPolicyError(error)) {
+        console.log('RLS error during connection check, but connection succeeded');
         return true;
       }
-    } catch (e) {
-      console.error('Failed to reach Supabase service:', e);
+      
+      return false;
     }
     
-    console.error('All database connection attempts failed');
-    return false;
-  } catch (err) {
-    console.error('Database connection exception:', err);
+    console.log('Database connection successful');
+    return true;
+  } catch (error) {
+    console.error('Exception during database connection check:', error);
+    
+    // More specific error feedback
+    if (error instanceof Error) {
+      const msg = error.message || '';
+      if (msg.includes('fetch')) {
+        toast.error('Network error connecting to database', {
+          description: 'Please check your internet connection'
+        });
+      } else if (msg.includes('Content-Type')) {
+        toast.error('Content-Type error with database', {
+          description: 'This is often temporary. Please try again in a moment.'
+        });
+      } else {
+        toast.error('Database connection failed', {
+          description: msg
+        });
+      }
+    }
+    
     return false;
   }
 };

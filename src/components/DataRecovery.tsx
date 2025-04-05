@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Copy, Mail, RefreshCw, Loader2 } from 'lucide-react';
 import { generateRecoveryLink } from '@/utils/userDataRecovery';
+import { sendDataRecoveryLink } from '@/utils/emailService';
 
 const DataRecovery: React.FC = () => {
   const [recoveryLink, setRecoveryLink] = useState<string>('');
@@ -36,20 +37,26 @@ const DataRecovery: React.FC = () => {
     toast.success('Recovery link copied to clipboard');
   };
   
-  const handleSendEmail = () => {
-    // Since we don't have a backend email service connected yet, we'll open the user's email client
-    // with a pre-populated message containing the recovery link
+  const handleSendEmail = async () => {
     if (!email) {
       toast.error('Please enter an email address');
       return;
     }
     
-    const subject = encodeURIComponent('Recover Your Data');
-    const body = encodeURIComponent(
-      `Click the link below to recover your data:\n\n${recoveryLink}\n\nThis link is valid for 24 hours.`
-    );
-    window.open(`mailto:${email}?subject=${subject}&body=${body}`);
-    toast.success('Email client opened with recovery link');
+    setLoading(true);
+    try {
+      const success = await sendDataRecoveryLink(email, recoveryLink);
+      if (success) {
+        toast.success('Recovery link sent to your email');
+      } else {
+        toast.error('Failed to send recovery link to email');
+      }
+    } catch (error) {
+      console.error('Error sending recovery link via email:', error);
+      toast.error('Failed to send email');
+    } finally {
+      setLoading(false);
+    }
   };
   
   return (
@@ -111,8 +118,16 @@ const DataRecovery: React.FC = () => {
                     value={email} 
                     onChange={(e) => setEmail(e.target.value)}
                   />
-                  <Button variant="outline" onClick={handleSendEmail}>
-                    <Mail className="mr-2 h-4 w-4" />
+                  <Button 
+                    variant="outline" 
+                    onClick={handleSendEmail}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Mail className="mr-2 h-4 w-4" />
+                    )}
                     Send
                   </Button>
                 </div>

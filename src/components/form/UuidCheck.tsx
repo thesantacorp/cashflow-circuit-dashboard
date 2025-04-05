@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { KeyRound, Star, Rocket, Mail, Loader2 } from "lucide-react";
+import { KeyRound, Star, Rocket, Mail, Loader2, AlertTriangle } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -13,10 +13,11 @@ interface UuidCheckProps {
 }
 
 const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
-  const { userUuid, generateUserUuid } = useTransactions();
+  const { userUuid, generateUserUuid, connectionVerified } = useTransactions();
   const [email, setEmail] = useState<string>("");
   const [showEmailInput, setShowEmailInput] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>("");
   
   const validateEmail = (email: string): boolean => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -35,15 +36,41 @@ const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
     }
     
     setIsGenerating(true);
+    setErrorMessage("");
     
     try {
+      if (!connectionVerified) {
+        // Check if we can connect to the database
+        const { checkSupabaseConnection } = await import('@/utils/supabaseInit');
+        const isConnected = await checkSupabaseConnection();
+        
+        if (!isConnected) {
+          setErrorMessage("Cannot connect to database. Your User ID will be stored locally only.");
+          toast.warning("Cannot connect to database", {
+            description: "Your User ID will be stored locally. You can sync it later when connection is available."
+          });
+        }
+      }
+      
       await generateUserUuid(email);
       if (onUuidGenerated) {
         onUuidGenerated();
       }
     } catch (error) {
       console.error("Error generating UUID:", error);
-      toast.error("Failed to generate User ID. Please try again.");
+      
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      if (errorMsg.includes("Content-Type not acceptable")) {
+        setErrorMessage("Database connection issue: Content-Type not acceptable. Please try again later.");
+        toast.error("Database connection issue", {
+          description: "Content-Type error. Your User ID will be stored locally for now."
+        });
+      } else {
+        setErrorMessage(`Error: ${errorMsg}`);
+        toast.error("Failed to generate User ID", {
+          description: "Please try again later"
+        });
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -67,6 +94,13 @@ const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
           <span>Create Your Unique ID in seconds and make data recovery a breeze! 🚀</span>
         </p>
         
+        {errorMessage && (
+          <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-red-700">{errorMessage}</p>
+          </div>
+        )}
+        
         {showEmailInput ? (
           <div className="mb-3">
             <div className="flex items-center gap-1 mb-1 text-sm">
@@ -81,7 +115,7 @@ const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
               className="border-orange-200 focus-visible:ring-orange-400 mb-2"
             />
             <p className="text-xs text-gray-600">
-              Your ID will be stored securely for future data recovery
+              Your ID will be stored securely for future data recovery and sent to your email
             </p>
           </div>
         ) : (

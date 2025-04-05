@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
 import { verifySupabaseSetup } from "@/utils/supabaseVerification";
 import { syncQueue } from "@/utils/supabaseInit";
+import { sendEmailWithUuid } from "@/utils/emailService";
 
 interface UseUuidGenerationProps {
   setUserUuid: React.Dispatch<React.SetStateAction<string | null>>;
@@ -58,10 +59,21 @@ export function useUuidGeneration({
       
       // Mark as local first, will update if sync succeeds
       setSyncStatus('local-only');
-      toast.success(`User ID ${existingUuid ? 'imported' : 'generated'} successfully`, { 
-        id: "uuid-generate",
-        description: "Your ID has been saved locally"
-      });
+      
+      // Send email with UUID recovery information
+      try {
+        await sendEmailWithUuid(email, newUuid);
+        toast.success(`User ID ${existingUuid ? 'imported' : 'generated'} successfully`, { 
+          id: "uuid-generate",
+          description: "Your ID has been saved locally and sent to your email"
+        });
+      } catch (emailError) {
+        console.error('Error sending UUID via email:', emailError);
+        toast.warning(`User ID ${existingUuid ? 'imported' : 'generated'} successfully`, { 
+          id: "uuid-generate",
+          description: "Your ID has been saved locally, but we couldn't send it to your email"
+        });
+      }
       
       // Attempt immediate sync to Supabase
       if (connectionVerified) {
@@ -102,25 +114,7 @@ export function useUuidGeneration({
               setSyncStatus('local-only');
               toast.warning("User ID stored locally", { 
                 id: "uuid-sync",
-                description: "Will sync to cloud when connection is available",
-                action: {
-                  label: "Try Again",
-                  onClick: () => {
-                    const { forceSyncToCloud } = require('./useUuidSynchronization');
-                    const syncProps = {
-                      userUuid: newUuid,
-                      userEmail: email,
-                      setSyncStatus,
-                      syncRetryCount: 0,
-                      setSyncRetryCount: () => {},
-                      tableVerified: tableReady,
-                      setTableVerified,
-                      connectionVerified,
-                      setConnectionVerified: () => {}
-                    };
-                    forceSyncToCloud(syncProps)();
-                  }
-                }
+                description: "Will sync to cloud when connection is available"
               });
             }
           } catch (syncError) {
