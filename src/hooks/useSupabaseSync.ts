@@ -1,52 +1,125 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTransactions } from '@/context/transaction';
 import { useAuth } from '@/context/AuthContext';
-import { getSupabaseClient } from '@/utils/supabase/client'; // Change to use the correct export
+import { getSupabaseClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
-import { TransactionType, EmotionalState } from '@/types'; // Import from types instead of context/transaction/types
+import { TransactionType, EmotionalState } from '@/types';
 
 type SupabaseCount = {
   count: number;
 }
 
+// Maximum number of retries for Supabase operations
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // ms
+
+/**
+ * Utility function to wait for a specified delay
+ */
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Hook for handling Supabase data synchronization
+ */
 export function useSupabaseSync() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncDate, setLastSyncDate] = useState<Date | null>(null);
   const { state, importData, replaceAllData } = useTransactions();
   const { user, profile } = useAuth();
 
+  /**
+   * Execute a Supabase operation with retry logic
+   */
+  const executeWithRetry = useCallback(async <T>(
+    operation: () => Promise<T>,
+    operationName: string
+  ): Promise<T> => {
+    let retries = 0;
+    
+    while (retries < MAX_RETRIES) {
+      try {
+        return await operation();
+      } catch (error: any) {
+        retries++;
+        console.error(`${operationName} attempt ${retries} failed:`, error);
+        
+        if (retries >= MAX_RETRIES) {
+          throw error;
+        }
+        
+        // Wait before retrying with exponential backoff
+        await wait(RETRY_DELAY * Math.pow(2, retries - 1));
+      }
+    }
+    
+    throw new Error(`${operationName} failed after ${MAX_RETRIES} attempts`);
+  }, []);
+
   // Function to backup data to Supabase
-  const backupToSupabase = async () => {
+  const backupToSupabase = useCallback(async () => {
     if (!user) {
       toast.error('You must be logged in to backup data');
       return false;
     }
 
     setIsSyncing(true);
-    const supabase = getSupabaseClient(); // Get the client when needed
     
     try {
-      // Delete existing data for this user to prevent duplicates
-      await (supabase.from('transactions') as any).delete().eq('user_email', user.email);
-      await (supabase.from('categories') as any).delete().eq('user_email', user.email);
+      // Get a fresh client for each operation to avoid stale connections
+      const supabase = getSupabaseClient();
       
-      // Insert transactions
+      if (!supabase) {
+        throw new Error('Failed to initialize Supabase client');
+      }
+      
+      // Check connection to Supabase before proceeding
+      await executeWithRetry(async () => {
+        const { data, error } = await supabase.from('user_uuids').select('count', { count: 'exact', head: true }).limit(1);
+        if (error) throw error;
+        return data;
+      }, 'Connection check');
+      
+      // Delete existing data for this user to prevent duplicates
+      await executeWithRetry(async () => {
+        const { error } = await (supabase.from('transactions') as any).delete().eq('user_email', user.email);
+        if (error) throw error;
+        return true;
+      }, 'Delete existing transactions');
+      
+      await executeWithRetry(async () => {
+        const { error } = await (supabase.from('categories') as any).delete().eq('user_email', user.email);
+        if (error) throw error;
+        return true;
+      }, 'Delete existing categories');
+      
+      // Insert transactions in batches
       if (state.transactions.length > 0) {
-        const transactionRows = state.transactions.map(transaction => ({
-          user_email: user.email,
-          transaction_id: transaction.id,
-          type: transaction.type,
-          category_id: transaction.categoryId,
-          amount: transaction.amount,
-          description: transaction.description || '',
-          date: transaction.date,
-          emotional_state: transaction.emotionalState || 'neutral'
-        }));
+        const batchSize = 50; // Process transactions in smaller batches
+        const batches = Math.ceil(state.transactions.length / batchSize);
         
-        // Use any to bypass type checking for now since we know these tables exist
-        const { error: transactionsError } = await (supabase.from('transactions') as any).insert(transactionRows);
-        if (transactionsError) throw transactionsError;
+        for (let i = 0; i < batches; i++) {
+          const start = i * batchSize;
+          const end = Math.min(start + batchSize, state.transactions.length);
+          const batch = state.transactions.slice(start, end);
+          
+          const transactionRows = batch.map(transaction => ({
+            user_email: user.email,
+            transaction_id: transaction.id,
+            type: transaction.type,
+            category_id: transaction.categoryId,
+            amount: transaction.amount,
+            description: transaction.description || '',
+            date: transaction.date,
+            emotional_state: transaction.emotionalState || 'neutral'
+          }));
+          
+          await executeWithRetry(async () => {
+            const { error } = await (supabase.from('transactions') as any).insert(transactionRows);
+            if (error) throw error;
+            return true;
+          }, `Insert transactions batch ${i + 1}/${batches}`);
+        }
       }
       
       // Insert categories
@@ -59,61 +132,76 @@ export function useSupabaseSync() {
           color: category.color
         }));
         
-        // Use any to bypass type checking for now since we know these tables exist
-        const { error: categoriesError } = await (supabase.from('categories') as any).insert(categoryRows);
-        if (categoriesError) throw categoriesError;
+        await executeWithRetry(async () => {
+          const { error } = await (supabase.from('categories') as any).insert(categoryRows);
+          if (error) throw error;
+          return true;
+        }, 'Insert categories');
       }
       
       // Update profile with last backup date
       if (user.id) {
-        await supabase
-          .from('profiles')
-          .update({ 
-            backup_last_date: new Date().toISOString()
-          })
-          .eq('id', user.id);
+        await executeWithRetry(async () => {
+          const { error } = await supabase
+            .from('profiles')
+            .update({ 
+              backup_last_date: new Date().toISOString()
+            })
+            .eq('id', user.id);
+          if (error) throw error;
+          return true;
+        }, 'Update profile backup date');
       }
       
       const now = new Date();
       setLastSyncDate(now);
+      localStorage.setItem('lastTransactionUpdate', now.toISOString());
       
       toast.success('Data backed up successfully');
       return true;
     } catch (error: any) {
       console.error('Backup error:', error);
       toast.error('Failed to backup data', {
-        description: error.message
+        description: error.message || 'Network error occurred'
       });
       return false;
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [user, state.transactions, state.categories, executeWithRetry]);
 
   // Function to restore data from Supabase
-  const restoreFromSupabase = async () => {
+  const restoreFromSupabase = useCallback(async () => {
     if (!user) {
       toast.error('You must be logged in to restore data');
       return false;
     }
 
     setIsSyncing(true);
-    const supabase = getSupabaseClient(); // Get the client when needed
     
     try {
+      // Get a fresh client for each operation
+      const supabase = getSupabaseClient();
+      
+      if (!supabase) {
+        throw new Error('Failed to initialize Supabase client');
+      }
+      
       // Fetch transactions
-      const { data: transactionsData, error: transactionsError } = await (supabase
-        .from('transactions') as any)
-        .select('*')
-        .eq('user_email', user.email);
+      const { data: transactionsData, error: transactionsError } = await executeWithRetry(async () => {
+        return await (supabase.from('transactions') as any)
+          .select('*')
+          .eq('user_email', user.email);
+      }, 'Fetch transactions');
       
       if (transactionsError) throw transactionsError;
       
       // Fetch categories
-      const { data: categoriesData, error: categoriesError } = await (supabase
-        .from('categories') as any)
-        .select('*')
-        .eq('user_email', user.email);
+      const { data: categoriesData, error: categoriesError } = await executeWithRetry(async () => {
+        return await (supabase.from('categories') as any)
+          .select('*')
+          .eq('user_email', user.email);
+      }, 'Fetch categories');
       
       if (categoriesError) throw categoriesError;
       
@@ -139,81 +227,101 @@ export function useSupabaseSync() {
       // Replace all data in the app
       replaceAllData(transformedData);
       
+      const now = new Date();
+      setLastSyncDate(now);
+      localStorage.setItem('lastTransactionUpdate', now.toISOString());
+      
       toast.success('Data restored successfully');
       return true;
     } catch (error: any) {
       console.error('Restore error:', error);
       toast.error('Failed to restore data', {
-        description: error.message
+        description: error.message || 'Network error occurred'
       });
       return false;
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [user, executeWithRetry, replaceAllData]);
 
   // Auto-sync data when a user logs in
   useEffect(() => {
     if (user && profile) {
       const syncData = async () => {
-        const supabase = getSupabaseClient(); // Get the client when needed
-        
-        // Check if we have local data
-        const hasLocalData = state.transactions.length > 0 || state.categories.length > 0;
-        
-        // Check if we have remote data
-        const { data } = await (supabase
-          .from('transactions') as any)
-          .select('count', { count: 'exact', head: true })
-          .eq('user_email', user.email);
-        
-        // Handle correctly when data is an array or an object with count property
-        let remoteCount = 0;
-        if (data) {
-          if (Array.isArray(data) && data[0]?.count) {
-            remoteCount = data[0].count;
-          } else if (typeof data === 'object' && data.count !== undefined) {
-            remoteCount = data.count;
+        try {
+          const supabase = getSupabaseClient();
+          
+          if (!supabase) {
+            throw new Error('Failed to initialize Supabase client');
           }
-        }
-        
-        // If we have remote data but no local data, restore from remote
-        if (remoteCount > 0 && !hasLocalData) {
-          restoreFromSupabase();
-        } 
-        // If we have local data but no remote data, backup to remote
-        else if (hasLocalData && remoteCount === 0) {
-          backupToSupabase();
-        }
-        // If we have both, check which is newer
-        else if (hasLocalData && remoteCount > 0) {
-          if (profile.backup_last_date) {
-            const backupDate = new Date(profile.backup_last_date);
-            const localStorageDate = localStorage.getItem('lastTransactionUpdate');
+          
+          // Check if we have local data
+          const hasLocalData = state.transactions.length > 0 || state.categories.length > 0;
+          
+          // Check if we have remote data
+          let remoteCount = 0;
+          try {
+            const { data } = await supabase
+              .from('transactions')
+              .select('count', { count: 'exact', head: true })
+              .eq('user_email', user.email);
             
-            if (localStorageDate) {
-              const localDate = new Date(localStorageDate);
-              if (localDate > backupDate) {
-                await backupToSupabase();
+            // Handle correctly when data is an array or an object with count property
+            if (data) {
+              if (Array.isArray(data) && data[0]?.count) {
+                remoteCount = data[0].count;
+              } else if (typeof data === 'object' && (data as any).count !== undefined) {
+                remoteCount = (data as any).count;
+              }
+            }
+          } catch (error) {
+            console.error('Error checking remote data count:', error);
+          }
+          
+          // Decision logic for syncing data
+          if (remoteCount > 0 && !hasLocalData) {
+            // If remote data exists but no local data, restore from remote
+            await restoreFromSupabase();
+          } else if (hasLocalData && remoteCount === 0) {
+            // If local data exists but no remote data, backup to remote
+            await backupToSupabase();
+          } else if (hasLocalData && remoteCount > 0) {
+            // If both exist, check which is newer
+            if (profile.backup_last_date) {
+              const backupDate = new Date(profile.backup_last_date);
+              const localStorageDate = localStorage.getItem('lastTransactionUpdate');
+              
+              if (localStorageDate) {
+                const localDate = new Date(localStorageDate);
+                if (localDate > backupDate) {
+                  // Local is newer
+                  await backupToSupabase();
+                } else {
+                  // Remote is newer
+                  await restoreFromSupabase();
+                }
               } else {
+                // No local timestamp, use remote data
                 await restoreFromSupabase();
               }
             } else {
-              // If no local timestamp, use remote data
-              await restoreFromSupabase();
+              // No backup date in profile, assume local is newer
+              await backupToSupabase();
             }
-          } else {
-            // No backup date, assume local is newer
-            await backupToSupabase();
           }
+        } catch (error) {
+          console.error('Auto-sync error:', error);
+          toast.error('Error syncing data', {
+            description: 'We encountered an issue syncing your data. You can try again manually.'
+          });
         }
       };
       
       syncData().catch(console.error);
     }
-  }, [user, profile]);
+  }, [user, profile, state.transactions.length, state.categories.length, backupToSupabase, restoreFromSupabase]);
 
-  // Auto-backup when data changes
+  // Auto-backup when data changes (with debounce)
   useEffect(() => {
     if (user) {
       const debounceTimeout = setTimeout(() => {
@@ -223,7 +331,7 @@ export function useSupabaseSync() {
       
       return () => clearTimeout(debounceTimeout);
     }
-  }, [state.transactions, state.categories, user]);
+  }, [state.transactions, state.categories, user, backupToSupabase]);
 
   return {
     isSyncing,
