@@ -1,7 +1,7 @@
 
 import { getSupabaseClient } from '../client';
 import { toast } from 'sonner';
-import { createProjectsTable, createProjectVotesTable } from './tableOperations';
+import { createProjectsTable, createProjectVotesTable, createAllGrowTables } from './tableOperations';
 import { createStorageBucketGuaranteed } from './storageOperations';
 
 export const ensureGrowTablesExist = async (): Promise<boolean> => {
@@ -24,39 +24,34 @@ export const ensureGrowTablesExist = async (): Promise<boolean> => {
       return false;
     }
     
-    // Create projects table first
-    let projectsTableCreated = await createProjectsTable();
-    if (!projectsTableCreated) {
-      console.error('Failed to create projects table');
-      toast.error("Failed to create projects table");
-    } else {
-      console.log('Projects table created or verified successfully');
+    // Create all tables in the correct order
+    const tablesCreated = await createAllGrowTables();
+    
+    if (!tablesCreated) {
+      console.error('Failed to create some Grow tables');
+      toast.error("Failed to initialize database tables");
+      return false;
     }
     
-    // Create votes table second
-    let votesTableCreated = await createProjectVotesTable();
-    if (!votesTableCreated) {
-      console.error('Failed to create project votes table');
-      toast.error("Failed to create project votes table");
-    } else {
-      console.log('Project votes table created or verified successfully');
-    }
+    console.log('All database tables created or verified successfully');
     
     // Create storage bucket - with guaranteed success approach
-    let bucketCreated = await createStorageBucketGuaranteed();
+    const bucketCreated = await createStorageBucketGuaranteed();
     
-    const allSuccess = projectsTableCreated && votesTableCreated;
-    
-    if (allSuccess) {
-      console.log('All Grow tables and resources successfully initialized');
-    } else {
-      console.error('Some Grow resources failed to initialize');
+    if (!bucketCreated) {
+      console.error('Failed to create storage bucket');
+      toast.warning("File storage initialization failed");
+      // Continue anyway since we can operate without storage
     }
     
-    return allSuccess;
+    console.log('All Grow tables and resources successfully initialized');
+    return true;
   } catch (error) {
     console.error('Error ensuring Grow tables exist:', error);
     toast.error("Failed to initialize Grow database");
     return false;
   }
 };
+
+// Export all table operations for direct access
+export { createProjectsTable, createProjectVotesTable, createAllGrowTables } from './tableOperations';

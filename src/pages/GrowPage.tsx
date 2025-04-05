@@ -10,6 +10,7 @@ import { Project } from "@/types/project";
 import ProjectsLoadingState from "@/components/grow/ProjectsLoadingState";
 import ProjectsEmptyState from "@/components/grow/ProjectsEmptyState";
 import { ensureGrowTablesExist } from "@/utils/supabase/grow";
+import { CircleX, AlertTriangle, Loader2 } from "lucide-react";
 
 const GrowPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -17,6 +18,7 @@ const GrowPage: React.FC = () => {
   const [filterState, setFilterState] = useState<"all" | "active" | "expired">("all");
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
+  const [initAttempts, setInitAttempts] = useState(0);
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -30,7 +32,10 @@ const GrowPage: React.FC = () => {
     try {
       // First, check if the tables exist and create them if needed
       setIsInitializing(true);
+      console.log(`Initializing Grow tables (attempt ${initAttempts + 1})...`);
+      
       const tablesInitialized = await ensureGrowTablesExist();
+      setInitAttempts(prev => prev + 1);
       setIsInitializing(false);
       
       if (!tablesInitialized) {
@@ -42,7 +47,7 @@ const GrowPage: React.FC = () => {
       }
       
       // Tables are now initialized, fetch projects
-      fetchProjects();
+      await fetchProjects();
     } catch (err) {
       console.error("Error checking/initializing tables:", err);
       setError("Failed to initialize projects database");
@@ -54,52 +59,31 @@ const GrowPage: React.FC = () => {
 
   const fetchProjects = async () => {
     setIsLoading(true);
-    setError(null);
     
     try {
       const supabase = getSupabaseClient();
+      console.log('Fetching projects...');
       
-      // First, check if the projects table exists
-      const { error: tableCheckError } = await supabase
-        .from('projects')
-        .select('id')
-        .limit(1);
-        
-      if (tableCheckError && tableCheckError.code === '42P01') {
-        // Table doesn't exist - try to initialize it again
-        console.error("Projects table doesn't exist:", tableCheckError);
-        const initialized = await ensureGrowTablesExist();
-        
-        if (!initialized) {
-          setProjects([]);
-          setError("Projects database needs initialization");
-          setIsLoading(false);
-          return;
-        }
-      }
-      
-      let query = supabase
+      // Attempt to select projects with stronger error handling
+      const { data, error } = await supabase
         .from('projects')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (filterState === "active") {
-        const now = new Date().toISOString();
-        query = query.or(`expiration_date.gt.${now},expiration_date.is.null`);
-      } else if (filterState === "expired") {
-        const now = new Date().toISOString();
-        query = query.lt('expiration_date', now);
-      }
-      
-      const { data, error } = await query;
-      
       if (error) {
         console.error("Error fetching projects:", error);
-        toast.error("Failed to load innovation projects", { 
-          description: error.message || "Database error" 
-        });
-        setError("Failed to load projects");
-        setProjects([]);
+        
+        // If table doesn't exist despite our initialization
+        if (error.code === '42P01') {
+          setError("Projects database needs initialization");
+          setProjects([]);
+        } else {
+          toast.error("Failed to load innovation projects", { 
+            description: error.message || "Database error" 
+          });
+          setError("Failed to load projects");
+          setProjects([]);
+        }
       } else {
         // Process projects to add voting status from local storage
         const processedProjects = data.map(project => {
@@ -110,6 +94,9 @@ const GrowPage: React.FC = () => {
           };
         });
         setProjects(processedProjects);
+        setError(null);
+        
+        console.log(`Successfully loaded ${processedProjects.length} projects`);
       }
     } catch (err) {
       console.error("Exception fetching projects:", err);
@@ -188,14 +175,29 @@ const GrowPage: React.FC = () => {
       
       {error && (
         <div className="my-6 p-4 bg-orange-50 border border-orange-200 rounded-lg text-center">
-          <p className="text-orange-800 mb-2">{error}</p>
+          <div className="flex items-center justify-center mb-2">
+            <AlertTriangle className="h-5 w-5 text-orange-500 mr-2" />
+            <p className="text-orange-800 font-medium">{error}</p>
+          </div>
+          <p className="text-sm text-orange-700 mb-3">
+            {initAttempts > 1 
+              ? "Multiple initialization attempts failed. The database might not be available."
+              : "We'll try to create the necessary database tables."}
+          </p>
           <Button 
             variant="outline"
             onClick={() => checkTablesAndFetchProjects()}
             className="bg-white border-orange-300 hover:bg-orange-50"
             disabled={isInitializing}
           >
-            {isInitializing ? 'Initializing...' : 'Initialize & Try Again'}
+            {isInitializing ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Initializing...
+              </>
+            ) : (
+              'Initialize & Try Again'
+            )}
           </Button>
         </div>
       )}
