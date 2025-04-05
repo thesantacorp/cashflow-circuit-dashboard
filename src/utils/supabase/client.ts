@@ -28,6 +28,7 @@ const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         signal: controller.signal,
         headers: {
           ...options?.headers,
+          'apikey': SUPABASE_ANON_KEY, // Always include the API key in request headers
           'X-Client-Info': 'financial-app-production'
         }
       };

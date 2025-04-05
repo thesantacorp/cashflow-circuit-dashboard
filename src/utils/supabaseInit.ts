@@ -1,4 +1,3 @@
-
 import { getSupabaseClient, checkDatabaseConnection } from './supabase/client';
 import { Queue } from '@/utils/queue';
 import { toast } from 'sonner';
@@ -57,45 +56,7 @@ export const initializeSupabase = async (): Promise<boolean> => {
 export const checkSupabaseConnection = async (): Promise<boolean> => {
   try {
     console.log('Checking Supabase connection...');
-    // Test connection by making a simple query
-    const supabase = getSupabaseClient();
-    
-    // Added a simple timeout to avoid waiting too long
-    const timeoutPromise = new Promise<boolean>((resolve) => {
-      setTimeout(() => {
-        console.log('Supabase connection check timed out');
-        resolve(false);
-      }, 5000); // 5 second timeout
-    });
-    
-    const connectionPromise = new Promise<boolean>(async (resolve) => {
-      try {
-        // Try to check connection using the user_uuids table instead of _test_connection
-        // This table is more likely to exist as it's created by our app
-        const { data, error } = await supabase.from('user_uuids')
-          .select('count')
-          .limit(1);
-          
-        const connected = !error || (error && error.code === '42P01'); // 42P01 means table not found, but still connected
-        console.log(`Supabase connection check: ${connected ? 'success' : 'failed'}`);
-        
-        if (error && error.code !== '42P01') {
-          console.error('Supabase connection error:', error);
-        }
-        
-        resolve(connected);
-      } catch (err) {
-        console.error('Supabase connection exception:', err);
-        resolve(false);
-      }
-    });
-    
-    // Take the first result
-    const connected = await Promise.race([connectionPromise, timeoutPromise]);
-    
-    // Update stored status
-    connectionStatus = connected;
-    return connected;
+    return await checkDatabaseConnection();
   } catch (error) {
     console.error('Error checking Supabase connection:', error);
     connectionStatus = false;

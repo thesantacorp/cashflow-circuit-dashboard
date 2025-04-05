@@ -9,7 +9,7 @@ import GrowPageHeader from "@/components/grow/GrowPageHeader";
 import { Project } from "@/types/project";
 import ProjectsLoadingState from "@/components/grow/ProjectsLoadingState";
 import ProjectsEmptyState from "@/components/grow/ProjectsEmptyState";
-import { ensureGrowTablesExist } from "@/utils/supabase/growTableSetup";
+import { ensureGrowTablesExist } from "@/utils/supabase/grow";
 
 const GrowPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);

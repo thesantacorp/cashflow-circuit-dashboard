@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,7 +24,7 @@ import AdminGrowPage from "./pages/AdminGrowPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import { initSessionTracking } from "./utils/sessionTracking";
 import { initRecoverySystem } from "./utils/userDataRecovery";
-import { initializeSupabase, checkSupabaseConnection } from "./utils/supabaseInit";
+import { getSupabaseClient, checkDatabaseConnection } from "./utils/supabase/client";
 import { toast } from "sonner";
 
 // Create QueryClient with production-ready settings
@@ -40,6 +39,26 @@ const queryClient = new QueryClient({
 });
 
 const MAX_LOADING_TIME = 4000; // Reduced max loading time to improve UX
+
+// Function to initialize Supabase with logging and error handling
+const initializeSupabase = async (): Promise<boolean> => {
+  console.log('Initializing Supabase connection...');
+  try {
+    // Check if we can connect to Supabase
+    const connected = await checkDatabaseConnection();
+    
+    if (connected) {
+      console.log('✅ Supabase connection successful');
+    } else {
+      console.error('❌ Supabase connection failed');
+    }
+    
+    return connected;
+  } catch (error) {
+    console.error('Error initializing Supabase:', error);
+    return false;
+  }
+};
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
