@@ -1,5 +1,11 @@
+
 import { getSupabaseClient } from './client';
 import { toast } from 'sonner';
+
+// Store Supabase credentials directly in the code for access in this file
+// These are safe to store in the frontend code as they are public anon keys
+const SUPABASE_URL = 'https://tsidnalhlgcmcnqawgux.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzaWRuYWxobGdjbWNucWF3Z3V4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM4MjkzNTIsImV4cCI6MjA1OTQwNTM1Mn0.G9voKlG0s22kFnNX2qE8Tfv5xq8amdion7J6Xfi8rKQ';
 
 export const ensureGrowTablesExist = async (): Promise<boolean> => {
   try {
@@ -276,12 +282,12 @@ const createStorageBucketGuaranteed = async (): Promise<boolean> => {
     
     // Alternative approach using raw API call if needed
     try {
-      const response = await fetch(`${supabase.supabaseUrl}/storage/v1/bucket/grow`, {
+      const response = await fetch(`${SUPABASE_URL}/storage/v1/bucket/grow`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': supabase.supabaseKey,
-          'Authorization': `Bearer ${supabase.supabaseKey}`
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
         },
         body: JSON.stringify({
           id: 'grow',

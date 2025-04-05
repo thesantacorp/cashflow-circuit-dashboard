@@ -12,11 +12,8 @@ const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    
     // Email configuration
     flowType: 'pkce',
-    // Ensure production-ready settings for email
-    emailRedirectTo: window.location.origin
   },
   global: {
     // Enhanced fetch with improved timeout and error handling
@@ -41,6 +38,11 @@ const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 
+// Helper method to set the redirect URL for email verification
+export const getRedirectUrl = (): string => {
+  return `${window.location.origin}/email-verified`;
+};
+
 // Export the client directly to avoid creating multiple instances
 export const getSupabaseClient = () => supabaseClient;
 
@@ -54,7 +56,7 @@ export const sendEmailVerification = async (email: string): Promise<{success: bo
       type: 'signup',
       email: email,
       options: {
-        emailRedirectTo: `${window.location.origin}/email-verified`
+        emailRedirectTo: getRedirectUrl()
       }
     });
     
