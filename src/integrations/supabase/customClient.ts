@@ -29,20 +29,28 @@ export interface VoteSummary {
   downvotes: number;
 }
 
+// Type definitions for insert operations that align with Supabase's expected types
+type IdeaInsert = Omit<Database['public']['Tables']['ideas']['Insert'], 'id' | 'created_at'>;
+type VoteInsert = Omit<Database['public']['Tables']['votes']['Insert'], 'id' | 'created_at'>;
+
+// Type definitions for update operations
+type IdeaUpdate = Database['public']['Tables']['ideas']['Update'];
+type VoteUpdate = Database['public']['Tables']['votes']['Update'];
+
 // Create a typed wrapper for the supabase client
 export const customClient = {
   // Ideas table operations
   ideas: {
     select: () => supabase.from('ideas'),
-    insert: (data: Partial<Idea> | Partial<Idea>[]) => supabase.from('ideas').insert(data),
-    update: (data: Partial<Idea>) => supabase.from('ideas').update(data),
+    insert: (data: IdeaInsert | IdeaInsert[]) => supabase.from('ideas').insert(data),
+    update: (data: IdeaUpdate) => supabase.from('ideas').update(data),
     delete: () => supabase.from('ideas').delete(),
   },
   // Votes table operations
   votes: {
     select: () => supabase.from('votes'),
-    insert: (data: Partial<Vote> | Partial<Vote>[]) => supabase.from('votes').insert(data),
-    update: (data: Partial<Vote>) => supabase.from('votes').update(data),
+    insert: (data: VoteInsert | VoteInsert[]) => supabase.from('votes').insert(data),
+    update: (data: VoteUpdate) => supabase.from('votes').update(data),
     delete: () => supabase.from('votes').delete(),
   }
 };

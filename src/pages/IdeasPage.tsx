@@ -70,8 +70,8 @@ const IdeasPage = () => {
         
         const userVotesMap: Record<string, Vote> = {};
         if (votesData) {
-          votesData.forEach((vote: Vote) => {
-            userVotesMap[vote.idea_id] = vote;
+          votesData.forEach((vote: any) => {
+            userVotesMap[vote.idea_id] = vote as Vote;
           });
         }
         
@@ -161,10 +161,10 @@ const IdeasPage = () => {
         if (error) throw error;
         
         // Update local state
-        setUserVotes({
-          ...userVotes,
-          [ideaId]: data
-        });
+        setUserVotes(prev => ({
+          ...prev,
+          [ideaId]: data as Vote
+        }));
         
         // Update vote stats
         setVoteStats(prev => ({
