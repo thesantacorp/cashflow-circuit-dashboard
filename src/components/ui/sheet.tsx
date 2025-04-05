@@ -61,6 +61,12 @@ const SheetContent = React.forwardRef<
 >(({ side = "right", className, children, hideCloseButton = false, ...props }, ref) => {
   const isMobile = useIsMobile();
   
+  // Function to clean up focus trap issues
+  const cleanupFocusTrap = React.useCallback(() => {
+    document.body.style.pointerEvents = '';
+    document.body.style.touchAction = '';
+  }, []);
+  
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -70,15 +76,22 @@ const SheetContent = React.forwardRef<
         onCloseAutoFocus={(event) => {
           // Prevent default focus behavior which can cause issues
           event.preventDefault();
-          // Ensure no focus traps remain
-          document.body.style.pointerEvents = '';
+          cleanupFocusTrap();
+        }}
+        onPointerDownOutside={(event) => {
+          // Add extra handling to ensure pointer events work correctly
+          cleanupFocusTrap();
+        }}
+        onEscapeKeyDown={() => {
+          // Also clean up on escape key
+          cleanupFocusTrap();
         }}
         {...props}
       >
         {children}
-        {!isMobile && !hideCloseButton && (
-          <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
-            <X className="h-4 w-4" />
+        {!hideCloseButton && (
+          <SheetPrimitive.Close className="absolute right-4 top-4 rounded-full p-1.5 bg-white/20 backdrop-blur-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none disabled:pointer-events-none data-[state=open]:bg-secondary">
+            <X className="h-4 w-4 text-white" />
             <span className="sr-only">Close</span>
           </SheetPrimitive.Close>
         )}

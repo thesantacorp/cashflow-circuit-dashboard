@@ -95,16 +95,20 @@ const MobileNav: React.FC = () => {
     }
   };
 
-  // Reset Radix UI focus trap when sheet closes
-  // This helps ensure the menu button remains clickable
+  // Reset focus trap and ensure menu button remains clickable
   useEffect(() => {
-    if (!isSheetOpen && menuButtonRef.current) {
+    if (!isSheetOpen) {
       // Small timeout to ensure DOM has settled
       setTimeout(() => {
         // Reset any focus traps and ensure menu button is clickable
         document.body.style.pointerEvents = '';
         document.body.style.touchAction = '';
-      }, 100);
+        
+        // Ensure the menu button is accessible
+        if (menuButtonRef.current) {
+          menuButtonRef.current.style.pointerEvents = 'auto';
+        }
+      }, 150);
     }
   }, [isSheetOpen]);
 
@@ -117,18 +121,18 @@ const MobileNav: React.FC = () => {
             ref={menuButtonRef}
             variant="ghost" 
             size="icon" 
-            className="md:hidden text-white"
+            className="md:hidden text-white hover:bg-orange-600/20 transition-colors"
           >
             <Menu className="h-6 w-6" />
           </Button>
         </DrawerTrigger>
         
         {/* Drawer Content */}
-        <DrawerContent className="h-[85%]">
-          <DrawerHeader className="flex justify-between border-b pb-3">
-            <DrawerTitle>Menu</DrawerTitle>
+        <DrawerContent className="h-[85%] bg-gradient-to-b from-orange-50 to-white border-t-orange-200">
+          <DrawerHeader className="flex justify-between border-b border-orange-200/50 pb-3">
+            <DrawerTitle className="text-orange-800 font-semibold">Menu</DrawerTitle>
             <DrawerClose asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="text-orange-800 hover:bg-orange-100">
                 <X className="h-6 w-6" />
               </Button>
             </DrawerClose>
@@ -148,11 +152,11 @@ const MobileNav: React.FC = () => {
             />
           </div>
           
-          <DrawerFooter className="pt-2 border-t">
+          <DrawerFooter className="pt-2 border-t border-orange-200/50">
             <Button 
               variant="outline" 
               onClick={() => setIsDrawerOpen(false)}
-              className="w-full"
+              className="w-full border-orange-300 bg-white text-orange-800 hover:bg-orange-50"
             >
               Close Menu
             </Button>
@@ -165,9 +169,12 @@ const MobileNav: React.FC = () => {
         open={isSheetOpen} 
         onOpenChange={handleSheetOpenChange}
       >
-        <SheetContent className="w-full sm:max-w-md pt-12 bg-gradient-to-r from-orange-500 to-amber-500 text-white">
+        <SheetContent 
+          className="w-full sm:max-w-md pt-12 bg-gradient-to-br from-orange-500 to-amber-500 text-white"
+          hideCloseButton={false}
+        >
           <SheetHeader>
-            <SheetTitle className="text-white">
+            <SheetTitle className="text-white text-xl">
               {activeSheet === "currency" && "Currency Settings"}
               {activeSheet === "data" && "Data Management"}
               {activeSheet === "notifications" && "Notifications"}
@@ -181,11 +188,11 @@ const MobileNav: React.FC = () => {
               onClose={closeSettingsSheet} 
             />
           </div>
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-orange-500/90">
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/20 bg-gradient-to-r from-orange-600 to-amber-600">
             <Button 
               variant="secondary" 
               onClick={closeSettingsSheet} 
-              className="w-full bg-white/20 text-white hover:bg-white/30 border-white/10"
+              className="w-full bg-white/20 text-white hover:bg-white/30 border-white/10 backdrop-blur-sm shadow-lg"
             >
               Close Menu
             </Button>

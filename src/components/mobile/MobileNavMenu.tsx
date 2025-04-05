@@ -18,13 +18,13 @@ const MobileNavMenu: React.FC<MobileNavMenuProps> = ({
 }) => {
   return (
     <div>
-      <h3 className="font-medium text-sm text-muted-foreground mb-2">Navigation</h3>
+      <h3 className="font-medium text-sm text-orange-800 mb-3">Navigation</h3>
       <div className="grid gap-2 mb-6">
         {navigationItems.map((item) => (
           <Button
             key={item.name}
             variant="ghost"
-            className="w-full justify-start text-lg h-12"
+            className="w-full justify-start text-lg h-12 text-orange-900 hover:bg-orange-100/70 hover:text-orange-700 transition-all font-medium"
             onClick={() => onNavigation(item.path)}
           >
             {item.name}
