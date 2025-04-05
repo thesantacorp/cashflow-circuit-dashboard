@@ -6,7 +6,6 @@ import { fetchUserUuid, storeUserUuid } from "@/utils/supabase";
 
 import { TransactionContext } from "./context";
 import { transactionReducer, initialState } from "./reducer";
-import { TransactionState, TransactionAction } from "./types";
 
 // Create provider
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -68,7 +67,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [state]);
 
   // Generate a new UUID for the user and bind it to an email
-  const generateUserUuid = async (email?: string) => {
+  const generateUserUuid = async (email?: string): Promise<string> => {
     if (!email) {
       toast.error("Email is required to generate a User ID");
       return "";

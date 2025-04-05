@@ -1,11 +1,24 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Use environment variables or direct URL/key if they're public keys
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'YOUR_SUPABASE_URL';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+// Get environment variables
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Validate Supabase environment variables
+if (!supabaseUrl || supabaseUrl === 'YOUR_SUPABASE_URL') {
+  console.error('Missing or invalid VITE_SUPABASE_URL environment variable');
+}
+
+if (!supabaseAnonKey || supabaseAnonKey === 'YOUR_SUPABASE_ANON_KEY') {
+  console.error('Missing or invalid VITE_SUPABASE_ANON_KEY environment variable');
+}
+
+// Create Supabase client with fallback for development
+export const supabase = createClient(
+  supabaseUrl || 'https://xyzcompany.supabase.co',  // Fallback URL (will cause errors if actually used)
+  supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'  // Invalid fallback key
+);
 
 // Table name for user UUIDs
 export const UUID_TABLE = 'user_uuids';
