@@ -2,13 +2,11 @@
 import { ensureUuidTableExists, getSupabaseClient } from './supabase';
 import { toast } from 'sonner';
 
-// Store Supabase credentials directly in the code
-// These are safe to store in the frontend code as they are public anon keys
-const SUPABASE_URL = 'https://tsidnalhlgcmcnqawgux.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzaWRuYWxobGdjbWNucWF3Z3V4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM4MjkzNTIsImV4cCI6MjA1OTQwNTM1Mn0.G9voKlG0s22kFnNX2qE8Tfv5xq8amdion7J6Xfi8rKQ';
-
+// Initialize Supabase and verify connection
 export async function initializeSupabase(): Promise<void> {
   try {
+    console.log('Initializing Supabase connection...');
+    
     // Check if the initialized client is working
     const supabaseClient = getSupabaseClient();
     if (!supabaseClient) {
@@ -23,22 +21,40 @@ export async function initializeSupabase(): Promise<void> {
       return;
     }
     
-    // Verify the connection with a simple query
-    const { error: connectionError } = await supabaseClient.from('user_uuids').select('count').limit(1).single();
+    // Test the connection with a simple query first
+    const { data: testData, error: testError } = await supabaseClient.from('_test_connection_').select('*').limit(1).single();
     
-    if (connectionError && !connectionError.message.includes('does not exist')) {
-      console.error('Error connecting to Supabase:', connectionError);
-      toast.error(
-        'Error connecting to Supabase',
-        { 
-          description: 'Please check your network connection and try again',
-          duration: 6000
-        }
-      );
-      return;
+    // This query is expected to fail with "relation does not exist" error
+    // But that confirms the connection works and gets a response from the server
+    if (testError && !testError.message.includes('does not exist')) {
+      if (testError.message.includes('JWT')) {
+        console.error('Authentication error with Supabase:', testError);
+        toast.error(
+          'Supabase authentication error',
+          { 
+            description: 'Please check your Supabase API key',
+            duration: 6000
+          }
+        );
+        return;
+      }
+      
+      // If it's another kind of error not related to table existence
+      if (!testError.message.includes('does not exist')) {
+        console.error('Error connecting to Supabase:', testError);
+        toast.error(
+          'Error connecting to Supabase',
+          { 
+            description: 'Please check your network connection',
+            duration: 6000
+          }
+        );
+        return;
+      }
     }
     
-    // Check if the UUID table exists, create it if it doesn't
+    // Connection seems to work, let's ensure the UUID table exists
+    console.log('Supabase connection successful, checking UUID table...');
     const tableExists = await ensureUuidTableExists();
     
     if (tableExists) {

@@ -80,7 +80,19 @@ export function useUuidManagement() {
       const maxRetries = 3;
       
       while (!success && retryCount < maxRetries) {
-        success = await storeUserUuid(email, newUuid);
+        console.log(`Attempt ${retryCount + 1} to store UUID in Supabase for ${email}`);
+        
+        try {
+          success = await storeUserUuid(email, newUuid);
+          
+          if (success) {
+            console.log(`Successfully stored UUID in Supabase for ${email} on attempt ${retryCount + 1}`);
+          } else {
+            console.log(`Failed to store UUID in Supabase for ${email} on attempt ${retryCount + 1}`);
+          }
+        } catch (error) {
+          console.error(`Error on attempt ${retryCount + 1}:`, error);
+        }
         
         if (!success) {
           console.log(`Retry ${retryCount + 1}/${maxRetries} storing UUID in Supabase`);
@@ -96,7 +108,20 @@ export function useUuidManagement() {
       if (!success) {
         console.error("All attempts to store UUID failed");
         toast.error("Failed to store User ID. Please try again.");
-        return "";
+        
+        // Last resort fallback - store locally even if Supabase fails
+        localStorage.setItem("userUuid", newUuid);
+        localStorage.setItem("userEmail", email);
+        
+        setUserUuid(newUuid);
+        setUserEmail(email);
+        
+        toast.warning(
+          "User ID stored locally only", 
+          { description: "We'll try to sync with the cloud later" }
+        );
+        
+        return newUuid;
       }
       
       // If successful, store locally for fast access
