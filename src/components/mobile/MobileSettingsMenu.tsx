@@ -6,6 +6,7 @@ interface SettingsItem {
   name: string;
   icon: React.ReactNode;
   setting: string;
+  description?: string;
 }
 
 interface MobileSettingsMenuProps {
@@ -13,24 +14,28 @@ interface MobileSettingsMenuProps {
   onSettingSelect: (setting: string) => void;
 }
 
-const MobileSettingsMenu: React.FC<MobileSettingsMenuProps> = ({ 
-  settingsItems, 
-  onSettingSelect 
+const MobileSettingsMenu: React.FC<MobileSettingsMenuProps> = ({
+  settingsItems,
+  onSettingSelect,
 }) => {
   return (
-    <div>
-      <h3 className="font-medium text-sm text-orange-800 mb-3 mt-4">Settings</h3>
-      <div className="grid gap-2">
+    <div className="mt-6">
+      <h3 className="text-orange-800 font-medium mb-3">Settings</h3>
+      <div className="space-y-2">
         {settingsItems.map((item) => (
-          <Button
-            key={item.name}
-            variant="ghost"
-            className="w-full justify-start text-lg h-12 text-orange-900 hover:bg-orange-100/70 hover:text-orange-700 transition-all font-medium group"
-            onClick={() => onSettingSelect(item.setting)}
-          >
-            <span className="mr-2 text-orange-500 group-hover:text-orange-600">{item.icon}</span>
-            {item.name}
-          </Button>
+          <div key={item.setting} className="w-full">
+            <Button
+              variant="outline"
+              className="w-full justify-start bg-white text-black border-orange-200 hover:bg-orange-50 hover:text-black"
+              onClick={() => onSettingSelect(item.setting)}
+            >
+              {item.icon}
+              <span>{item.name}</span>
+            </Button>
+            {item.description && (
+              <p className="text-xs text-gray-600 mt-1 px-2">{item.description}</p>
+            )}
+          </div>
         ))}
       </div>
     </div>

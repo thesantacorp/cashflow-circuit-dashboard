@@ -12,6 +12,7 @@ interface SettingsItem {
   name: string;
   icon: React.ReactNode;
   setting: string;
+  description?: string;
 }
 
 interface MobileDrawerContentProps {

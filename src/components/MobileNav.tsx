@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
@@ -10,7 +9,7 @@ import {
   DrawerFooter,
 } from "@/components/ui/drawer";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Bell, Banknote, CreditCard, Cloud, Link2 } from "lucide-react";
+import { Bell, Banknote, CreditCard, Link2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import SettingsSheetContent from "./mobile/SettingsSheetContent";
 import MobileDrawerHeader from "./mobile/MobileDrawerHeader";
@@ -47,14 +46,10 @@ const MobileNav: React.FC = () => {
       setting: "data"
     },
     { 
-      name: "Google Drive Backup", 
-      icon: <Cloud className="h-5 w-5 mr-2" />,
-      setting: "backup"
-    },
-    { 
       name: "Data Recovery", 
       icon: <Link2 className="h-5 w-5 mr-2" />,
-      setting: "recovery"
+      setting: "recovery",
+      description: "Recover your data using your unique User ID or from backup points created on this device."
     }
   ];
 
@@ -141,7 +136,6 @@ const MobileNav: React.FC = () => {
               {activeSheet === "currency" && "Currency Settings"}
               {activeSheet === "data" && "Data Management"}
               {activeSheet === "notifications" && "Notifications"}
-              {activeSheet === "backup" && "Google Drive Backup"}
               {activeSheet === "recovery" && "Data Recovery"}
             </SheetTitle>
           </SheetHeader>

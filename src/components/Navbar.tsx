@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { useTransactions } from "@/context/transaction";
 import CurrencySelector from "./CurrencySelector";
-import BackupManager from "./BackupManager";
 import { useCurrency } from "@/context/CurrencyContext";
 import MobileNav from "./MobileNav";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -99,8 +98,6 @@ const Navbar: React.FC = () => {
                   <NotificationSettings />
                 </DialogContent>
               </Dialog>
-              
-              <BackupManager />
               
               <CurrencySelector />
             </>

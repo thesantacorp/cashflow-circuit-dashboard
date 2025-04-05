@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { KeyRound, Star, Rocket, Mail, Loader2, Cloud, Download } from "lucide-react";
+import { KeyRound, Star, Rocket, Mail, Loader2 } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -81,7 +81,7 @@ const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
               className="border-orange-200 focus-visible:ring-orange-400 mb-2"
             />
             <p className="text-xs text-gray-600">
-              Your ID will be automatically synced to the cloud for easy recovery
+              Your ID will be stored securely for future data recovery
             </p>
           </div>
         ) : (
@@ -99,7 +99,7 @@ const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
                 onClick={() => window.location.href = '/#user-id-section'} 
                 className="bg-indigo-500 hover:bg-indigo-600 text-white w-full"
               >
-                <Download className="mr-2 h-4 w-4" />
+                <KeyRound className="mr-2 h-4 w-4" />
                 <span>Import Existing Data</span>
               </Button>
             </Link>
@@ -119,8 +119,8 @@ const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
               </>
             ) : (
               <>
-                <Cloud className="mr-2 h-4 w-4" />
-                Generate and Sync ID
+                <Mail className="mr-2 h-4 w-4" />
+                Generate User ID
               </>
             )}
           </Button>
