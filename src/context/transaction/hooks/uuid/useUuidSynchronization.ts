@@ -1,4 +1,3 @@
-
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { verifySupabaseSetup } from "@/utils/supabaseVerification";
@@ -55,9 +54,9 @@ export function useUuidSynchronization({
         if (verification.connected && !verification.hasWriteAccess) {
           console.warn("RLS policy prevents writing to database");
           if (!silent) {
-            toast.warning("Read-only database access", { 
+            toast.warning("Local storage mode active", { 
               id: "force-sync", 
-              description: "Incomplete permissions prevent cloud sync. Using local storage." 
+              description: "Database is read-only. Your data is securely stored locally." 
             });
           }
           setSyncStatus('local-only');
@@ -105,70 +104,83 @@ export function useUuidSynchronization({
         console.error('Error verifying UUID existence:', verifyError);
       }
       
-      // If not, try to store it with retries
-      let success = false;
-      let attempts = 0;
-      const maxAttempts = 2; // Reducing max attempts to avoid excessive failures with RLS
-      
-      while (!success && attempts < maxAttempts) {
-        try {
-          console.log(`Attempt ${attempts + 1}/${maxAttempts} to sync UUID to Supabase`);
-          const { storeUserUuid } = await import('@/utils/supabase/index');
-          success = await storeUserUuid(userEmail, userUuid);
-          
-          if (success) {
-            console.log('UUID successfully synced to Supabase');
-            setSyncStatus('synced');
-            if (!silent) toast.success("User ID successfully synced to the cloud", { id: "force-sync" });
-            return true;
-          }
-        } catch (syncError: any) {
-          console.error(`Error on sync attempt ${attempts + 1}:`, syncError);
-          
-          // Check specifically for RLS policy violation
-          if (syncError.message && syncError.message.includes('policy')) {
-            console.warn('RLS policy prevents writing - stopping retry attempts');
-            if (!silent) {
-              toast.warning("Database permissions issue", { 
-                id: "force-sync",
-                description: "Read-only mode active. Data saved locally."
-              });
-            }
-            setSyncStatus('local-only');
-            return false;
-          }
-        }
+      // First attempt to store - if this fails due to RLS, we'll handle it gracefully
+      try {
+        console.log('Attempting to sync UUID to Supabase');
+        const { storeUserUuid } = await import('@/utils/supabase/index');
+        const success = await storeUserUuid(userEmail, userUuid);
         
-        if (!success && attempts < maxAttempts - 1) {
-          const delay = 1000 * (attempts + 1);
-          console.log(`Waiting ${delay}ms before retry...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
+        if (success) {
+          console.log('UUID successfully synced to Supabase');
+          setSyncStatus('synced');
+          if (!silent) toast.success("User ID successfully synced to the cloud", { id: "force-sync" });
+          return true;
         }
+      } catch (syncError: any) {
+        console.error('Error on sync attempt:', syncError);
         
-        attempts++;
+        // Check if this is an RLS policy issue
+        const isRlsError = syncError.message && (
+          syncError.message.includes('policy') || 
+          syncError.message.includes('permission') ||
+          syncError.message.includes('403')
+        );
+        
+        if (isRlsError) {
+          console.log('Detected RLS policy issue, switching to local-only mode');
+          setSyncStatus('local-only');
+          
+          if (!silent) {
+            toast.warning("Read-only database access", { 
+              id: "force-sync",
+              description: "Using local storage mode due to database permissions" 
+            });
+          }
+          
+          // Update the verification status so we remember it's read-only
+          const { verifySupabaseSetup } = await import('@/utils/supabaseVerification');
+          const verification = await verifySupabaseSetup();
+          
+          if (verification.hasReadAccess && !verification.hasWriteAccess) {
+            // Store this fact so we don't keep trying
+            localStorage.setItem("supabaseReadOnly", "true");
+          }
+          
+          return false;
+        }
       }
       
+      // If we get here, it wasn't a clear RLS issue - try one more time with a delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      try {
+        console.log('Final sync attempt...');
+        const { storeUserUuid } = await import('@/utils/supabase/index');
+        const success = await storeUserUuid(userEmail, userUuid);
+        
+        if (success) {
+          console.log('UUID successfully synced on retry');
+          setSyncStatus('synced');
+          if (!silent) toast.success("User ID successfully synced to the cloud", { id: "force-sync" });
+          return true;
+        }
+      } catch (retryError) {
+        console.error('Error on final sync attempt:', retryError);
+      }
+      
+      // If we've reached here, sync has failed
       setSyncRetryCount(prevCount => prevCount + 1);
       
-      if (!success) {
-        console.error('Failed to sync UUID to Supabase after multiple attempts');
-        
-        if (!silent) {
-          if (syncRetryCount >= 2) {
-            toast.error("Could not sync to cloud", { 
-              id: "force-sync",
-              description: "Using local storage only. Check database permissions."
-            });
-          } else {
-            toast.error("Failed to sync User ID to the cloud", { id: "force-sync" });
-          }
-        }
-        
-        setSyncStatus('local-only');
-        return false;
+      if (!silent) {
+        toast.error("Could not sync User ID to the cloud", {
+          id: "force-sync",
+          description: "Your data is securely stored locally"
+        });
       }
       
-      return success;
+      setSyncStatus('local-only');
+      return false;
+      
     } catch (error) {
       console.error("Error forcing sync to cloud:", error);
       if (!silent) toast.error("Error syncing to cloud", { id: "force-sync" });
@@ -182,6 +194,14 @@ export function useUuidSynchronization({
     
     try {
       console.log(`Checking sync status for UUID ${userUuid} and email ${userEmail}...`);
+      
+      // First check if we already know we're in read-only mode
+      const isKnownReadOnly = localStorage.getItem("supabaseReadOnly") === "true";
+      if (isKnownReadOnly && !forceCheck) {
+        console.log('Already know we are in read-only mode, skipping sync check');
+        setSyncStatus('local-only');
+        return false;
+      }
       
       // First verify connection and table
       if (!connectionVerified || !tableVerified || forceCheck) {
@@ -204,6 +224,7 @@ export function useUuidSynchronization({
         // Update on write access issues
         if (!verification.hasWriteAccess) {
           console.log('No write access to Supabase, marking as local-only');
+          localStorage.setItem("supabaseReadOnly", "true");
           setSyncStatus('local-only');
           return false;
         }
@@ -215,12 +236,12 @@ export function useUuidSynchronization({
       
       setSyncStatus(isSynced ? 'synced' : 'local-only');
       
-      // Only attempt sync if we haven't reached retry limits
-      if (!isSynced && syncRetryCount < 3) {
+      // Don't attempt sync if we already know we're in read-only mode
+      if (!isSynced && !isKnownReadOnly && syncRetryCount < 2) {
         console.log('UUID not synced to Supabase, attempting sync now...');
         await forceSyncToCloud(true);
       } else if (!isSynced) {
-        console.log('UUID not synced, but reached retry limit. Staying in local-only mode.');
+        console.log('UUID not synced, but reached retry limit or in read-only mode. Staying in local-only mode.');
       }
       
       return isSynced;
