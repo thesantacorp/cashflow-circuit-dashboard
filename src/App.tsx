@@ -19,10 +19,12 @@ import ExpensesPage from "@/pages/ExpensesPage";
 import IncomePage from "@/pages/IncomePage";
 import GrowPage from "@/pages/GrowPage";
 import ProjectDetailsPage from "@/pages/ProjectDetailsPage";
+import RecoverPage from "@/pages/RecoverPage";
 import NotFound from "./pages/NotFound";
 import AdminNotificationDashboard from "./pages/AdminNotificationDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import { initSessionTracking } from "./utils/sessionTracking";
+import { initRecoverySystem } from "./utils/userDataRecovery";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +34,9 @@ function App() {
   useEffect(() => {
     // Initialize session tracking
     initSessionTracking();
+    
+    // Initialize recovery system
+    initRecoverySystem();
     
     // Simulating app initialization time
     const timer = setTimeout(() => {
@@ -59,6 +64,7 @@ function App() {
                       <Routes>
                         <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />
                         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                        <Route path="/recover/:recoveryId" element={<RecoverPage />} />
                         <Route path="/*" element={
                           <>
                             <Navbar />

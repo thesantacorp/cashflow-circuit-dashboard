@@ -11,6 +11,7 @@ import NotificationSettings from "../NotificationSettings";
 import CurrencySelector from "../CurrencySelector";
 import DataExportImport from "../DataExportImport";
 import BackupManager from "../BackupManager";
+import DataRecovery from "../DataRecovery";
 
 interface SettingsSheetProps {
   activeSettingSheet: string | null;
@@ -31,6 +32,8 @@ const SettingsSheet: React.FC<SettingsSheetProps> = ({
         return <NotificationSettings />;
       case "backup":
         return <BackupManager onClose={closeSettingSheet} />;
+      case "recovery":
+        return <DataRecovery />;
       default:
         return null;
     }
@@ -55,6 +58,7 @@ const SettingsSheet: React.FC<SettingsSheetProps> = ({
             {activeSettingSheet === "data" && "Data Management"}
             {activeSettingSheet === "notifications" && "Notifications"}
             {activeSettingSheet === "backup" && "Google Drive Backup"}
+            {activeSettingSheet === "recovery" && "Data Recovery"}
           </SheetTitle>
         </SheetHeader>
         <div className="py-6 h-[calc(100vh-170px)] overflow-y-auto">
