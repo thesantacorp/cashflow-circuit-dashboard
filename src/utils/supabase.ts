@@ -78,39 +78,85 @@ export async function ensureUuidTableExists(): Promise<boolean> {
   }
   
   try {
-    // First, check if the table exists by trying to select from it
-    const { error: checkError } = await supabase
-      .from('user_uuids')
-      .select('id')
-      .limit(1);
+    // Try to create the table via function call
+    const { error: createError } = await supabase.rpc('create_user_uuids_table_if_not_exists');
     
-    // If the table doesn't exist, we'll get an error
-    if (checkError) {
-      console.log('user_uuids table may not exist, attempting to create it');
+    if (createError) {
+      console.log('Could not create table via RPC, will check if it exists:', createError.message);
       
-      // Use RPC to create the table (using raw SQL is not available through the JS client)
-      // We'll create a custom RPC function in Supabase that creates the table
+      // Check if the table exists by trying to select from it
+      const { error: checkError } = await supabase
+        .from('user_uuids')
+        .select('id')
+        .limit(1);
       
-      // Since we can't execute raw SQL directly, we'll provide instructions to the user
-      console.warn('Please create a "user_uuids" table in your Supabase dashboard with the following columns:');
-      console.warn('- id (integer, primary key, auto-increment)');
-      console.warn('- email (text, unique)');
-      console.warn('- uuid (text)');
-      
-      toast.info(
-        'Table setup required', 
-        { 
-          description: 'Please create a "user_uuids" table in your Supabase dashboard.',
-          duration: 10000
+      // If the table doesn't exist, provide instructions to create it manually
+      if (checkError) {
+        console.log('user_uuids table does not exist yet, providing instructions to create it');
+        
+        toast.info(
+          'Table setup required', 
+          { 
+            description: 'Creating the user_uuids table in your Supabase project...',
+            duration: 5000
+          }
+        );
+        
+        // Create the table using SQL query via REST endpoint
+        const { error: createTableError } = await supabase.from('_manual_table_creation').select('*');
+        
+        if (createTableError) {
+          console.log('Will create table via the Supabase UI instead');
+          
+          toast.info(
+            'Please create a table in Supabase', 
+            { 
+              description: 'Create a "user_uuids" table with columns: id (integer, primary key), email (text, unique), uuid (text)',
+              duration: 10000
+            }
+          );
+          
+          // Try to create the table automatically via API
+          try {
+            await createUserUuidsTable(supabase);
+            toast.success('Table created successfully!');
+            return true;
+          } catch (e) {
+            console.error('Failed to create table automatically:', e);
+            return false;
+          }
         }
-      );
-      
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error ensuring user_uuids table exists:', error);
+    return false;
+  }
+}
+
+// Function to create the user_uuids table automatically
+async function createUserUuidsTable(supabase: any): Promise<boolean> {
+  try {
+    // First try to create the table through a REST API call
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/create_user_uuids_table`, {
+      method: 'POST',
+      headers: {
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      }
+    });
+    
+    if (!response.ok) {
+      console.error('Failed to create table via REST API');
       return false;
     }
     
     return true;
   } catch (error) {
-    console.error('Error checking if user_uuids table exists:', error);
+    console.error('Error creating user_uuids table:', error);
     return false;
   }
 }

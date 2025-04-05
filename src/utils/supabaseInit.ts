@@ -28,12 +28,12 @@ export async function initializeSupabase(): Promise<void> {
       console.log('Supabase UUID table is ready');
       toast.success('Connected to Supabase successfully');
     } else {
-      console.error('Failed to ensure UUID table exists');
-      toast.error(
-        'Could not set up the database table',
+      console.warn('Could not automatically create the UUID table');
+      toast.warning(
+        'Table setup may be needed',
         { 
-          description: 'Make sure your Supabase project is properly configured',
-          duration: 6000
+          description: 'If you encounter errors, you may need to manually create the user_uuids table in Supabase',
+          duration: 8000
         }
       );
     }
