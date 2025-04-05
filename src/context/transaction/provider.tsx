@@ -14,7 +14,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     userEmail, 
     generateUserUuid,
     checkUuidExists,
-    getUserEmail 
+    getUserEmail,
+    syncStatus,
+    forceSyncToCloud,
+    checkSyncStatus 
   } = useUuidManagement();
   
   const { 
@@ -43,9 +46,12 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         dispatch,
         userUuid,
         userEmail,
+        syncStatus,
         generateUserUuid,
         checkUuidExists,
         getUserEmail,
+        forceSyncToCloud,
+        checkSyncStatus,
         addTransaction,
         updateTransaction,
         deleteTransaction,

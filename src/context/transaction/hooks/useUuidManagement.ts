@@ -2,13 +2,14 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
-import { fetchUserUuid, storeUserUuid, ensureUuidTableExists } from "@/utils/supabase";
+import { fetchUserUuid, storeUserUuid, ensureUuidTableExists, verifyUuidInSupabase } from "@/utils/supabase";
 
 export function useUuidManagement() {
   const [userUuid, setUserUuid] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [tableVerified, setTableVerified] = useState<boolean>(false);
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'local-only' | 'unknown'>('unknown');
 
   // Check for saved UUID and email
   useEffect(() => {
@@ -37,6 +38,7 @@ export function useUuidManagement() {
           if (supabaseUuid) {
             console.log(`Retrieved UUID from Supabase for ${savedEmail}`);
             setUserUuid(supabaseUuid);
+            setSyncStatus('synced');
             // Update localStorage with the Supabase UUID
             localStorage.setItem("userUuid", supabaseUuid);
           } else {
@@ -44,12 +46,14 @@ export function useUuidManagement() {
             const localUuid = localStorage.getItem("userUuid");
             if (localUuid) {
               setUserUuid(localUuid);
+              setSyncStatus('local-only');
               
               // If table exists, try to migrate localStorage UUID to Supabase
               if (tableVerified) {
                 const success = await storeUserUuid(savedEmail, localUuid);
                 if (success) {
                   console.log(`Migrated local UUID to Supabase for ${savedEmail}`);
+                  setSyncStatus('synced');
                 } else {
                   console.error(`Failed to migrate local UUID to Supabase for ${savedEmail}`);
                 }
@@ -61,6 +65,7 @@ export function useUuidManagement() {
           const localUuid = localStorage.getItem("userUuid");
           if (localUuid) {
             setUserUuid(localUuid);
+            setSyncStatus('local-only');
           }
         }
       } catch (error) {
@@ -112,6 +117,7 @@ export function useUuidManagement() {
             
             if (success) {
               console.log(`Successfully stored UUID in Supabase for ${email} on attempt ${retryCount + 1}`);
+              setSyncStatus('synced');
             } else {
               console.log(`Failed to store UUID in Supabase for ${email} on attempt ${retryCount + 1}`);
             }
@@ -143,6 +149,7 @@ export function useUuidManagement() {
         
         setUserUuid(newUuid);
         setUserEmail(email);
+        setSyncStatus('local-only');
         
         if (tableExists) {
           toast.warning(
@@ -175,9 +182,59 @@ export function useUuidManagement() {
       
       setUserUuid(newUuid);
       if (email) setUserEmail(email);
+      setSyncStatus('local-only');
       
       toast.warning("User ID stored locally due to an error");
       return newUuid;
+    }
+  };
+
+  // Force sync the current UUID to Supabase
+  const forceSyncToCloud = async (): Promise<boolean> => {
+    if (!userUuid || !userEmail) {
+      toast.error("No User ID or email to sync");
+      return false;
+    }
+
+    try {
+      // First check if UUID is already in Supabase
+      const exists = await verifyUuidInSupabase(userEmail, userUuid);
+      
+      if (exists) {
+        toast.success("User ID is already synced to the cloud");
+        setSyncStatus('synced');
+        return true;
+      }
+      
+      // If not, try to store it
+      const success = await storeUserUuid(userEmail, userUuid);
+      
+      if (success) {
+        toast.success("User ID successfully synced to the cloud");
+        setSyncStatus('synced');
+        return true;
+      } else {
+        toast.error("Failed to sync User ID to the cloud");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error forcing sync to cloud:", error);
+      toast.error("Error syncing to cloud");
+      return false;
+    }
+  };
+
+  // Check sync status
+  const checkSyncStatus = async (): Promise<boolean> => {
+    if (!userUuid || !userEmail) return false;
+    
+    try {
+      const isSynced = await verifyUuidInSupabase(userEmail, userUuid);
+      setSyncStatus(isSynced ? 'synced' : 'local-only');
+      return isSynced;
+    } catch (error) {
+      console.error("Error checking sync status:", error);
+      return false;
     }
   };
 
@@ -195,9 +252,12 @@ export function useUuidManagement() {
     userUuid,
     userEmail,
     isLoading,
+    syncStatus,
     generateUserUuid,
     checkUuidExists,
     getUserEmail,
-    tableVerified
+    tableVerified,
+    forceSyncToCloud,
+    checkSyncStatus
   };
 }

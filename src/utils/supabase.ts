@@ -84,28 +84,100 @@ export async function fetchUserUuid(email: string): Promise<string | null> {
   }
 }
 
+// Verify if a UUID exists in Supabase
+export async function verifyUuidInSupabase(email: string, uuid: string): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  
+  try {
+    const normalizedEmail = email.toLowerCase().trim();
+    
+    // First check if the table exists
+    const tableExists = await checkTableExists('user_uuids');
+    if (!tableExists) {
+      console.log('user_uuids table does not exist in Supabase');
+      return false;
+    }
+    
+    // Query for the specific UUID
+    const { data, error } = await supabase
+      .from('user_uuids')
+      .select('*')
+      .eq('email', normalizedEmail)
+      .eq('uuid', uuid)
+      .single();
+      
+    if (error) {
+      console.error('Error verifying UUID in Supabase:', error);
+      return false;
+    }
+    
+    return !!data;
+  } catch (error) {
+    console.error('Exception when verifying UUID in Supabase:', error);
+    return false;
+  }
+}
+
+// Get all stored UUIDs (for admin/verification purposes)
+export async function getAllUuids(): Promise<any[] | null> {
+  const supabase = getSupabaseClient();
+  
+  try {
+    // Check if the table exists first
+    const tableExists = await checkTableExists('user_uuids');
+    if (!tableExists) {
+      console.log('user_uuids table does not exist in Supabase');
+      return null;
+    }
+    
+    const { data, error } = await supabase
+      .from('user_uuids')
+      .select('*')
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      console.error('Error fetching all UUIDs from Supabase:', error);
+      return null;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Exception when fetching all UUIDs from Supabase:', error);
+    return null;
+  }
+}
+
+// Helper to check if a table exists in Supabase
+export async function checkTableExists(tableName: string): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  
+  try {
+    // Try to select a single row from the table
+    const { error } = await supabase
+      .from(tableName)
+      .select('id')
+      .limit(1);
+    
+    // If no error, table exists
+    return !error;
+  } catch (error) {
+    console.error(`Error checking if ${tableName} table exists:`, error);
+    return false;
+  }
+}
+
 // Check if the user_uuids table exists, create it if it doesn't
 export async function ensureUuidTableExists(): Promise<boolean> {
   const supabase = getSupabaseClient();
   
   try {
-    // First check if the table exists by attempting to query a single row
-    const { error: checkError } = await supabase
-      .from('user_uuids')
-      .select('id') // Select a specific column, not count(*)
-      .limit(1);
+    // First check if the table exists
+    const tableExists = await checkTableExists('user_uuids');
     
-    // If no error, table exists
-    if (!checkError) {
+    // If table exists, return true
+    if (tableExists) {
       console.log('user_uuids table exists and is accessible');
       return true;
-    }
-    
-    // If there's an error but it's not "table doesn't exist", it might be another issue
-    if (!checkError.message.includes('does not exist')) {
-      console.error('Error checking user_uuids table:', checkError);
-      // The table might still exist but have a different issue
-      return false;
     }
     
     console.log('Creating user_uuids table...');

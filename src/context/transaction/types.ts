@@ -1,41 +1,43 @@
 
-import { Category, Transaction, TransactionType } from "@/types";
+import { Dispatch } from "react";
+import { Transaction, Category } from "@/types";
 
-// Define action types
-export type TransactionAction =
-  | { type: "ADD_TRANSACTION"; payload: Transaction }
-  | { type: "UPDATE_TRANSACTION"; payload: Transaction }
-  | { type: "DELETE_TRANSACTION"; payload: string }
-  | { type: "ADD_CATEGORY"; payload: Category }
-  | { type: "UPDATE_CATEGORY"; payload: Category }
-  | { type: "DELETE_CATEGORY"; payload: string }
-  | { type: "IMPORT_TRANSACTIONS"; payload: Transaction[] }
-  | { type: "REPLACE_ALL_DATA"; payload: Transaction[] };
-
-// Define state type
-export interface TransactionState {
+export type TransactionState = {
   transactions: Transaction[];
   categories: Category[];
-}
+  nextTransactionId: number;
+  nextCategoryId: number;
+};
 
-// Context Props
-export interface TransactionContextProps {
+export type TransactionAction =
+  | { type: "SET_STATE"; payload: TransactionState }
+  | { type: "ADD_TRANSACTION"; payload: Transaction }
+  | { type: "UPDATE_TRANSACTION"; payload: Transaction }
+  | { type: "DELETE_TRANSACTION"; payload: { id: number } }
+  | { type: "ADD_CATEGORY"; payload: Category }
+  | { type: "UPDATE_CATEGORY"; payload: Category }
+  | { type: "DELETE_CATEGORY"; payload: { id: number } };
+
+export type TransactionContextType = {
   state: TransactionState;
-  dispatch: React.Dispatch<TransactionAction>;
+  dispatch: Dispatch<TransactionAction>;
   userUuid: string | null;
   userEmail: string | null;
-  generateUserUuid: (email?: string) => Promise<string>;
+  syncStatus?: 'synced' | 'local-only' | 'unknown';
+  generateUserUuid: (email: string) => Promise<string>;
   checkUuidExists: () => boolean;
   getUserEmail: () => string | null;
-  addTransaction: (transaction: Omit<Transaction, "id">) => boolean;
-  updateTransaction: (transaction: Transaction) => boolean;
-  deleteTransaction: (id: string) => boolean;
-  addCategory: (category: Omit<Category, "id">) => boolean;
-  deleteCategory: (id: string) => boolean;
-  getTransactionsByType: (type: TransactionType) => Transaction[];
-  getCategoriesByType: (type: TransactionType) => Category[];
-  getCategoryById: (id: string) => Category | undefined;
-  getTotalByType: (type: TransactionType) => number;
-  importData: (transactions: Transaction[]) => boolean;
-  replaceAllData: (transactions: Transaction[]) => boolean;
-}
+  forceSyncToCloud?: () => Promise<boolean>;
+  checkSyncStatus?: () => Promise<boolean>;
+  addTransaction: (transaction: Omit<Transaction, "id" | "createdAt">) => number;
+  updateTransaction: (transaction: Transaction) => void;
+  deleteTransaction: (id: number) => void;
+  addCategory: (category: Omit<Category, "id">) => number;
+  deleteCategory: (id: number) => void;
+  getTransactionsByType: (type: "income" | "expense") => Transaction[];
+  getCategoriesByType: (type: "income" | "expense") => Category[];
+  getCategoryById: (id: number) => Category | undefined;
+  getTotalByType: (type: "income" | "expense") => number;
+  importData: (jsonData: string) => boolean;
+  replaceAllData: (data: TransactionState) => void;
+};
