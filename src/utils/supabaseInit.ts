@@ -1,4 +1,9 @@
+
 import { getSupabaseClient } from './supabase/client';
+import { Queue } from './queue';
+
+// Export a global queue instance for use throughout the app
+export const syncQueue = new Queue();
 
 // Function to check Supabase connection
 export const checkSupabaseConnection = async (): Promise<boolean> => {
@@ -13,7 +18,7 @@ export const checkSupabaseConnection = async (): Promise<boolean> => {
 };
 
 // Function to sync data to Supabase
-export const syncQueue = async (queueName: string, data: any): Promise<boolean> => {
+export const syncDataToSupabase = async (queueName: string, data: any): Promise<boolean> => {
   try {
     const supabase = getSupabaseClient();
     const { error } = await supabase
