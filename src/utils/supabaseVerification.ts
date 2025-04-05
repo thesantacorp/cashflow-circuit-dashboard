@@ -1,5 +1,5 @@
 
-import { getSupabaseClient } from './supabase';
+import { getSupabaseClient } from './supabase/index';
 import { toast } from 'sonner';
 
 // Complete verification of Supabase connection and table setup

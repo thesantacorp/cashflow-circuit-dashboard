@@ -1,5 +1,5 @@
 
-import { ensureUuidTableExists, getSupabaseClient, storeUserUuid } from './supabase';
+import { ensureUuidTableExists, getSupabaseClient, storeUserUuid } from './supabase/index';
 import { verifySupabaseSetup, attemptSupabaseSetupFix } from './supabaseVerification';
 import { toast } from 'sonner';
 

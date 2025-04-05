@@ -8,7 +8,7 @@ import {
   ensureUuidTableExists, 
   verifyUuidInSupabase,
   getSupabaseClient 
-} from "@/utils/supabase";
+} from "@/utils/supabase/index";
 import { verifySupabaseSetup } from "@/utils/supabaseVerification";
 
 export function useUuidManagement() {
