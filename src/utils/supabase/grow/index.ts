@@ -20,25 +20,21 @@ export const ensureGrowTablesExist = async (): Promise<boolean> => {
       return false;
     }
     
-    // Try a simple query first to verify basic connectivity
-    const { data: connectionTest, error: connectionError } = await supabase
-      .from('user_uuids')
-      .select('count')
-      .limit(1)
-      .maybeSingle();
+    console.log('Supabase connection verified, proceeding with table creation');
+    
+    // Try a simple SQL query to verify permissions - this will either work or not
+    try {
+      const { error: sqlTestError } = await supabase.rpc('exec_sql', { 
+        sql_query: "SELECT 1" 
+      });
       
-    if (connectionError && connectionError.code !== '42P01') {
-      console.error('Supabase connection error before table check:', connectionError);
-      if (connectionError.message?.includes('fetch failed')) {
-        toast.error("Network connection error", { 
-          description: "Please check your internet connection and try again" 
-        });
+      if (!sqlTestError) {
+        console.log('SQL RPC is available, using preferred table creation method');
       } else {
-        toast.error("Database connection error", { 
-          description: "Please try again later" 
-        });
+        console.warn('SQL RPC unavailable, will fall back to alternative methods:', sqlTestError);
       }
-      return false;
+    } catch (sqlTestErr) {
+      console.warn('SQL permission test failed, will use fallback methods');
     }
     
     // Create all tables in the correct order with proper headers

@@ -26,42 +26,58 @@ export const createProjectsTable = async (): Promise<boolean> => {
       return false;
     }
     
-    // Direct insertion approach - this should create the table if it doesn't exist
-    console.log('Creating projects table with direct insertion...');
+    // Create projects table using SQL directly - more reliable than inserts
+    const { error: sqlError } = await supabase.rpc('exec_sql', {
+      sql_query: `
+        CREATE TABLE IF NOT EXISTS projects (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          name TEXT NOT NULL,
+          description TEXT,
+          image_url TEXT,
+          amount NUMERIC,
+          live_link TEXT,
+          more_details TEXT,
+          expiration_date TIMESTAMP WITH TIME ZONE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          upvotes INTEGER DEFAULT 0,
+          downvotes INTEGER DEFAULT 0
+        );
+      `
+    });
     
-    // Create project with correct insert syntax (no headers parameter)
-    const { error: createError } = await supabase
-      .from('projects')
-      .insert({
-        id: '00000000-0000-0000-0000-000000000000',
-        name: 'Test Project',
-        description: 'This is a test project to create the table',
-        upvotes: 0,
-        downvotes: 0,
-        created_at: new Date().toISOString()
+    if (sqlError) {
+      console.error('Error creating projects table via SQL:', sqlError);
+      
+      // Fallback to the insertion method if RPC fails (may not have permissions)
+      console.log('Falling back to insert method for projects table...');
+      
+      const response = await fetch(`${supabase.supabaseUrl}/rest/v1/projects`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabase.supabaseKey,
+          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          id: '00000000-0000-0000-0000-000000000000',
+          name: 'Test Project',
+          description: 'This is a test project to create the table',
+          upvotes: 0,
+          downvotes: 0,
+          created_at: new Date().toISOString()
+        })
       });
-    
-    // If the table was created or already exists
-    if (!createError || (createError && createError.code !== '42P01')) {
-      console.log('Projects table created or already exists');
       
-      // Try to delete the test project
-      try {
-        await supabase
-          .from('projects')
-          .delete()
-          .eq('id', '00000000-0000-0000-0000-000000000000')
-          .select();
-      } catch (deleteError) {
-        // Ignore deletion errors
-        console.log('Could not delete test project, but table exists');
+      if (!response.ok && response.status !== 409) { // 409 means it already exists
+        console.error('Error creating projects table via REST:', await response.text());
+        return false;
       }
-      
-      return true;
     }
     
-    console.error('Failed to create projects table:', createError);
-    return false;
+    console.log('Projects table created or already exists');
+    return true;
+    
   } catch (error) {
     console.error('Exception in projects table creation:', error);
     return false;
@@ -97,41 +113,50 @@ export const createProjectVotesTable = async (): Promise<boolean> => {
       return false;
     }
     
-    // Direct insertion approach to create the votes table
-    console.log('Creating project_votes table with direct insertion...');
+    // Create votes table using SQL directly - more reliable than inserts
+    const { error: sqlError } = await supabase.rpc('exec_sql', {
+      sql_query: `
+        CREATE TABLE IF NOT EXISTS project_votes (
+          project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          user_uuid UUID NOT NULL,
+          vote INTEGER NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          PRIMARY KEY (project_id, user_uuid)
+        );
+      `
+    });
     
-    // Create vote record with correct insert syntax (no headers parameter)
-    const { error: createError } = await supabase
-      .from('project_votes')
-      .insert({
-        project_id: '00000000-0000-0000-0000-000000000000',
-        user_uuid: '00000000-0000-0000-0000-000000000000',
-        vote: 0,
-        created_at: new Date().toISOString()
+    if (sqlError) {
+      console.error('Error creating project_votes table via SQL:', sqlError);
+      
+      // Fallback to the insertion method if RPC fails
+      console.log('Falling back to insert method for project_votes table...');
+      
+      const response = await fetch(`${supabase.supabaseUrl}/rest/v1/project_votes`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabase.supabaseKey,
+          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          project_id: '00000000-0000-0000-0000-000000000000',
+          user_uuid: '00000000-0000-0000-0000-000000000000',
+          vote: 0,
+          created_at: new Date().toISOString()
+        })
       });
-    
-    // If the table was created or already exists
-    if (!createError || (createError && createError.code !== '42P01')) {
-      console.log('Project_votes table created or already exists');
       
-      // Try to delete the test vote
-      try {
-        await supabase
-          .from('project_votes')
-          .delete()
-          .eq('project_id', '00000000-0000-0000-0000-000000000000')
-          .eq('user_uuid', '00000000-0000-0000-0000-000000000000')
-          .select();
-      } catch (deleteError) {
-        // Ignore deletion errors
-        console.log('Could not delete test vote, but table exists');
+      if (!response.ok && response.status !== 409) { // 409 means it already exists
+        console.error('Error creating project_votes table via REST:', await response.text());
+        return false;
       }
-      
-      return true;
     }
     
-    console.error('Failed to create project_votes table:', createError);
-    return false;
+    console.log('Project_votes table created or already exists');
+    return true;
+    
   } catch (error) {
     console.error('Exception in project_votes table creation:', error);
     return false;

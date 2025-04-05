@@ -1,6 +1,7 @@
 
 import { getSupabaseClient } from '../client';
 import { toast } from 'sonner';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../client';
 
 // Create storage bucket with fallback options
 export const createStorageBucketGuaranteed = async (): Promise<boolean> => {
@@ -45,19 +46,13 @@ export const createStorageBucketGuaranteed = async (): Promise<boolean> => {
     
     // Alternative attempt with different approach
     try {
-      // Get the base URL and API key from environment or config
-      // Instead of directly accessing protected properties
-      const supabaseUrl = process.env.SUPABASE_URL || 'https://tsidnalhlgcmcnqawgux.supabase.co';
-      const supabaseKey = supabase.auth.getSession().then(session => session.data.session?.access_token || '');
-      
-      // Try direct REST API approach as a last resort
-      const apiKey = await supabaseKey;
-      const response = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
+      // Use the exported constants instead of accessing protected properties
+      const response = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': apiKey,
-          'Authorization': `Bearer ${apiKey}`
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
         },
         body: JSON.stringify({
           id: 'grow',
