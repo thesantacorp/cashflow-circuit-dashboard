@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,8 +17,10 @@ import OverviewPageEnhanced from "@/pages/OverviewPageEnhanced";
 import ExpensesPage from "@/pages/ExpensesPage";
 import IncomePage from "@/pages/IncomePage";
 import RecoverPage from "@/pages/RecoverPage";
+import GrowPage from "@/pages/GrowPage";
 import NotFound from "./pages/NotFound";
 import AdminNotificationDashboard from "./pages/AdminNotificationDashboard";
+import AdminGrowPage from "./pages/AdminGrowPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import { initSessionTracking } from "./utils/sessionTracking";
 import { initRecoverySystem } from "./utils/userDataRecovery";
@@ -177,6 +180,7 @@ function App() {
                     <Routes>
                       <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />
                       <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                      <Route path="/admin/grow" element={<AdminGrowPage />} />
                       <Route path="/recover/:recoveryId" element={<RecoverPage />} />
                       <Route path="/*" element={
                         <>
@@ -202,6 +206,7 @@ function App() {
                                 <Route path="/" element={<OverviewPageEnhanced />} />
                                 <Route path="/expenses" element={<ExpensesPage />} />
                                 <Route path="/income" element={<IncomePage />} />
+                                <Route path="/grow" element={<GrowPage />} />
                                 <Route path="*" element={<NotFound />} />
                               </Routes>
                             </div>

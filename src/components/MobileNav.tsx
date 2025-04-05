@@ -9,7 +9,7 @@ import {
   DrawerFooter,
 } from "@/components/ui/drawer";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Bell, Banknote, CreditCard, Link2 } from "lucide-react";
+import { Bell, Banknote, CreditCard, Link2, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import SettingsSheetContent from "./mobile/SettingsSheetContent";
 import MobileDrawerHeader from "./mobile/MobileDrawerHeader";
@@ -26,7 +26,8 @@ const MobileNav: React.FC = () => {
   const navigationItems = [
     { name: "Overview", path: "/" },
     { name: "Expenses", path: "/expenses" },
-    { name: "Income", path: "/income" }
+    { name: "Income", path: "/income" },
+    { name: "Grow", path: "/grow" }
   ];
 
   const settingsItems = [
