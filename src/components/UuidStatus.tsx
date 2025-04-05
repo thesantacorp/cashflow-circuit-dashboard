@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -143,6 +144,9 @@ const UuidStatus: React.FC = () => {
         };
     }
   };
+
+  // Fix: Store the result of getSyncStatusDisplay() in a variable
+  const statusDisplay = getSyncStatusDisplay();
 
   return (
     <>
