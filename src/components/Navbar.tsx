@@ -72,14 +72,6 @@ const Navbar: React.FC = () => {
               Income
             </Button>
           </Link>
-          <Link to="/grow">
-            <Button variant={location.pathname === "/grow" ? "secondary" : "ghost"}
-              className={location.pathname === "/grow" 
-                ? "bg-white/20 text-white hover:bg-white/30" 
-                : "text-white hover:bg-white/10"}>
-              Grow
-            </Button>
-          </Link>
         </div>
         
         <div className="ml-auto flex items-center gap-4">

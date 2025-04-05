@@ -26,7 +26,6 @@ import { getSupabaseClient, checkDatabaseConnection } from "./utils/supabase/cli
 import { checkSupabaseConnection } from "./utils/supabaseInit";
 import { toast } from "sonner";
 
-// Create QueryClient with production-ready settings
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -37,13 +36,11 @@ const queryClient = new QueryClient({
   }
 });
 
-const MAX_LOADING_TIME = 4000; // Reduced max loading time to improve UX
+const MAX_LOADING_TIME = 4000;
 
-// Function to initialize Supabase with logging and error handling
 const initializeSupabase = async (): Promise<boolean> => {
   console.log('Initializing Supabase connection...');
   try {
-    // Check if we can connect to Supabase
     const connected = await checkDatabaseConnection();
     
     if (connected) {
@@ -67,11 +64,9 @@ function App() {
     navigator.onLine ? 'online' : 'offline'
   );
 
-  // Keep track of network status
   useEffect(() => {
     const handleOnline = () => {
       setNetworkStatus('online');
-      // If we're already initialized, check Supabase connection on reconnect
       if (initAttempted) {
         checkSupabaseConnection()
           .then(connected => {
@@ -87,7 +82,6 @@ function App() {
     const handleOffline = () => {
       setNetworkStatus('offline');
       if (isLoading) {
-        // Speed up initialization if we're offline
         setIsLoading(false);
       }
     };
@@ -101,12 +95,10 @@ function App() {
     };
   }, [initAttempted, supabaseInitialized, isLoading]);
 
-  // App initialization
   useEffect(() => {
     const initApp = async () => {
       setInitAttempted(true);
       
-      // Ensure we don't get stuck on loading screen
       const forceLoadTimeout = setTimeout(() => {
         if (isLoading) {
           console.warn("Force continuing app initialization after timeout");
@@ -119,11 +111,9 @@ function App() {
       }, MAX_LOADING_TIME);
       
       try {
-        // Initialize session tracking first (doesn't require connection)
         initSessionTracking();
         initRecoverySystem();
         
-        // If we're offline, skip Supabase initialization
         if (networkStatus === 'offline') {
           console.log('Device is offline, skipping Supabase initialization');
           toast.warning("You're currently offline", {
@@ -135,11 +125,9 @@ function App() {
           return;
         }
       
-        // Check connection to Supabase - make multiple attempts
         console.log("Initializing Supabase connection...");
         let success = await initializeSupabase();
         
-        // If first attempt fails, try again after a short delay
         if (!success) {
           console.log("First initialization attempt failed, retrying...");
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -156,12 +144,10 @@ function App() {
           });
         }
         
-        // Continue app initialization regardless of Supabase connection
         setTimeout(() => {
-          clearTimeout(forceLoadTimeout); // Clear the force timeout
+          clearTimeout(forceLoadTimeout);
           setIsLoading(false);
-        }, 800); // Short delay to allow UI to update
-        
+        }, 800);
       } catch (error) {
         console.error("Failed during app initialization:", error);
         toast.error("Error during app initialization", {
@@ -177,14 +163,11 @@ function App() {
       initApp();
     }
     
-    // Auto-sync check on app focus or visibility change
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         console.log("App is visible again, checking for sync needs...");
-        // This will trigger the TransactionProvider to check if syncing is needed
         window.dispatchEvent(new Event('app-visible'));
         
-        // Also check Supabase connection if not already initialized
         if (initAttempted && !supabaseInitialized) {
           checkSupabaseConnection().then(connected => {
             if (connected) {
