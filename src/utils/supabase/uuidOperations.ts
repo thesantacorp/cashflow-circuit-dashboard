@@ -5,12 +5,18 @@ import {
   storeUserUuid, 
   fetchUserUuid,
   verifyUuidInSupabase,
-  getAllUuids
+  getAllUuids,
+  uuidOperations
 } from './uuid';
 
 export {
   storeUserUuid,
   fetchUserUuid,
   verifyUuidInSupabase,
-  getAllUuids
+  getAllUuids,
+  // Also export the new operations interface
+  uuidOperations
 };
+
+// For backward compatibility
+export const uuid = uuidOperations;

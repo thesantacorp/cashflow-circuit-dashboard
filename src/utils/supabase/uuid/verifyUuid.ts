@@ -2,6 +2,7 @@
 import { getSupabaseClient, isRlsPolicyError } from '../client';
 import { ensureUuidTableExists } from '../tableManagement';
 import { toast } from 'sonner';
+import { UuidVerificationResult } from './types';
 
 // Verify if a UUID exists in Supabase
 export async function verifyUuidInSupabase(email: string, uuid: string): Promise<boolean> {
@@ -44,5 +45,34 @@ export async function verifyUuidInSupabase(email: string, uuid: string): Promise
   } catch (error) {
     console.error('Exception when verifying UUID in Supabase:', error);
     return false;
+  }
+}
+
+// Enhanced verification with detailed response
+export async function verifyUuidWithDetails(email: string, uuid: string): Promise<UuidVerificationResult> {
+  try {
+    const exists = await verifyUuidInSupabase(email, uuid);
+    
+    if (!exists) {
+      return { exists: false };
+    }
+    
+    // If verification is successful, fetch additional details
+    const supabase = getSupabaseClient();
+    const { data } = await supabase
+      .from('user_uuids')
+      .select('created_at')
+      .eq('email', email.toLowerCase().trim())
+      .eq('uuid', uuid)
+      .single();
+      
+    return { 
+      exists: true,
+      email: email.toLowerCase().trim(),
+      timestamp: data?.created_at
+    };
+  } catch (error) {
+    console.error('Error in detailed UUID verification:', error);
+    return { exists: false };
   }
 }

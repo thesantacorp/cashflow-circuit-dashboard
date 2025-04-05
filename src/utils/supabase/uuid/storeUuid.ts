@@ -2,6 +2,7 @@
 import { getSupabaseClient, isRlsPolicyError, checkDatabaseConnection } from '../client';
 import { ensureUuidTableExists } from '../tableManagement';
 import { toast } from 'sonner';
+import { UuidResponse } from './types';
 
 // Store user UUID in Supabase
 export async function storeUserUuid(email: string, uuid: string): Promise<boolean> {
@@ -10,7 +11,7 @@ export async function storeUserUuid(email: string, uuid: string): Promise<boolea
   try {
     console.log(`Attempting to store UUID ${uuid} for email ${email} in Supabase...`);
     
-    // First check if we have a database connection
+    // Check database connection
     const isConnected = await checkDatabaseConnection();
     if (!isConnected) {
       console.error('No database connection available');
@@ -20,7 +21,7 @@ export async function storeUserUuid(email: string, uuid: string): Promise<boolea
       return false;
     }
     
-    // Then make sure the table exists
+    // Make sure the table exists
     await ensureUuidTableExists();
     
     // Insert the record
@@ -36,7 +37,6 @@ export async function storeUserUuid(email: string, uuid: string): Promise<boolea
       if (isRlsPolicyError(error)) {
         console.error('RLS policy error storing user UUID:', error);
         
-        // More specific error message with code and action
         const errorCode = error.code || 'unknown';
         toast.error(`Database permission error (${errorCode})`, {
           description: 'Row-Level Security policies are restricting write access',
@@ -44,7 +44,6 @@ export async function storeUserUuid(email: string, uuid: string): Promise<boolea
           action: {
             label: 'Fix Now',
             onClick: () => {
-              // Show the RLS config guide component
               const rlsGuide = document.getElementById('rls-config-guide');
               if (rlsGuide) {
                 rlsGuide.scrollIntoView({ behavior: 'smooth' });
@@ -57,7 +56,7 @@ export async function storeUserUuid(email: string, uuid: string): Promise<boolea
       
       console.error('Error storing user UUID in Supabase:', error);
       
-      // Try a direct insert as fallback with a different method
+      // Try a direct insert as fallback
       return await attemptDirectInsert(email, uuid);
     }
     
@@ -87,7 +86,6 @@ async function attemptDirectInsert(email: string, uuid: string): Promise<boolean
       if (isRlsPolicyError(insertError)) {
         console.error('RLS policy error during direct insert:', insertError);
         
-        // More actionable error message
         toast.error('Database permissions issue', {
           description: 'Please follow the RLS configuration guide below',
           duration: 10000
@@ -105,5 +103,29 @@ async function attemptDirectInsert(email: string, uuid: string): Promise<boolean
   } catch (error) {
     console.error('Exception during direct insert:', error);
     return false;
+  }
+}
+
+// Enhanced store with detailed response
+export async function storeUserUuidWithDetails(email: string, uuid: string): Promise<UuidResponse> {
+  try {
+    const success = await storeUserUuid(email, uuid);
+    
+    if (success) {
+      return { 
+        success: true, 
+        uuid 
+      };
+    } else {
+      return { 
+        success: false, 
+        error: 'Failed to store UUID for this email' 
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error storing UUID'
+    };
   }
 }
