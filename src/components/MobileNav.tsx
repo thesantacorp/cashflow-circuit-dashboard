@@ -24,12 +24,11 @@ const MobileNav: React.FC = () => {
   const [sheetTrigger, setSheetTrigger] = useState(0); // Counter to force sheet re-render
   const navigate = useNavigate();
 
-  // Navigation items
+  // Navigation items - Removed "Grow" from the list
   const navigationItems = [
     { name: "Overview", path: "/" },
     { name: "Expenses", path: "/expenses" },
-    { name: "Income", path: "/income" },
-    { name: "Grow", path: "/grow" }
+    { name: "Income", path: "/income" }
   ];
 
   // Settings items
