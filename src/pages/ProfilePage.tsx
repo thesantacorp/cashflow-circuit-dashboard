@@ -4,7 +4,6 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { 
   Card, 
   CardContent, 
@@ -13,10 +12,12 @@ import {
   CardHeader, 
   CardTitle 
 } from '@/components/ui/card';
-import { LoaderIcon, UserIcon, LogOutIcon, CloudIcon } from 'lucide-react';
+import { LoaderIcon, UserIcon, LogOutIcon } from 'lucide-react';
+import SupabaseSync from '@/components/SupabaseSync';
+import DataExportImport from '@/components/DataExportImport';
 
 const ProfilePage = () => {
-  const { user, profile, isLoading, signOut, updateProfile, updateBackupApproval, isBackupApproved } = useAuth();
+  const { user, profile, isLoading, signOut, updateProfile } = useAuth();
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -40,14 +41,6 @@ const ProfilePage = () => {
       console.error('Error updating profile:', error);
     } finally {
       setIsUpdating(false);
-    }
-  };
-
-  const handleBackupToggle = async (checked: boolean) => {
-    try {
-      await updateBackupApproval(checked);
-    } catch (error) {
-      console.error('Error updating backup settings:', error);
     }
   };
 
@@ -132,35 +125,17 @@ const ProfilePage = () => {
             </CardContent>
           </Card>
           
+          <SupabaseSync />
+          
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <CloudIcon className="mr-2 h-5 w-5 text-orange-500" />
-                Backup Settings
-              </CardTitle>
+              <CardTitle>Data Import & Export</CardTitle>
               <CardDescription>
-                Manage your automatic backup preferences
+                Export your data to a CSV file or import from a CSV
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <h4 className="text-sm font-medium">Automatic Daily Backup</h4>
-                  <p className="text-xs text-slate-500">
-                    Automatically back up your data daily
-                  </p>
-                </div>
-                <Switch
-                  checked={isBackupApproved}
-                  onCheckedChange={handleBackupToggle}
-                />
-              </div>
-              
-              {profile?.backup_last_date && (
-                <div className="text-xs text-slate-500">
-                  Last backup: {new Date(profile.backup_last_date).toLocaleString()}
-                </div>
-              )}
+            <CardContent>
+              <DataExportImport />
             </CardContent>
           </Card>
         </div>

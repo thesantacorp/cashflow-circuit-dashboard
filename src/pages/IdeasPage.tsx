@@ -34,10 +34,16 @@ const IdeasPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800">
-          Community Ideas
+          Ideas you can execute
         </h1>
+        <p className="mt-2 font-semibold text-gray-600">
+          at the snap of a finger
+        </p>
+        <p className="mt-4 text-gray-700 max-w-3xl">
+          Discover and jump on ready made SAAS products and business ideas, build generational wealth
+        </p>
       </div>
       
       {loading ? (

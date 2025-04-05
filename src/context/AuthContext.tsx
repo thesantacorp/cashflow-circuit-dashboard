@@ -11,7 +11,6 @@ interface UserProfile {
   email: string;
   full_name: string | null;
   avatar_url: string | null;
-  backup_approved: boolean;
   backup_last_date: string | null;
   created_at: string;
   updated_at: string;
@@ -27,8 +26,6 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
-  updateBackupApproval: (approved: boolean) => Promise<void>;
-  isBackupApproved: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -38,7 +35,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isBackupApproved, setIsBackupApproved] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -55,7 +51,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }, 0);
         } else {
           setProfile(null);
-          setIsBackupApproved(false);
         }
         
         if (event === 'SIGNED_OUT') {
@@ -95,7 +90,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setProfile(data as UserProfile);
-      setIsBackupApproved(!!data?.backup_approved);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
     }
@@ -197,25 +191,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateBackupApproval = async (approved: boolean) => {
-    try {
-      if (!user) throw new Error('No user logged in');
-      
-      await updateProfile({ 
-        backup_approved: approved,
-        backup_last_date: approved ? new Date().toISOString() : null
-      });
-      
-      setIsBackupApproved(approved);
-      toast.success(approved ? 'Backup approved' : 'Backup disabled');
-    } catch (error: any) {
-      toast.error('Backup approval update failed', {
-        description: error.message
-      });
-      throw error;
-    }
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -227,9 +202,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signIn,
         signOut,
         resetPassword,
-        updateProfile,
-        updateBackupApproval,
-        isBackupApproved,
+        updateProfile
       }}
     >
       {children}
