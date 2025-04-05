@@ -21,41 +21,44 @@ export async function initializeSupabase(): Promise<void> {
       return;
     }
     
-    // Test the connection with a simple query first
-    const { data: testData, error: testError } = await supabaseClient.from('_test_connection_').select('*').limit(1).single();
+    // Test the connection with a simple health check
+    const { data, error } = await supabaseClient.from('_health_check').select('*').maybeSingle();
     
-    // This query is expected to fail with "relation does not exist" error
-    // But that confirms the connection works and gets a response from the server
-    if (testError && !testError.message.includes('does not exist')) {
-      if (testError.message.includes('JWT')) {
-        console.error('Authentication error with Supabase:', testError);
-        toast.error(
-          'Supabase authentication error',
-          { 
-            description: 'Please check your Supabase API key',
-            duration: 6000
-          }
-        );
-        return;
-      }
-      
-      // If it's another kind of error not related to table existence
-      if (!testError.message.includes('does not exist')) {
-        console.error('Error connecting to Supabase:', testError);
-        toast.error(
-          'Error connecting to Supabase',
-          { 
-            description: 'Please check your network connection',
-            duration: 6000
-          }
-        );
-        return;
-      }
+    // If there's an auth error, it's a credentials issue
+    if (error && error.message.includes('JWT')) {
+      console.error('Authentication error with Supabase:', error);
+      toast.error(
+        'Supabase authentication error',
+        { 
+          description: 'Please check your Supabase API key',
+          duration: 6000
+        }
+      );
+      return;
     }
     
-    // Connection seems to work, let's ensure the UUID table exists
+    // If there's a "not found" error, that's actually good - it means connection works
+    // but the _health_check table doesn't exist (which is expected)
+    if (error && !error.message.includes('JWT')) {
+      console.log('Supabase connection established successfully');
+    }
+    
+    // Now let's try to setup or verify the user_uuids table
     console.log('Supabase connection successful, checking UUID table...');
-    const tableExists = await ensureUuidTableExists();
+    
+    // Make three attempts to ensure table exists
+    let tableExists = false;
+    let attempts = 0;
+    while (!tableExists && attempts < 3) {
+      attempts++;
+      console.log(`Attempt ${attempts} to verify/create user_uuids table...`);
+      tableExists = await ensureUuidTableExists();
+      
+      if (!tableExists && attempts < 3) {
+        // Wait a bit before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
     
     if (tableExists) {
       console.log('Supabase UUID table is ready');
@@ -65,8 +68,8 @@ export async function initializeSupabase(): Promise<void> {
       toast.warning(
         'Table setup may be needed',
         { 
-          description: 'Please ensure the user_uuids table exists in your Supabase project',
-          duration: 8000
+          description: 'Please run this SQL in your Supabase SQL editor: CREATE TABLE IF NOT EXISTS user_uuids (id SERIAL PRIMARY KEY, email TEXT UNIQUE NOT NULL, uuid TEXT NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);',
+          duration: 15000
         }
       );
     }
