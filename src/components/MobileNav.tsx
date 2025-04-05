@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import {
@@ -22,6 +22,7 @@ const MobileNav: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [activeSheet, setActiveSheet] = useState<string | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
 
   // Navigation items - "Grow" has been removed from the list
@@ -81,8 +82,6 @@ const MobileNav: React.FC = () => {
   // Helper to safely close a settings sheet
   const closeSettingsSheet = () => {
     setIsSheetOpen(false);
-    // We'll clear the activeSheet when the sheet is fully closed
-    // This prevents UI glitches during the closing animation
   };
 
   // Handle sheet close event
@@ -96,12 +95,26 @@ const MobileNav: React.FC = () => {
     }
   };
 
+  // Reset Radix UI focus trap when sheet closes
+  // This helps ensure the menu button remains clickable
+  useEffect(() => {
+    if (!isSheetOpen && menuButtonRef.current) {
+      // Small timeout to ensure DOM has settled
+      setTimeout(() => {
+        // Reset any focus traps and ensure menu button is clickable
+        document.body.style.pointerEvents = '';
+        document.body.style.touchAction = '';
+      }, 100);
+    }
+  }, [isSheetOpen]);
+
   return (
     <>
       {/* Mobile Menu Button */}
       <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
         <DrawerTrigger asChild>
           <Button 
+            ref={menuButtonRef}
             variant="ghost" 
             size="icon" 
             className="md:hidden text-white"
@@ -147,7 +160,7 @@ const MobileNav: React.FC = () => {
         </DrawerContent>
       </Drawer>
 
-      {/* Settings Sheets - controlled directly by isSheetOpen state */}
+      {/* Settings Sheet */}
       <Sheet 
         open={isSheetOpen} 
         onOpenChange={handleSheetOpenChange}

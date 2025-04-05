@@ -67,6 +67,12 @@ const SheetContent = React.forwardRef<
       <SheetPrimitive.Content
         ref={ref}
         className={cn(sheetVariants({ side }), className)}
+        onCloseAutoFocus={(event) => {
+          // Prevent default focus behavior which can cause issues
+          event.preventDefault();
+          // Ensure no focus traps remain
+          document.body.style.pointerEvents = '';
+        }}
         {...props}
       >
         {children}
