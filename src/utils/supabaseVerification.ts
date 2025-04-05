@@ -1,5 +1,5 @@
 
-import { getSupabaseClient } from './supabase/index';
+import { getSupabaseClient, isRlsPolicyError } from './supabase/client';
 import { toast } from 'sonner';
 
 const VERIFICATION_TIMEOUT = 8000; // 8 seconds timeout for verification
@@ -75,7 +75,7 @@ async function verifySupabaseSetupInternal(): Promise<{
       if (data || 
           (connectionError && connectionError.message.includes('does not exist')) ||
           // For RLS policy errors, connection is working but permissions are restricted
-          (connectionError && connectionError.message.includes('policy'))
+          isRlsPolicyError(connectionError)
          ) {
         result.connected = true;
         result.details += 'Connection successful. ';
@@ -99,13 +99,13 @@ async function verifySupabaseSetupInternal(): Promise<{
         .limit(1);
       
       // If error is about RLS policies, the table exists but access is restricted
-      if (!tableError || (tableError && tableError.message.includes('policy'))) {
+      if (!tableError || isRlsPolicyError(tableError)) {
         result.tableExists = true;
         result.details += 'Table exists. ';
         console.log('user_uuids table exists');
         
         // If we have RLS policy issues, note that in the details
-        if (tableError && tableError.message.includes('policy')) {
+        if (isRlsPolicyError(tableError)) {
           result.details += 'RLS policies restricting access. ';
         }
       } else {
@@ -125,7 +125,7 @@ async function verifySupabaseSetupInternal(): Promise<{
         .select('*')
         .limit(5);
       
-      if (!readError || (readError && readError.message.includes('policy'))) {
+      if (!readError || isRlsPolicyError(readError)) {
         result.hasReadAccess = !readError; // Only true if no error at all
         result.details += `Read access ${!readError ? 'OK' : 'restricted by RLS'} (${readData?.length || 0} records). `;
         console.log('Read access verified, retrieved:', readData?.length || 0, 'records');
@@ -161,7 +161,7 @@ async function verifySupabaseSetupInternal(): Promise<{
           .eq('email', testEmail);
       } else {
         // If we have RLS policy errors, the table exists but we don't have write access
-        if (writeError.message.includes('policy')) {
+        if (isRlsPolicyError(writeError)) {
           result.details += 'Write access restricted by RLS policies. ';
           console.warn('Write access restricted by RLS policies:', writeError);
         } else {
@@ -221,7 +221,7 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
             uuid: 'test-uuid-for-table-creation'
           });
           
-        if (!sqlError || sqlError.message.includes('already exists') || sqlError.message.includes('policy')) {
+        if (!sqlError || sqlError.message.includes('already exists') || isRlsPolicyError(sqlError)) {
           tableCreated = true;
         } else {
           console.warn('Direct table creation failed:', sqlError);
@@ -240,8 +240,16 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
       
       const verification = await Promise.race([verifySupabaseSetup(), timeoutPromise]) as any;
       
+      // If we have RLS policy issues, warn about it but still consider the setup "fixed" if the table exists
       if (verification.tableExists) {
-        toast.success('Successfully fixed Supabase setup!', { id: 'fixing-supabase' });
+        if (!verification.hasWriteAccess && verification.details.includes('RLS policies')) {
+          toast.warning('Table created but RLS policies need configuration', { 
+            id: 'fixing-supabase',
+            description: 'Please check your Supabase project settings'
+          });
+        } else {
+          toast.success('Successfully fixed Supabase setup!', { id: 'fixing-supabase' });
+        }
         return true;
       } else {
         toast.error('Could not fix Supabase setup automatically', { 
@@ -260,4 +268,38 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
     toast.error('Error while trying to fix Supabase setup', { id: 'fixing-supabase' });
     return false;
   }
+}
+
+// Export a function to generate SQL that will fix RLS issues
+export function getRlsFixSql(): string {
+  return `
+-- Update RLS policies on user_uuids table
+ALTER TABLE IF EXISTS public.user_uuids ENABLE ROW LEVEL SECURITY;
+
+-- Delete existing policies (if any)
+DROP POLICY IF EXISTS "Allow anonymous inserts" ON public.user_uuids;
+DROP POLICY IF EXISTS "Allow anonymous selects" ON public.user_uuids;
+
+-- Create a policy to allow anonymous inserts
+CREATE POLICY "Allow anonymous inserts" 
+ON public.user_uuids 
+FOR INSERT 
+TO anon
+WITH CHECK (true);
+
+-- Create a policy to allow anonymous selects
+CREATE POLICY "Allow anonymous selects" 
+ON public.user_uuids 
+FOR SELECT 
+TO anon
+USING (true);
+
+-- Grant table permissions
+GRANT SELECT, INSERT ON public.user_uuids TO anon;
+GRANT SELECT, INSERT ON public.user_uuids TO authenticated;
+
+-- Grant usage on sequence
+GRANT USAGE ON SEQUENCE user_uuids_id_seq TO anon;
+GRANT USAGE ON SEQUENCE user_uuids_id_seq TO authenticated;
+  `.trim();
 }

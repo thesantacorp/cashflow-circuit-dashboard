@@ -1,5 +1,5 @@
 
-import { getSupabaseClient } from './client';
+import { getSupabaseClient, isRlsPolicyError } from './client';
 import { ensureUuidTableExists } from './tableManagement';
 import { toast } from 'sonner';
 
@@ -22,6 +22,15 @@ export async function storeUserUuid(email: string, uuid: string): Promise<boolea
       }, { onConflict: 'email' });
       
     if (error) {
+      // Special handling for RLS policy errors
+      if (isRlsPolicyError(error)) {
+        console.error('RLS policy error storing user UUID:', error);
+        toast.error('Permission denied by database policies', {
+          description: 'Please ask your administrator to configure proper write access'
+        });
+        return false;
+      }
+      
       console.error('Error storing user UUID in Supabase:', error);
       
       // Try a direct insert as fallback
@@ -32,7 +41,14 @@ export async function storeUserUuid(email: string, uuid: string): Promise<boolea
         ]);
         
       if (insertError) {
-        console.error('Direct insert failed:', insertError);
+        if (isRlsPolicyError(insertError)) {
+          console.error('RLS policy error during direct insert:', insertError);
+          toast.error('RLS policy is blocking data writes', {
+            description: 'Your administrator needs to update database permissions'
+          });
+        } else {
+          console.error('Direct insert failed:', insertError);
+        }
         return false;
       }
     }
@@ -61,7 +77,14 @@ export async function fetchUserUuid(email: string): Promise<string | null> {
       .single();
       
     if (error) {
-      console.error('Error fetching user UUID from Supabase:', error);
+      if (isRlsPolicyError(error)) {
+        console.error('RLS policy error fetching user UUID:', error);
+        toast.error('Permission denied reading user data', {
+          description: 'Database policies are preventing data access'
+        });
+      } else {
+        console.error('Error fetching user UUID from Supabase:', error);
+      }
       return null;
     }
     
@@ -82,8 +105,7 @@ export async function verifyUuidInSupabase(email: string, uuid: string): Promise
     console.log(`Verifying UUID ${uuid} for ${normalizedEmail} in Supabase...`);
     
     // Check if the table exists
-    const { checkTableExists } = await import('./tableManagement');
-    const tableExists = await checkTableExists('user_uuids');
+    const tableExists = await ensureUuidTableExists();
     
     if (!tableExists) {
       console.log('user_uuids table does not exist in Supabase');
@@ -98,7 +120,14 @@ export async function verifyUuidInSupabase(email: string, uuid: string): Promise
       .eq('uuid', uuid);
       
     if (error) {
-      console.error('Error verifying UUID in Supabase:', error);
+      if (isRlsPolicyError(error)) {
+        console.error('RLS policy error verifying UUID:', error);
+        toast.error('Permission denied verifying user data', {
+          description: 'Database policies are preventing verification'
+        });
+      } else {
+        console.error('Error verifying UUID in Supabase:', error);
+      }
       return false;
     }
     
@@ -119,8 +148,7 @@ export async function getAllUuids(): Promise<any[] | null> {
     console.log('Fetching all UUIDs from Supabase...');
     
     // Check if the table exists first
-    const { checkTableExists } = await import('./tableManagement');
-    const tableExists = await checkTableExists('user_uuids');
+    const tableExists = await ensureUuidTableExists();
     
     if (!tableExists) {
       console.log('user_uuids table does not exist in Supabase');
@@ -133,7 +161,14 @@ export async function getAllUuids(): Promise<any[] | null> {
       .order('created_at', { ascending: false });
       
     if (error) {
-      console.error('Error fetching all UUIDs from Supabase:', error);
+      if (isRlsPolicyError(error)) {
+        console.error('RLS policy error fetching all UUIDs:', error);
+        toast.error('Permission denied listing users', {
+          description: 'Administrator access required for this operation'
+        });
+      } else {
+        console.error('Error fetching all UUIDs from Supabase:', error);
+      }
       return null;
     }
     

@@ -8,14 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle, XCircle, RefreshCw, Database, Eye, EyeOff, Shield } from "lucide-react";
 import { toast } from "sonner";
 import SyncVerificationStatus from "./SyncVerificationStatus";
+import RlsConfigGuide from "./RlsConfigGuide";
 
 const SyncVerification: React.FC = () => {
-  const { userUuid, userEmail, forceSyncToCloud } = useTransactions();
-  const [syncStatus, setSyncStatus] = useState<'checking' | 'synced' | 'not-synced' | null>(null);
+  const { userUuid, userEmail, forceSyncToCloud, syncStatus } = useTransactions();
+  const [verificationStatus, setVerificationStatus] = useState<'checking' | 'synced' | 'not-synced' | 'rls-issue' | null>(null);
   const [allUuids, setAllUuids] = useState<any[] | null>(null);
   const [showAllUuids, setShowAllUuids] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showServerStatus, setShowServerStatus] = useState(false);
+  const [hasRlsPolicyIssue, setHasRlsPolicyIssue] = useState(false);
   
   // Auto-check verification on component mount
   useEffect(() => {
@@ -24,38 +26,74 @@ const SyncVerification: React.FC = () => {
     }
   }, [userUuid, userEmail]);
   
+  // Also monitor the syncStatus from context
+  useEffect(() => {
+    if (syncStatus === 'error' && userUuid && userEmail) {
+      // When in error state, check if it's an RLS policy issue
+      checkIfRlsPolicyIssue();
+    }
+  }, [syncStatus, userUuid, userEmail]);
+  
+  const checkIfRlsPolicyIssue = async () => {
+    try {
+      const { verifySupabaseSetup } = await import('@/utils/supabaseVerification');
+      const result = await verifySupabaseSetup();
+      
+      if (result.connected && result.tableExists && !result.hasWriteAccess && 
+          result.details.includes('RLS policies')) {
+        setHasRlsPolicyIssue(true);
+      }
+    } catch (error) {
+      console.error('Error checking for RLS policy issues:', error);
+    }
+  };
+  
   const checkSyncStatus = async () => {
     if (!userUuid || !userEmail) {
       toast.error("No User ID or email found to verify");
       return;
     }
     
-    setSyncStatus('checking');
+    setVerificationStatus('checking');
     setIsLoading(true);
     
     try {
       const isInSupabase = await verifyUuidInSupabase(userEmail, userUuid);
-      setSyncStatus(isInSupabase ? 'synced' : 'not-synced');
       
       if (isInSupabase) {
+        setVerificationStatus('synced');
         toast.success("Verified! Your User ID is successfully synced to the cloud.");
       } else {
-        toast.error("Your User ID is not yet synced to the cloud.");
+        // Try to determine if this is an RLS policy issue
+        const { verifySupabaseSetup } = await import('@/utils/supabaseVerification');
+        const setupResult = await verifySupabaseSetup();
         
-        // Auto-attempt sync if not synced
-        const syncAttempt = await forceSyncToCloud();
-        if (syncAttempt) {
-          // Re-verify after sync attempt
-          const recheck = await verifyUuidInSupabase(userEmail, userUuid);
-          if (recheck) {
-            setSyncStatus('synced');
-            toast.success("Successfully synced your User ID to the cloud!");
+        if (setupResult.connected && setupResult.tableExists && !setupResult.hasWriteAccess && 
+            setupResult.details.includes('RLS policies')) {
+          setVerificationStatus('rls-issue');
+          setHasRlsPolicyIssue(true);
+          toast.error("Database write permissions error", {
+            description: "RLS policies preventing write access"
+          });
+        } else {
+          setVerificationStatus('not-synced');
+          toast.error("Your User ID is not yet synced to the cloud.");
+          
+          // Auto-attempt sync if not synced
+          const syncAttempt = await forceSyncToCloud();
+          if (syncAttempt) {
+            // Re-verify after sync attempt
+            const recheck = await verifyUuidInSupabase(userEmail, userUuid);
+            if (recheck) {
+              setVerificationStatus('synced');
+              toast.success("Successfully synced your User ID to the cloud!");
+            }
           }
         }
       }
     } catch (error) {
       console.error("Error verifying sync status:", error);
-      setSyncStatus('not-synced');
+      setVerificationStatus('not-synced');
       toast.error("Failed to verify sync status");
     } finally {
       setIsLoading(false);
@@ -81,159 +119,174 @@ const SyncVerification: React.FC = () => {
   };
   
   return (
-    <Card className="border-indigo-200 shadow-lg">
-      <CardHeader className="border-b border-indigo-100">
-        <CardTitle className="text-indigo-600 flex items-center gap-2">
-          <Shield className="h-5 w-5" />
-          Cloud Sync Verification
-        </CardTitle>
-        <CardDescription>
-          Verify if your User ID is properly synced to the cloud database
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pt-4 space-y-4">
-        {/* Check sync status section */}
-        <div className="space-y-3">
-          <h3 className="font-medium text-sm text-indigo-700">Your User ID Cloud Sync Status:</h3>
-          
-          {userUuid && userEmail ? (
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Badge variant="outline" className="px-2 py-1 text-xs">
-                  Email: {userEmail}
-                </Badge>
-                <Badge variant="outline" className="px-2 py-1 text-xs overflow-hidden text-ellipsis">
-                  ID: {userUuid.substring(0, 8)}...
-                </Badge>
-              </div>
-              
-              <div className="flex flex-col gap-2">
-                {syncStatus === 'checking' ? (
-                  <div className="flex items-center gap-2 text-amber-500">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Checking sync status...</span>
-                  </div>
-                ) : syncStatus === 'synced' ? (
-                  <div className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center gap-3">
-                    <CheckCircle className="h-6 w-6 text-green-600" />
-                    <div>
-                      <h4 className="font-semibold text-green-800">Successfully synced to cloud!</h4>
-                      <p className="text-sm text-green-700">Your User ID is securely stored in the cloud database</p>
-                    </div>
-                  </div>
-                ) : syncStatus === 'not-synced' ? (
-                  <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center gap-3">
-                    <XCircle className="h-6 w-6 text-red-600" />
-                    <div>
-                      <h4 className="font-semibold text-red-800">Not synced to cloud</h4>
-                      <p className="text-sm text-red-700">Your User ID is only stored locally</p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-600">Click the button below to check if your User ID is synced to the cloud.</p>
-                )}
-                
-                <div className="flex gap-2 flex-wrap">
-                  <Button 
-                    onClick={checkSyncStatus} 
-                    className="mt-2 bg-indigo-500 hover:bg-indigo-600 text-white"
-                    disabled={isLoading}
-                  >
-                    <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                    {syncStatus === null ? "Check Sync Status" : "Refresh Sync Status"}
-                  </Button>
-                  
-                  <Button
-                    onClick={() => setShowServerStatus(!showServerStatus)}
-                    variant="outline"
-                    className="mt-2"
-                  >
-                    <Database className="mr-2 h-4 w-4" />
-                    {showServerStatus ? "Hide Server Status" : "Check Server Status"}
-                  </Button>
+    <div className="space-y-4">
+      <Card className="border-indigo-200 shadow-lg">
+        <CardHeader className="border-b border-indigo-100">
+          <CardTitle className="text-indigo-600 flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Cloud Sync Verification
+          </CardTitle>
+          <CardDescription>
+            Verify if your User ID is properly synced to the cloud database
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4 space-y-4">
+          {/* Check sync status section */}
+          <div className="space-y-3">
+            <h3 className="font-medium text-sm text-indigo-700">Your User ID Cloud Sync Status:</h3>
+            
+            {userUuid && userEmail ? (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Badge variant="outline" className="px-2 py-1 text-xs">
+                    Email: {userEmail}
+                  </Badge>
+                  <Badge variant="outline" className="px-2 py-1 text-xs overflow-hidden text-ellipsis">
+                    ID: {userUuid.substring(0, 8)}...
+                  </Badge>
                 </div>
                 
-                {showServerStatus && (
-                  <div className="mt-3">
-                    <SyncVerificationStatus className="mt-2" />
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="text-amber-600 text-sm">
-              You need to generate a User ID first before checking sync status.
-            </div>
-          )}
-        </div>
-        
-        {/* Admin section to view all UUIDs */}
-        <div className="space-y-2 pt-2 border-t border-indigo-100">
-          <div className="flex justify-between items-center">
-            <h3 className="font-medium text-sm text-indigo-700">Database Records (Admin):</h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAllUuids(!showAllUuids)}
-              className="text-indigo-600 hover:text-indigo-700 p-1 h-auto"
-            >
-              {showAllUuids ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </Button>
-          </div>
-          
-          {showAllUuids && (
-            <>
-              <Button
-                onClick={loadAllUuids}
-                variant="outline"
-                size="sm"
-                className="text-sm"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  "Load Database Records"
-                )}
-              </Button>
-              
-              {allUuids && (
-                <div className="mt-2">
-                  {allUuids.length > 0 ? (
-                    <div className="border rounded-md overflow-hidden">
-                      <div className="text-xs font-medium bg-indigo-50 text-indigo-800 p-2 grid grid-cols-3">
-                        <div>Email</div>
-                        <div>UUID</div>
-                        <div>Created</div>
+                <div className="flex flex-col gap-2">
+                  {verificationStatus === 'checking' ? (
+                    <div className="flex items-center gap-2 text-amber-500">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>Checking sync status...</span>
+                    </div>
+                  ) : verificationStatus === 'synced' ? (
+                    <div className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center gap-3">
+                      <CheckCircle className="h-6 w-6 text-green-600" />
+                      <div>
+                        <h4 className="font-semibold text-green-800">Successfully synced to cloud!</h4>
+                        <p className="text-sm text-green-700">Your User ID is securely stored in the cloud database</p>
                       </div>
-                      <div className="max-h-40 overflow-y-auto">
-                        {allUuids.map((item, index) => (
-                          <div 
-                            key={index}
-                            className={`text-xs p-2 grid grid-cols-3 ${
-                              index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                            } ${item.email === userEmail ? 'bg-indigo-50' : ''}`}
-                          >
-                            <div className="truncate">{item.email}</div>
-                            <div className="truncate">{item.uuid.substring(0, 8)}...</div>
-                            <div>{new Date(item.created_at).toLocaleString()}</div>
-                          </div>
-                        ))}
+                    </div>
+                  ) : verificationStatus === 'rls-issue' ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-md p-3 flex items-center gap-3">
+                      <Shield className="h-6 w-6 text-amber-600" />
+                      <div>
+                        <h4 className="font-semibold text-amber-800">Database permissions issue</h4>
+                        <p className="text-sm text-amber-700">RLS policies are preventing database writes</p>
+                      </div>
+                    </div>
+                  ) : verificationStatus === 'not-synced' ? (
+                    <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center gap-3">
+                      <XCircle className="h-6 w-6 text-red-600" />
+                      <div>
+                        <h4 className="font-semibold text-red-800">Not synced to cloud</h4>
+                        <p className="text-sm text-red-700">Your User ID is only stored locally</p>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-500">No records found in database</p>
+                    <p className="text-sm text-gray-600">Click the button below to check if your User ID is synced to the cloud.</p>
+                  )}
+                  
+                  <div className="flex gap-2 flex-wrap">
+                    <Button 
+                      onClick={checkSyncStatus} 
+                      className="mt-2 bg-indigo-500 hover:bg-indigo-600 text-white"
+                      disabled={isLoading}
+                    >
+                      <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                      {verificationStatus === null ? "Check Sync Status" : "Refresh Sync Status"}
+                    </Button>
+                    
+                    <Button
+                      onClick={() => setShowServerStatus(!showServerStatus)}
+                      variant="outline"
+                      className="mt-2"
+                    >
+                      <Database className="mr-2 h-4 w-4" />
+                      {showServerStatus ? "Hide Server Status" : "Check Server Status"}
+                    </Button>
+                  </div>
+                  
+                  {showServerStatus && (
+                    <div className="mt-3">
+                      <SyncVerificationStatus className="mt-2" />
+                    </div>
                   )}
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+              </div>
+            ) : (
+              <div className="text-amber-600 text-sm">
+                You need to generate a User ID first before checking sync status.
+              </div>
+            )}
+          </div>
+          
+          {/* Admin section to view all UUIDs */}
+          <div className="space-y-2 pt-2 border-t border-indigo-100">
+            <div className="flex justify-between items-center">
+              <h3 className="font-medium text-sm text-indigo-700">Database Records (Admin):</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAllUuids(!showAllUuids)}
+                className="text-indigo-600 hover:text-indigo-700 p-1 h-auto"
+              >
+                {showAllUuids ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+            
+            {showAllUuids && (
+              <>
+                <Button
+                  onClick={loadAllUuids}
+                  variant="outline"
+                  size="sm"
+                  className="text-sm"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    "Load Database Records"
+                  )}
+                </Button>
+                
+                {allUuids && (
+                  <div className="mt-2">
+                    {allUuids.length > 0 ? (
+                      <div className="border rounded-md overflow-hidden">
+                        <div className="text-xs font-medium bg-indigo-50 text-indigo-800 p-2 grid grid-cols-3">
+                          <div>Email</div>
+                          <div>UUID</div>
+                          <div>Created</div>
+                        </div>
+                        <div className="max-h-40 overflow-y-auto">
+                          {allUuids.map((item, index) => (
+                            <div 
+                              key={index}
+                              className={`text-xs p-2 grid grid-cols-3 ${
+                                index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                              } ${item.email === userEmail ? 'bg-indigo-50' : ''}`}
+                            >
+                              <div className="truncate">{item.email}</div>
+                              <div className="truncate">{item.uuid.substring(0, 8)}...</div>
+                              <div>{new Date(item.created_at).toLocaleString()}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">No records found in database</p>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Show the RLS Config Guide if we've detected an RLS issue */}
+      {hasRlsPolicyIssue && (
+        <RlsConfigGuide />
+      )}
+    </div>
   );
 };
 
