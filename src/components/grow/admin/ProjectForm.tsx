@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { CalendarIcon, ImageIcon, Loader2 } from "lucide-react";
 import { getSupabaseClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
-import { Project } from "@/types";
+import { Project } from "@/types/project";
 import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
