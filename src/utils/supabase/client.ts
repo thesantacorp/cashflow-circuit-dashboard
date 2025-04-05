@@ -28,12 +28,36 @@ const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 // Export the client directly to avoid creating multiple instances
 export const getSupabaseClient = () => supabaseClient;
 
-// Export a function to check if this is a RLS policy error
+// Enhanced function to check if this is a RLS policy error with more specific detection
 export const isRlsPolicyError = (error: any): boolean => {
   if (!error) return false;
   
-  // Check error message for RLS policy violation
-  return error.message?.includes('policy') || 
-         error.code === '42501' || // PostgreSQL permission denied code
-         error.details?.includes('policy');
+  // Check for specific PostgreSQL permission denied code
+  const isPermissionDenied = error.code === '42501';
+  
+  // Check error message for RLS policy violation keywords
+  const messageIncludes = (str: string) => 
+    error.message?.toLowerCase().includes(str.toLowerCase());
+    
+  const hasRlsKeywords = 
+    messageIncludes('policy') || 
+    messageIncludes('violates row-level security') ||
+    messageIncludes('permission denied') ||
+    messageIncludes('rls');
+    
+  // Check error details for similar keywords
+  const detailsInclude = (str: string) =>
+    error.details?.toLowerCase().includes(str.toLowerCase());
+    
+  const detailsHaveRlsKeywords =
+    detailsInclude('policy') ||
+    detailsInclude('rls');
+  
+  // Log detailed information for debugging
+  if (isPermissionDenied || hasRlsKeywords || detailsHaveRlsKeywords) {
+    console.warn('RLS policy error detected:', error);
+  }
+  
+  // Return true if any of the checks indicate an RLS policy error
+  return isPermissionDenied || hasRlsKeywords || detailsHaveRlsKeywords;
 };

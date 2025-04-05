@@ -1,4 +1,3 @@
-
 import { getSupabaseClient, isRlsPolicyError } from './client';
 import { ensureUuidTableExists } from './tableManagement';
 import { toast } from 'sonner';
@@ -22,11 +21,25 @@ export async function storeUserUuid(email: string, uuid: string): Promise<boolea
       }, { onConflict: 'email' });
       
     if (error) {
-      // Special handling for RLS policy errors
+      // Enhanced RLS policy error detection and reporting
       if (isRlsPolicyError(error)) {
         console.error('RLS policy error storing user UUID:', error);
-        toast.error('Permission denied by database policies', {
-          description: 'Please ask your administrator to configure proper write access'
+        
+        // More specific error message with code
+        const errorCode = error.code || 'unknown';
+        toast.error(`Database permission error (${errorCode})`, {
+          description: 'Row-Level Security policies are restricting write access',
+          duration: 8000,
+          action: {
+            label: 'View Fix',
+            onClick: () => {
+              // Scroll to the RLS config guide if it's in the DOM
+              const rlsGuide = document.getElementById('rls-config-guide');
+              if (rlsGuide) {
+                rlsGuide.scrollIntoView({ behavior: 'smooth' });
+              }
+            }
+          }
         });
         return false;
       }
@@ -43,11 +56,15 @@ export async function storeUserUuid(email: string, uuid: string): Promise<boolea
       if (insertError) {
         if (isRlsPolicyError(insertError)) {
           console.error('RLS policy error during direct insert:', insertError);
+          
+          // More actionable error message
           toast.error('RLS policy is blocking data writes', {
-            description: 'Your administrator needs to update database permissions'
+            description: 'Database administrator needs to update the security policies',
+            duration: 8000
           });
         } else {
           console.error('Direct insert failed:', insertError);
+          toast.error(`Database error: ${insertError.message || 'Unknown error'}`);
         }
         return false;
       }
@@ -57,6 +74,9 @@ export async function storeUserUuid(email: string, uuid: string): Promise<boolea
     return true;
   } catch (error) {
     console.error('Exception when storing user UUID in Supabase:', error);
+    toast.error('Failed to store user ID in database', {
+      description: error instanceof Error ? error.message : 'Unknown error'
+    });
     return false;
   }
 }
