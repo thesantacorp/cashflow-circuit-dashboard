@@ -22,6 +22,8 @@ import AdminNotificationDashboard from "./pages/AdminNotificationDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import { initSessionTracking } from "./utils/sessionTracking";
 import { initRecoverySystem } from "./utils/userDataRecovery";
+import { initializeSupabase } from "./utils/supabaseInit";
+import { toast } from "sonner";
 
 const queryClient = new QueryClient();
 
@@ -29,18 +31,31 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize session tracking
-    initSessionTracking();
+    const initApp = async () => {
+      // Initialize session tracking
+      initSessionTracking();
+      
+      // Initialize recovery system
+      initRecoverySystem();
+      
+      // Initialize Supabase connection
+      try {
+        await initializeSupabase();
+      } catch (error) {
+        console.error("Failed to initialize Supabase:", error);
+        toast.error("Could not connect to the database", {
+          description: "Some features may not be available",
+          duration: 5000,
+        });
+      }
+      
+      // Simulating app initialization time
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 2000);
+    };
     
-    // Initialize recovery system
-    initRecoverySystem();
-    
-    // Simulating app initialization time
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 2000);
-
-    return () => clearTimeout(timer);
+    initApp();
   }, []);
 
   return (
