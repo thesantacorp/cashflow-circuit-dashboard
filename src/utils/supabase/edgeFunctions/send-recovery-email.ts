@@ -1,7 +1,7 @@
 
 // This file contains the code to be deployed as a Supabase Edge Function.
 // Copy and paste this code when creating the function in the Supabase dashboard.
-
+/*
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { SmtpClient } from 'https://deno.land/x/smtp@v0.7.0/mod.ts';
 
@@ -77,3 +77,20 @@ serve(async (req) => {
     );
   }
 });
+*/
+
+// This file serves as a template/documentation for the Supabase Edge Function
+// The actual code needs to be deployed in Supabase, not compiled with your app
+export const EDGE_FUNCTION_NAME = 'send-recovery-email';
+
+// Instructions for deploying this function in Supabase:
+// 1. Go to your Supabase dashboard > Edge Functions
+// 2. Create a new function named 'send-recovery-email'
+// 3. Copy the code from the comment above into the function editor
+// 4. Deploy the function
+// 5. Set the following environment variables in your Supabase project:
+//    - SMTP_HOST (e.g., smtp.gmail.com)
+//    - SMTP_USERNAME (your email address)
+//    - SMTP_PASSWORD (your email password or app password)
+//    - SMTP_PORT (usually 587)
+//    - FROM_EMAIL (the email that will appear in the From field)
