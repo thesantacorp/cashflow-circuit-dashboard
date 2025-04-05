@@ -23,14 +23,6 @@ export type TransactionAction =
 export type TransactionContextType = {
   state: TransactionState;
   dispatch: Dispatch<TransactionAction>;
-  userUuid: string | null;
-  userEmail: string | null;
-  syncStatus?: 'synced' | 'local-only' | 'unknown';
-  generateUserUuid: (email: string) => Promise<string>;
-  checkUuidExists: () => boolean;
-  getUserEmail: () => string | null;
-  forceSyncToCloud?: () => Promise<boolean>;
-  checkSyncStatus?: () => Promise<boolean>;
   addTransaction: (transaction: Omit<Transaction, "id">) => boolean;
   updateTransaction: (transaction: Transaction) => boolean;
   deleteTransaction: (id: string) => boolean;
@@ -40,6 +32,6 @@ export type TransactionContextType = {
   getCategoriesByType: (type: "income" | "expense") => Category[];
   getCategoryById: (id: string) => Category | undefined;
   getTotalByType: (type: "income" | "expense") => number;
-  importData: (transactions: Transaction[]) => boolean;
-  replaceAllData: (transactions: Transaction[]) => boolean;
+  importData: (data: Partial<TransactionState>) => void;
+  replaceAllData: (data: TransactionState) => void;
 };

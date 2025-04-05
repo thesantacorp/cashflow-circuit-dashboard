@@ -1,4 +1,3 @@
-
 import { getSupabaseClient } from "./supabase/client";
 import { toast } from "sonner";
 import { sendEmailViaSupabase } from "./supabase/edgeFunctions/emailFunctions";
@@ -21,7 +20,7 @@ export async function sendEmailWithUuid(email: string, uuid: string): Promise<bo
       email,
       'Your Stack\'d Finance User ID',
       `Hello,\n\nThank you for using Stack'd Finance. Your User ID for data recovery is:\n\n${uuid}\n\nPlease keep this ID safe as you will need it to recover your data.\n\nRegards,\nStack'd Finance Team`,
-      'send-uuid-email'
+      'send-email'
     );
     
     if (!success) {
@@ -159,14 +158,14 @@ function showEmailSetupError() {
                     <li>In the left sidebar, click on <strong>Edge Functions</strong></li>
                     <li>Create three functions with exactly these names:
                       <ul>
-                        <li><code>send-uuid-email</code></li>
+                        <li><code>send-email</code></li>
                         <li><code>send-recovery-email</code></li>
                         <li><code>send-verification-code</code></li>
                       </ul>
                     </li>
                     <li>Copy the code from the corresponding files in your project:
                       <ul>
-                        <li><code>src/utils/supabase/edgeFunctions/send-uuid-email.ts</code></li>
+                        <li><code>src/utils/supabase/edgeFunctions/send-email.ts</code></li>
                         <li><code>src/utils/supabase/edgeFunctions/send-recovery-email.ts</code></li>
                         <li><code>src/utils/supabase/edgeFunctions/send-verification-code.ts</code></li>
                       </ul>

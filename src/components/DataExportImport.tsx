@@ -1,5 +1,5 @@
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Transaction } from "@/types";
 
 interface DataExportImportProps {
   showDialog?: boolean;
@@ -26,7 +27,10 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showReplaceDialog, setShowReplaceDialog] = useState(false);
-  const [importedData, setImportedData] = useState<any[]>([]);
+  const [importedData, setImportedData] = useState<{transactions: Transaction[], categories: any[]}>({
+    transactions: [],
+    categories: []
+  });
 
   const handleExportCSV = () => {
     try {
@@ -194,7 +198,10 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
           throw new Error("No valid transactions found in the CSV file");
         }
         
-        setImportedData(transactions);
+        setImportedData({
+          transactions: transactions,
+          categories: state.categories
+        });
         setShowReplaceDialog(true);
       } catch (error) {
         console.error("Import error:", error);
@@ -219,17 +226,17 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
       replaceAllData(importedData);
       toast({
         title: "Data replaced",
-        description: `${importedData.length} transactions have replaced your existing data.`
+        description: `${importedData.transactions.length} transactions have replaced your existing data.`
       });
     } else {
       importData(importedData);
       toast({
         title: "Import successful",
-        description: `${importedData.length} transactions have been added to your existing data.`
+        description: `${importedData.transactions.length} transactions have been added to your existing data.`
       });
     }
     setShowReplaceDialog(false);
-    setImportedData([]);
+    setImportedData({ transactions: [], categories: [] });
   };
 
   return (

@@ -3,9 +3,43 @@ import { useReducer, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
 import { Category, Transaction, TransactionType } from "@/types";
-import { transactionReducer, initialState } from "../reducer";
 
-export function useTransactionOperations(userUuid: string | null) {
+// Simple reducer for local state management
+const transactionReducer = (state: any, action: any) => {
+  switch (action.type) {
+    case "ADD_TRANSACTION":
+      return { ...state, transactions: [...state.transactions, action.payload] };
+    case "UPDATE_TRANSACTION":
+      return {
+        ...state,
+        transactions: state.transactions.map((t: any) => 
+          t.id === action.payload.id ? action.payload : t
+        )
+      };
+    case "DELETE_TRANSACTION":
+      return {
+        ...state,
+        transactions: state.transactions.filter((t: any) => t.id !== action.payload)
+      };
+    case "ADD_CATEGORY":
+      return { ...state, categories: [...state.categories, action.payload] };
+    case "DELETE_CATEGORY":
+      return {
+        ...state,
+        categories: state.categories.filter((c: any) => c.id !== action.payload)
+      };
+    default:
+      return state;
+  }
+};
+
+// Initial state
+const initialState = {
+  transactions: [],
+  categories: []
+};
+
+export function useTransactionOperations() {
   // Load state from localStorage
   const savedState = localStorage.getItem("transactionState");
   const [state, dispatch] = useReducer(
@@ -20,11 +54,6 @@ export function useTransactionOperations(userUuid: string | null) {
 
   // Add a transaction
   const addTransaction = (transaction: Omit<Transaction, "id">) => {
-    if (!userUuid) {
-      toast.error("Please generate a User ID first");
-      return false;
-    }
-    
     dispatch({
       type: "ADD_TRANSACTION",
       payload: { ...transaction, id: uuidv4() },
@@ -35,11 +64,6 @@ export function useTransactionOperations(userUuid: string | null) {
 
   // Update a transaction
   const updateTransaction = (transaction: Transaction) => {
-    if (!userUuid) {
-      toast.error("Please generate a User ID first");
-      return false;
-    }
-    
     dispatch({ 
       type: "UPDATE_TRANSACTION", 
       payload: transaction 
@@ -50,11 +74,6 @@ export function useTransactionOperations(userUuid: string | null) {
 
   // Delete a transaction
   const deleteTransaction = (id: string) => {
-    if (!userUuid) {
-      toast.error("Please generate a User ID first");
-      return false;
-    }
-    
     dispatch({ 
       type: "DELETE_TRANSACTION", 
       payload: id
@@ -65,11 +84,6 @@ export function useTransactionOperations(userUuid: string | null) {
 
   // Add a category
   const addCategory = (category: Omit<Category, "id">) => {
-    if (!userUuid) {
-      toast.error("Please generate a User ID first");
-      return false;
-    }
-    
     dispatch({
       type: "ADD_CATEGORY",
       payload: { ...category, id: uuidv4() },
@@ -80,11 +94,6 @@ export function useTransactionOperations(userUuid: string | null) {
 
   // Delete a category
   const deleteCategory = (id: string) => {
-    if (!userUuid) {
-      toast.error("Please generate a User ID first");
-      return false;
-    }
-    
     dispatch({ 
       type: "DELETE_CATEGORY", 
       payload: id

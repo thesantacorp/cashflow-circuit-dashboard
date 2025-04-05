@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,7 +17,6 @@ import ConnectionStatusIndicator from "@/components/ConnectionStatusIndicator";
 import OverviewPageEnhanced from "@/pages/OverviewPageEnhanced";
 import ExpensesPage from "@/pages/ExpensesPage";
 import IncomePage from "@/pages/IncomePage";
-import RecoverPage from "@/pages/RecoverPage";
 import NotFound from "./pages/NotFound";
 import AdminNotificationDashboard from "./pages/AdminNotificationDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -204,7 +204,6 @@ function App() {
                     <Routes>
                       <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />
                       <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                      <Route path="/recover/:recoveryId" element={<RecoverPage />} />
                       <Route path="/*" element={
                         <>
                           <Navbar />

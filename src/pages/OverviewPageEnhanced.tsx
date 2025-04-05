@@ -12,18 +12,16 @@ import DataExportImport from "@/components/DataExportImport";
 import { useTransactions } from "@/context/transaction";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LayoutDashboardIcon, SmileIcon, PieChartIcon } from "lucide-react";
-import UuidStatus from "@/components/UuidStatus";
 
 const OverviewPageEnhanced: React.FC = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const { currencySymbol } = useCurrency();
-  const { getTotalByType, checkUuidExists } = useTransactions();
+  const { getTotalByType } = useTransactions();
   const isMobile = useIsMobile();
   
   const totalExpenses = getTotalByType("expense");
   const totalIncome = getTotalByType("income");
   const balance = totalIncome - totalExpenses;
-  const hasUuid = checkUuidExists();
 
   return (
     <div className="container py-6 max-w-7xl mx-auto px-4 w-full">
@@ -33,12 +31,6 @@ const OverviewPageEnhanced: React.FC = () => {
           <CurrencySelector />
         </div>
       </div>
-      
-      {!hasUuid && (
-        <div className="mb-6">
-          <UuidStatus />
-        </div>
-      )}
       
       {!isMobile && (
         <Card className="bg-primary text-primary-foreground overflow-hidden w-full max-w-full mb-6">

@@ -11,25 +11,17 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
-import UuidStatus from "@/components/UuidStatus";
 
 const ExpensesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
   const isMobile = useIsMobile();
-  const { getTotalByType, checkUuidExists } = useTransactions();
+  const { getTotalByType } = useTransactions();
   const { currencySymbol } = useCurrency();
   const totalExpenses = getTotalByType("expense");
-  const hasUuid = checkUuidExists();
 
   return (
     <div className="container py-6 max-w-7xl mx-auto px-4 w-full overflow-x-hidden">
       <h1 className="text-3xl font-bold mb-6 text-center sm:text-left">Expenses</h1>
-      
-      {!hasUuid && (
-        <div className="mb-6">
-          <UuidStatus />
-        </div>
-      )}
       
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="mb-8">
         <TabsList className="grid w-full grid-cols-3 mb-4">
