@@ -5,10 +5,12 @@ import { useTransactions } from "@/context/transaction";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle, XCircle, RefreshCw, Database, Eye, EyeOff, Shield } from "lucide-react";
+import { Loader2, RefreshCw, Database, Eye, EyeOff, Shield } from "lucide-react";
 import { toast } from "sonner";
 import SyncVerificationStatus from "./SyncVerificationStatus";
 import RlsConfigGuide from "./RlsConfigGuide";
+import SyncStatusDisplay from "./sync/SyncStatusDisplay";
+import UuidRecordsTable from "./sync/UuidRecordsTable";
 
 const SyncVerification: React.FC = () => {
   const { userUuid, userEmail, forceSyncToCloud, syncStatus } = useTransactions();
@@ -152,32 +154,8 @@ const SyncVerification: React.FC = () => {
                       <Loader2 className="h-5 w-5 animate-spin" />
                       <span>Checking sync status...</span>
                     </div>
-                  ) : verificationStatus === 'synced' ? (
-                    <div className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center gap-3">
-                      <CheckCircle className="h-6 w-6 text-green-600" />
-                      <div>
-                        <h4 className="font-semibold text-green-800">Successfully synced to cloud!</h4>
-                        <p className="text-sm text-green-700">Your User ID is securely stored in the cloud database</p>
-                      </div>
-                    </div>
-                  ) : verificationStatus === 'rls-issue' ? (
-                    <div className="bg-amber-50 border border-amber-200 rounded-md p-3 flex items-center gap-3">
-                      <Shield className="h-6 w-6 text-amber-600" />
-                      <div>
-                        <h4 className="font-semibold text-amber-800">Database permissions issue</h4>
-                        <p className="text-sm text-amber-700">RLS policies are preventing database writes</p>
-                      </div>
-                    </div>
-                  ) : verificationStatus === 'not-synced' ? (
-                    <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center gap-3">
-                      <XCircle className="h-6 w-6 text-red-600" />
-                      <div>
-                        <h4 className="font-semibold text-red-800">Not synced to cloud</h4>
-                        <p className="text-sm text-red-700">Your User ID is only stored locally</p>
-                      </div>
-                    </div>
                   ) : (
-                    <p className="text-sm text-gray-600">Click the button below to check if your User ID is synced to the cloud.</p>
+                    <SyncStatusDisplay verificationStatus={verificationStatus} />
                   )}
                   
                   <div className="flex gap-2 flex-wrap">
@@ -247,35 +225,7 @@ const SyncVerification: React.FC = () => {
                   )}
                 </Button>
                 
-                {allUuids && (
-                  <div className="mt-2">
-                    {allUuids.length > 0 ? (
-                      <div className="border rounded-md overflow-hidden">
-                        <div className="text-xs font-medium bg-indigo-50 text-indigo-800 p-2 grid grid-cols-3">
-                          <div>Email</div>
-                          <div>UUID</div>
-                          <div>Created</div>
-                        </div>
-                        <div className="max-h-40 overflow-y-auto">
-                          {allUuids.map((item, index) => (
-                            <div 
-                              key={index}
-                              className={`text-xs p-2 grid grid-cols-3 ${
-                                index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                              } ${item.email === userEmail ? 'bg-indigo-50' : ''}`}
-                            >
-                              <div className="truncate">{item.email}</div>
-                              <div className="truncate">{item.uuid.substring(0, 8)}...</div>
-                              <div>{new Date(item.created_at).toLocaleString()}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500">No records found in database</p>
-                    )}
-                  </div>
-                )}
+                {allUuids && <UuidRecordsTable records={allUuids} userEmail={userEmail} />}
               </>
             )}
           </div>
@@ -283,9 +233,7 @@ const SyncVerification: React.FC = () => {
       </Card>
       
       {/* Show the RLS Config Guide if we've detected an RLS issue */}
-      {hasRlsPolicyIssue && (
-        <RlsConfigGuide />
-      )}
+      {hasRlsPolicyIssue && <RlsConfigGuide />}
     </div>
   );
 };

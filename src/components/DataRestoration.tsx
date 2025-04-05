@@ -2,17 +2,14 @@
 import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { 
-  KeyRound, Download, Mail, Loader2, 
-  CloudOff, RefreshCw, AlertTriangle, ArrowLeft,
-  Check, ShieldCheck
-} from "lucide-react";
+import { Download, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 import { getSupabaseClient } from "@/utils/supabase/client";
+import EmailForm from "./restoration/EmailForm";
+import VerificationForm from "./restoration/VerificationForm";
+import ImportSuccess from "./restoration/ImportSuccess";
 
 interface DataRestorationProps {
   onCancel: () => void;
@@ -31,7 +28,6 @@ const DataRestoration: React.FC<DataRestorationProps> = ({ onCancel }) => {
   
   // Add verification states
   const [verificationSent, setVerificationSent] = useState<boolean>(false);
-  const [verificationCode, setVerificationCode] = useState<string>("");
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   
   const validateEmail = (email: string): boolean => {
@@ -123,7 +119,7 @@ const DataRestoration: React.FC<DataRestorationProps> = ({ onCancel }) => {
     }
   };
   
-  const handleVerifyAndImport = async () => {
+  const handleVerifyAndImport = async (verificationCode: string) => {
     if (!verificationCode) {
       toast.error("Please enter the verification code");
       return;
@@ -222,6 +218,55 @@ const DataRestoration: React.FC<DataRestorationProps> = ({ onCancel }) => {
     }
   };
   
+  const renderContent = () => {
+    if (importSuccess) {
+      return <ImportSuccess importStats={importStats} onContinue={onCancel} />;
+    } else if (verificationSent) {
+      return (
+        <>
+          <VerificationForm 
+            email={email}
+            onVerifyAndImport={handleVerifyAndImport}
+            onBackClick={() => setVerificationSent(false)}
+            isImporting={isImporting}
+          />
+          
+          {importError && (
+            <Alert variant="destructive" className="mt-4 bg-red-50 border-red-200 text-red-800">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <AlertTitle className="text-red-700">Import Failed</AlertTitle>
+              <AlertDescription className="text-red-700">
+                {importError}
+              </AlertDescription>
+            </Alert>
+          )}
+        </>
+      );
+    } else {
+      return (
+        <>
+          <EmailForm 
+            email={email}
+            onEmailChange={setEmail}
+            onSendVerification={handleSendVerification}
+            onCancel={onCancel}
+            isVerifying={isVerifying}
+          />
+          
+          {importError && (
+            <Alert variant="destructive" className="mt-4 bg-red-50 border-red-200 text-red-800">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <AlertTitle className="text-red-700">Import Failed</AlertTitle>
+              <AlertDescription className="text-red-700">
+                {importError}
+              </AlertDescription>
+            </Alert>
+          )}
+        </>
+      );
+    }
+  };
+  
   return (
     <Card className="border-indigo-200 shadow-lg bg-gradient-to-b from-white to-indigo-50/30">
       <CardHeader className="border-b border-indigo-100">
@@ -231,166 +276,7 @@ const DataRestoration: React.FC<DataRestorationProps> = ({ onCancel }) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-4">
-        {importSuccess ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-green-600">
-              <RefreshCw className="h-5 w-5" />
-              <span className="font-medium">Data Import Successful!</span>
-            </div>
-            
-            <p className="text-sm text-muted-foreground">
-              Your data has been successfully imported and your User ID is now active on this device.
-            </p>
-            
-            {importStats && (
-              <div className="bg-green-50 border border-green-200 rounded-md p-3 text-sm text-green-800">
-                <p className="font-medium mb-1">Import Summary:</p>
-                <ul className="list-disc list-inside">
-                  <li>Transactions: {importStats.transactions}</li>
-                  <li>Categories: {importStats.categories}</li>
-                </ul>
-              </div>
-            )}
-            
-            <Button 
-              onClick={onCancel} 
-              className="mt-2 w-full bg-indigo-500 hover:bg-indigo-600 text-white"
-            >
-              Continue to App
-            </Button>
-          </div>
-        ) : verificationSent ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-indigo-600">
-              <ShieldCheck className="h-5 w-5" />
-              <span className="font-medium">Verify Your Email</span>
-            </div>
-            
-            <p className="text-sm text-muted-foreground">
-              Enter the verification code sent to {email} to confirm ownership and import your data.
-            </p>
-            
-            <div className="space-y-2">
-              <Label htmlFor="verificationCode" className="text-sm font-medium">
-                Verification Code
-              </Label>
-              <Input
-                id="verificationCode"
-                type="text"
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value)}
-                placeholder="Enter 6-digit code"
-                className="border-indigo-200 focus-visible:ring-indigo-400"
-                disabled={isImporting}
-              />
-            </div>
-            
-            {importError && (
-              <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800">
-                <AlertTriangle className="h-4 w-4 text-red-600" />
-                <AlertTitle className="text-red-700">Import Failed</AlertTitle>
-                <AlertDescription className="text-red-700">
-                  {importError}
-                </AlertDescription>
-              </Alert>
-            )}
-            
-            <div className="flex flex-col space-y-2">
-              <Button 
-                onClick={handleVerifyAndImport} 
-                className="bg-indigo-500 hover:bg-indigo-600 text-white w-full"
-                disabled={isImporting || !verificationCode}
-              >
-                {isImporting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Verifying & Importing Data...
-                  </>
-                ) : (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Verify & Import Data
-                  </>
-                )}
-              </Button>
-              
-              <Button 
-                onClick={() => setVerificationSent(false)} 
-                variant="ghost" 
-                className="text-muted-foreground"
-                disabled={isImporting}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Email Entry
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Enter the email address associated with your existing User ID to restore your data on this device.
-            </p>
-            
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
-                Your Email Address
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email address"
-                className="border-indigo-200 focus-visible:ring-indigo-400"
-                disabled={isVerifying}
-              />
-            </div>
-            
-            {importError && (
-              <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800">
-                <AlertTriangle className="h-4 w-4 text-red-600" />
-                <AlertTitle className="text-red-700">Import Failed</AlertTitle>
-                <AlertDescription className="text-red-700">
-                  {importError}
-                </AlertDescription>
-              </Alert>
-            )}
-            
-            <div className="flex flex-col space-y-2">
-              <Button 
-                onClick={handleSendVerification} 
-                className="bg-indigo-500 hover:bg-indigo-600 text-white w-full"
-                disabled={isVerifying || !email}
-              >
-                {isVerifying ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending Verification...
-                  </>
-                ) : (
-                  <>
-                    <Mail className="mr-2 h-4 w-4" />
-                    Send Verification Code
-                  </>
-                )}
-              </Button>
-              
-              <Button 
-                onClick={onCancel} 
-                variant="ghost" 
-                className="text-muted-foreground"
-                disabled={isVerifying}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Go Back
-              </Button>
-            </div>
-            
-            <p className="text-xs text-muted-foreground">
-              This will restore your data across all your devices. Your local data will be merged with any existing cloud data.
-            </p>
-          </div>
-        )}
+        {renderContent()}
       </CardContent>
     </Card>
   );
