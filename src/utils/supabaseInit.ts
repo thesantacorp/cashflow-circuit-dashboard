@@ -1,3 +1,4 @@
+
 import { ensureUuidTableExists, getSupabaseClient, storeUserUuid } from './supabase/index';
 import { verifySupabaseSetup, attemptSupabaseSetupFix } from './supabaseVerification';
 import { toast } from 'sonner';
@@ -19,32 +20,6 @@ export async function initializeSupabase(): Promise<boolean> {
     // Run comprehensive verification
     const verification = await verifySupabaseSetup();
     console.log('Supabase verification results:', verification);
-    
-    // Check if we already know we're in read-only mode
-    if (verification.connected && verification.hasReadAccess && !verification.hasWriteAccess) {
-      // Store this information so we don't keep trying to write
-      localStorage.setItem("supabaseReadOnly", "true");
-      
-      console.warn('Connected to Supabase with read-only access (RLS policy issue)');
-      toast.warning('Connected with limited permissions', { 
-        id: 'supabase-init',
-        description: 'Using local storage mode due to database permissions' 
-      });
-      // Still return true as we have basic connectivity
-      return true;
-    }
-    
-    // Connected but has write access issues
-    if (verification.connected && verification.tableExists && 
-        verification.hasReadAccess && !verification.hasWriteAccess) {
-      console.warn('Connected to Supabase with read-only access (RLS policy issue)');
-      toast.warning('Connected with limited permissions', { 
-        id: 'supabase-init',
-        description: 'Read-only mode due to database permissions' 
-      });
-      // Still return true as we have basic connectivity
-      return true;
-    }
     
     // If connected but table doesn't exist, try to create it
     if (verification.connected && !verification.tableExists) {

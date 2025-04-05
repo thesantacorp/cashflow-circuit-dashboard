@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from "react";
 import { verifyUuidInSupabase, getAllUuids } from "@/utils/supabase/index";
-import { verifySupabaseSetup } from "@/utils/supabaseVerification";
 import { useTransactions } from "@/context/transaction";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -43,24 +42,14 @@ const SyncVerification: React.FC = () => {
       } else {
         toast.error("Your User ID is not yet synced to the cloud.");
         
-        // Run a verification to check if the issue is with permissions
-        const verification = await verifySupabaseSetup();
-        
-        // If the issue is with write permissions, inform the user
-        if (verification.connected && !verification.hasWriteAccess) {
-          toast.warning("Database permission issue detected", {
-            description: "Using local storage mode due to write restrictions"
-          });
-        } else {
-          // Only auto-attempt sync if it's not a permissions issue
-          const syncAttempt = await forceSyncToCloud();
-          if (syncAttempt) {
-            // Re-verify after sync attempt
-            const recheck = await verifyUuidInSupabase(userEmail, userUuid);
-            if (recheck) {
-              setSyncStatus('synced');
-              toast.success("Successfully synced your User ID to the cloud!");
-            }
+        // Auto-attempt sync if not synced
+        const syncAttempt = await forceSyncToCloud();
+        if (syncAttempt) {
+          // Re-verify after sync attempt
+          const recheck = await verifyUuidInSupabase(userEmail, userUuid);
+          if (recheck) {
+            setSyncStatus('synced');
+            toast.success("Successfully synced your User ID to the cloud!");
           }
         }
       }

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -153,13 +154,6 @@ const UuidStatus: React.FC = () => {
                 <RefreshCw className="mr-2 h-4 w-4" />
                 {showVerification ? "Hide Verification" : "Verify Cloud Sync"}
               </Button>
-              
-              {syncStatus === 'local-only' && (
-                <p className="text-xs text-amber-600 mt-1">
-                  Note: Your User ID might be in read-only mode due to database permissions.
-                  Data is securely stored locally.
-                </p>
-              )}
               
               <p className="text-sm text-muted-foreground mt-2">
                 Your transactions are securely linked to this ID. Keep it safe for data recovery.

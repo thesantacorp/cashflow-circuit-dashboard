@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, XCircle, AlertCircle, Server, Database, ShieldAlert } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, AlertCircle, Server, Database } from "lucide-react";
 import { toast } from "sonner";
 import { verifySupabaseSetup, attemptSupabaseSetupFix } from "@/utils/supabaseVerification";
 
@@ -37,12 +37,6 @@ const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({
       if (result.connected && result.tableExists && result.hasReadAccess && result.hasWriteAccess) {
         toast.success('All Supabase settings are properly configured!', { id: 'verification' });
         if (onComplete) onComplete(true);
-      } else if (result.connected && !result.hasWriteAccess) {
-        toast.warning('Database connection has read-only access', {
-          id: 'verification',
-          description: 'Row-level security policy needs adjustment'
-        });
-        if (onComplete) onComplete(false);
       } else {
         toast.error('Some Supabase settings need attention', { id: 'verification' });
         if (onComplete) onComplete(false);
@@ -149,19 +143,6 @@ const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({
                     </>
                   )}
                 </Button>
-              </div>
-            )}
-            
-            {verification.connected && !verification.hasWriteAccess && (
-              <div className="p-2 bg-amber-50 border border-amber-200 rounded-md mt-2">
-                <div className="flex gap-2 items-start">
-                  <ShieldAlert className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-xs text-amber-800">
-                    <p className="font-medium">RLS Policy Issue Detected</p>
-                    <p className="mt-1">Your Supabase project has Row Level Security policies that prevent writing to the database. 
-                    The app will work in local-only mode until this is fixed.</p>
-                  </div>
-                </div>
               </div>
             )}
           </div>
