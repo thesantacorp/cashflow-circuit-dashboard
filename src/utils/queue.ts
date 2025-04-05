@@ -27,6 +27,31 @@ export class Queue {
   }
   
   /**
+   * Add an operation to the queue - alias for enqueue
+   * This method is used in several places in the codebase
+   */
+  add(operationType: string, data: any, maxRetries: number = 3): void {
+    const operation = async () => {
+      console.log(`Queue: Processing ${operationType} operation`, data);
+      
+      if (operationType === 'syncUuid') {
+        try {
+          const { storeUserUuid } = await import('./supabase/index');
+          await storeUserUuid(data.email, data.uuid);
+          console.log(`Queue: Successfully synced UUID for ${data.email}`);
+        } catch (error) {
+          console.error(`Queue: Failed to sync UUID for ${data.email}`, error);
+          throw error; // Rethrow to trigger retry logic
+        }
+      }
+      
+      // More operation types can be added here
+    };
+    
+    this.enqueue(operation, maxRetries);
+  }
+  
+  /**
    * Process all items in the queue
    */
   async processQueue(): Promise<void> {
