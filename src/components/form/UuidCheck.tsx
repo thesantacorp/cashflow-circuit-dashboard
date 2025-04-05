@@ -94,15 +94,15 @@ const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
               <span>Generate New User ID</span>
             </Button>
             
-            <Button 
-              onClick={() => window.location.href = '/#user-id-section'} 
-              className="bg-indigo-500 hover:bg-indigo-600 text-white"
-              as={Link} 
-              to="/#user-id-section"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              <span>Import Existing Data</span>
-            </Button>
+            <Link to="/#user-id-section" className="inline-block">
+              <Button 
+                onClick={() => window.location.href = '/#user-id-section'} 
+                className="bg-indigo-500 hover:bg-indigo-600 text-white w-full"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                <span>Import Existing Data</span>
+              </Button>
+            </Link>
           </div>
         )}
         
