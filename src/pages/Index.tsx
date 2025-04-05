@@ -16,7 +16,8 @@ import DataRecovery from '@/components/DataRecovery';
 import MobileNav from '@/components/MobileNav';
 
 export default function Index() {
-  const { transactions } = useTransactions();
+  // Using state directly from the transaction context instead of getAllTransactions
+  const { state } = useTransactions();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -47,7 +48,7 @@ export default function Index() {
           </div>
 
           <TabsContent value="transactions" className="space-y-4">
-            <TransactionList transactions={transactions} title="Recent Transactions" limit={20} />
+            <TransactionList transactions={state.transactions} title="Recent Transactions" limit={20} />
           </TabsContent>
 
           <TabsContent value="expenses" className="space-y-4">
@@ -59,7 +60,7 @@ export default function Index() {
           </TabsContent>
 
           <TabsContent value="dashboard" className="space-y-4">
-            <Dashboard />
+            <Dashboard type="expense" />
           </TabsContent>
 
           <TabsContent value="backup" className="space-y-6">
