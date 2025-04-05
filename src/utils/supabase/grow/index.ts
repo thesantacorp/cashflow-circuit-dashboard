@@ -1,7 +1,7 @@
 
 import { getSupabaseClient } from '../client';
 import { toast } from 'sonner';
-import { createProjectsTable, createProjectVotesTable, createAllGrowTables } from './tableOperations';
+import { createProjectsTable, createProjectVotesTable, createAllGrowTables, disableRlsPoliciesForGrowTables } from './tableOperations';
 import { createStorageBucketGuaranteed } from './storageOperations';
 import { checkSupabaseConnection } from '../../supabaseInit';
 
@@ -43,6 +43,11 @@ export const ensureGrowTablesExist = async (): Promise<boolean> => {
     if (!tablesCreated) {
       console.error('Failed to create some Grow tables');
       toast.error("Failed to initialize database tables");
+      
+      // Try to explicitly disable RLS policies as a last resort
+      console.log('Attempting to explicitly disable RLS policies as last resort...');
+      await disableRlsPoliciesForGrowTables();
+      
       return false;
     }
     
@@ -69,4 +74,9 @@ export const ensureGrowTablesExist = async (): Promise<boolean> => {
 };
 
 // Export all table operations for direct access
-export { createProjectsTable, createProjectVotesTable, createAllGrowTables } from './tableOperations';
+export { 
+  createProjectsTable, 
+  createProjectVotesTable, 
+  createAllGrowTables, 
+  disableRlsPoliciesForGrowTables 
+} from './tableOperations';
