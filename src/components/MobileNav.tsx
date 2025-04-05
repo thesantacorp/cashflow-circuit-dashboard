@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
@@ -25,14 +24,12 @@ const MobileNav: React.FC = () => {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
 
-  // Navigation items - "Grow" has been removed from the list
   const navigationItems = [
     { name: "Overview", path: "/" },
     { name: "Expenses", path: "/expenses" },
     { name: "Income", path: "/income" }
   ];
 
-  // Settings items
   const settingsItems = [
     { 
       name: "Notifications", 
@@ -61,50 +58,37 @@ const MobileNav: React.FC = () => {
     }
   ];
 
-  // Navigation handler
   const handleNavigation = (path: string) => {
     navigate(path);
     setIsDrawerOpen(false);
   };
   
-  // Helper to safely open a settings sheet
   const openSettingsSheet = (setting: string) => {
-    // First close the drawer
     setIsDrawerOpen(false);
-    
-    // Wait for drawer animation to complete before opening sheet
     setTimeout(() => {
       setActiveSheet(setting);
       setIsSheetOpen(true);
     }, 300);
   };
 
-  // Helper to safely close a settings sheet
   const closeSettingsSheet = () => {
     setIsSheetOpen(false);
   };
 
-  // Handle sheet close event
   const handleSheetOpenChange = (open: boolean) => {
     setIsSheetOpen(open);
     if (!open) {
-      // Wait for the closing animation to complete before clearing the activeSheet
       setTimeout(() => {
         setActiveSheet(null);
       }, 300);
     }
   };
 
-  // Reset focus trap and ensure menu button remains clickable
   useEffect(() => {
     if (!isSheetOpen) {
-      // Small timeout to ensure DOM has settled
       setTimeout(() => {
-        // Reset any focus traps and ensure menu button is clickable
         document.body.style.pointerEvents = '';
         document.body.style.touchAction = '';
-        
-        // Ensure the menu button is accessible
         if (menuButtonRef.current) {
           menuButtonRef.current.style.pointerEvents = 'auto';
         }
@@ -114,7 +98,6 @@ const MobileNav: React.FC = () => {
 
   return (
     <>
-      {/* Mobile Menu Button */}
       <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
         <DrawerTrigger asChild>
           <Button 
@@ -127,7 +110,6 @@ const MobileNav: React.FC = () => {
           </Button>
         </DrawerTrigger>
         
-        {/* Drawer Content */}
         <DrawerContent className="h-[85%] bg-gradient-to-b from-orange-50 to-white border-t-orange-200">
           <DrawerHeader className="flex justify-between border-b border-orange-200/50 pb-3">
             <DrawerTitle className="text-orange-800 font-semibold">Menu</DrawerTitle>
@@ -139,13 +121,11 @@ const MobileNav: React.FC = () => {
           </DrawerHeader>
           
           <div className="flex-1 overflow-y-auto p-4">
-            {/* Navigation Section */}
             <MobileNavMenu 
               navigationItems={navigationItems} 
               onNavigation={handleNavigation} 
             />
             
-            {/* Settings Section */}
             <MobileSettingsMenu 
               settingsItems={settingsItems} 
               onSettingSelect={openSettingsSheet} 
@@ -164,7 +144,6 @@ const MobileNav: React.FC = () => {
         </DrawerContent>
       </Drawer>
 
-      {/* Settings Sheet */}
       <Sheet 
         open={isSheetOpen} 
         onOpenChange={handleSheetOpenChange}

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useBackup } from "@/context/BackupContext";
 import { BackupFrequency } from "@/types";
@@ -52,7 +51,6 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
   const [isRestoring, setIsRestoring] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Check if backup is due every time the component mounts
   useEffect(() => {
     const checkBackup = () => {
       if (settings.enabled && isBackupDue()) {
@@ -68,13 +66,11 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
     
     checkBackup();
     
-    // Set a daily check for backups
     const intervalId = setInterval(checkBackup, 24 * 60 * 60 * 1000);
     
     return () => clearInterval(intervalId);
   }, [settings, isBackupDue, performBackup]);
   
-  // Perform automatic backup if daily is selected and a day has passed
   useEffect(() => {
     const autoBackup = async () => {
       if (settings.enabled && isAuthenticated && isBackupDue()) {
@@ -88,10 +84,8 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
       }
     };
     
-    // Check for auto backup on component mount
     autoBackup();
     
-    // Also set up an interval to check regularly (every 6 hours)
     const intervalId = setInterval(autoBackup, 6 * 60 * 60 * 1000);
     
     return () => clearInterval(intervalId);
@@ -128,15 +122,18 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
     }
   };
 
-  // If we're using this component in a modal context (from mobile menu)
   if (onClose) {
     return (
       <div className="max-w-md mx-auto">
         <div className="grid gap-4 py-4">
           {!isAuthenticated ? (
             <div className="flex flex-col gap-4 items-center justify-center p-4">
-              <p className="text-center text-black">Sign in with your Google account to enable backups</p>
-              <Button onClick={handleGoogleSignIn} className="w-full" variant="outline">
+              <p className="text-center text-black font-medium">Sign in with your Google account to enable backups</p>
+              <Button 
+                onClick={handleGoogleSignIn} 
+                className="w-full bg-white text-black border-orange-300 hover:bg-orange-100 hover:text-black" 
+                variant="outline"
+              >
                 <LogInIcon className="mr-2 h-4 w-4" />
                 Sign in with Google
               </Button>
@@ -148,7 +145,7 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
                     <span>Getting an error with Google Sign In?</span>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div className="text-sm space-y-2">
+                    <div className="text-sm space-y-2 text-black">
                       <p>If you're getting a <strong>"redirect_uri_mismatch"</strong> error, follow these steps:</p>
                       <ol className="list-decimal pl-5 space-y-1">
                         <li>Go to the <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Google Cloud Console</a></li>
@@ -171,15 +168,15 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
           ) : (
             <>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-black">Signed in to Google Drive</span>
-                <Button onClick={handleGoogleSignOut} variant="ghost" size="sm">
+                <span className="text-sm text-black font-medium">Signed in to Google Drive</span>
+                <Button onClick={handleGoogleSignOut} variant="ghost" size="sm" className="text-black hover:bg-orange-100">
                   <LogOutIcon className="mr-2 h-4 w-4" />
                   Sign out
                 </Button>
               </div>
               
               <div className="flex items-center gap-4">
-                <Label htmlFor="backup-enabled" className="text-right text-black">
+                <Label htmlFor="backup-enabled" className="text-right text-black font-medium">
                   Enable Automatic Backup
                 </Label>
                 <input
@@ -193,7 +190,7 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
               
               {settings.enabled && (
                 <div className="grid gap-2">
-                  <Label htmlFor="backup-frequency" className="text-black">Backup Frequency</Label>
+                  <Label htmlFor="backup-frequency" className="text-black font-medium">Backup Frequency</Label>
                   <Select
                     value={settings.frequency}
                     onValueChange={(value) => setBackupFrequency(value as BackupFrequency)}
@@ -213,7 +210,7 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
               )}
               
               {settings.lastBackup && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-black">
                   Last backup: {new Date(settings.lastBackup).toLocaleString()}
                 </p>
               )}
@@ -224,7 +221,7 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
         <div className="flex flex-col sm:flex-row gap-2 mt-4">
           <Button 
             onClick={handleBackupNow} 
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto text-white bg-orange-500 hover:bg-orange-600"
             disabled={!isAuthenticated || isBackingUp}
           >
             {isBackingUp ? (
@@ -244,7 +241,7 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
           <Button 
             onClick={handleRestoreBackup} 
             variant="outline" 
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto text-black border-orange-300 bg-white hover:bg-orange-50"
             disabled={!isAuthenticated || isRestoring}
           >
             {isRestoring ? (
@@ -286,8 +283,12 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
         <div className="grid gap-4 py-4">
           {!isAuthenticated ? (
             <div className="flex flex-col gap-4 items-center justify-center p-4">
-              <p className="text-center text-black">Sign in with your Google account to enable backups</p>
-              <Button onClick={handleGoogleSignIn} className="w-full" variant="outline">
+              <p className="text-center text-black font-medium">Sign in with your Google account to enable backups</p>
+              <Button 
+                onClick={handleGoogleSignIn} 
+                className="w-full bg-white text-black border-orange-300 hover:bg-orange-100 hover:text-black" 
+                variant="outline"
+              >
                 <LogInIcon className="mr-2 h-4 w-4" />
                 Sign in with Google
               </Button>
@@ -299,7 +300,7 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
                     <span>Getting an error with Google Sign In?</span>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div className="text-sm space-y-2">
+                    <div className="text-sm space-y-2 text-black">
                       <p>If you're getting a <strong>"redirect_uri_mismatch"</strong> error, follow these steps:</p>
                       <ol className="list-decimal pl-5 space-y-1">
                         <li>Go to the <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Google Cloud Console</a></li>
@@ -322,15 +323,15 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
           ) : (
             <>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-black">Signed in to Google Drive</span>
-                <Button onClick={handleGoogleSignOut} variant="ghost" size="sm">
+                <span className="text-sm text-black font-medium">Signed in to Google Drive</span>
+                <Button onClick={handleGoogleSignOut} variant="ghost" size="sm" className="text-black hover:bg-orange-100">
                   <LogOutIcon className="mr-2 h-4 w-4" />
                   Sign out
                 </Button>
               </div>
               
               <div className="flex items-center gap-4">
-                <Label htmlFor="backup-enabled" className="text-right text-black">
+                <Label htmlFor="backup-enabled" className="text-right text-black font-medium">
                   Enable Automatic Backup
                 </Label>
                 <input
@@ -344,7 +345,7 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
               
               {settings.enabled && (
                 <div className="grid gap-2">
-                  <Label htmlFor="backup-frequency" className="text-black">Backup Frequency</Label>
+                  <Label htmlFor="backup-frequency" className="text-black font-medium">Backup Frequency</Label>
                   <Select
                     value={settings.frequency}
                     onValueChange={(value) => setBackupFrequency(value as BackupFrequency)}
@@ -364,7 +365,7 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
               )}
               
               {settings.lastBackup && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-black">
                   Last backup: {new Date(settings.lastBackup).toLocaleString()}
                 </p>
               )}
@@ -375,7 +376,7 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
           <Button 
             onClick={handleBackupNow} 
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto text-white bg-orange-500 hover:bg-orange-600"
             disabled={!isAuthenticated || isBackingUp}
           >
             {isBackingUp ? (
@@ -395,7 +396,7 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
           <Button 
             onClick={handleRestoreBackup} 
             variant="outline" 
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto text-black border-orange-300 bg-white hover:bg-orange-50"
             disabled={!isAuthenticated || isRestoring}
           >
             {isRestoring ? (
