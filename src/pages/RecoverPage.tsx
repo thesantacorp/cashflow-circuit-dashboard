@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { retrieveUserData, applyRecoveredUserData, RecoveryData } from '@/utils/userDataRecovery';
+import { retrieveUserData, applyRecoveredUserData, RecoveryData } from '@/utils/userRecovery';
 import { Loader2 } from 'lucide-react';
 
 const RecoverPage: React.FC = () => {

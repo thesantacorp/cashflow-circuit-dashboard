@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { toast } from "sonner";
@@ -175,7 +174,7 @@ export const DataRestorationProvider: React.FC<DataRestorationProviderProps> = (
       await generateUserUuid(email, existingUuid);
       
       try {
-        const { loadUserData } = await import('@/utils/userDataRecovery');
+        const { loadUserData } = await import('@/utils/userRecovery');
         const stats = await loadUserData(email, existingUuid);
         
         const syncSuccess = await forceSyncToCloud(true);

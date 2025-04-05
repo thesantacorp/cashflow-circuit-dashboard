@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Copy, Mail, RefreshCw, Loader2 } from 'lucide-react';
-import { generateRecoveryLink } from '@/utils/userDataRecovery';
+import { generateRecoveryLink } from '@/utils/userRecovery';
 import { sendDataRecoveryLink } from '@/utils/emailService';
 
 const DataRecovery: React.FC = () => {
