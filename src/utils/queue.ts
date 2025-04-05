@@ -1,4 +1,3 @@
-
 /**
  * A simple queue implementation for storing operations that need to be retried
  * Used primarily for Supabase sync operations when network connection is spotty
