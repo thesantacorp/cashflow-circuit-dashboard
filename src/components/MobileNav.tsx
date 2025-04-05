@@ -20,11 +20,11 @@ import SettingsSheetContent from "./mobile/SettingsSheetContent";
 
 const MobileNav: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [activeSheet, setActiveSheet] = useState<string | null>(null);
-  const [sheetTrigger, setSheetTrigger] = useState(0); // Counter to force sheet re-render
   const navigate = useNavigate();
 
-  // Navigation items - Removed "Grow" from the list
+  // Navigation items - "Grow" has been removed from the list
   const navigationItems = [
     { name: "Overview", path: "/" },
     { name: "Expenses", path: "/expenses" },
@@ -74,13 +74,26 @@ const MobileNav: React.FC = () => {
     // Wait for drawer animation to complete before opening sheet
     setTimeout(() => {
       setActiveSheet(setting);
-      setSheetTrigger(prev => prev + 1); // Increment to force re-render of Sheet
+      setIsSheetOpen(true);
     }, 300);
   };
 
   // Helper to safely close a settings sheet
   const closeSettingsSheet = () => {
-    setActiveSheet(null);
+    setIsSheetOpen(false);
+    // We'll clear the activeSheet when the sheet is fully closed
+    // This prevents UI glitches during the closing animation
+  };
+
+  // Handle sheet close event
+  const handleSheetOpenChange = (open: boolean) => {
+    setIsSheetOpen(open);
+    if (!open) {
+      // Wait for the closing animation to complete before clearing the activeSheet
+      setTimeout(() => {
+        setActiveSheet(null);
+      }, 300);
+    }
   };
 
   return (
@@ -134,13 +147,10 @@ const MobileNav: React.FC = () => {
         </DrawerContent>
       </Drawer>
 
-      {/* Settings Sheets - key forces re-creation of the component when sheets are opened/closed */}
+      {/* Settings Sheets - controlled directly by isSheetOpen state */}
       <Sheet 
-        key={`sheet-${sheetTrigger}`}
-        open={activeSheet !== null} 
-        onOpenChange={(open) => {
-          if (!open) closeSettingsSheet();
-        }}
+        open={isSheetOpen} 
+        onOpenChange={handleSheetOpenChange}
       >
         <SheetContent className="w-full sm:max-w-md pt-12 bg-gradient-to-r from-orange-500 to-amber-500 text-white">
           <SheetHeader>
