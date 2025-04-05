@@ -1,6 +1,6 @@
 
 import { getSupabaseClient, checkDatabaseConnection } from './supabase/client';
-import { Queue } from './queue';
+import { Queue } from '@/utils/queue';
 import { toast } from 'sonner';
 
 // Create a queue for syncing operations that can be retried

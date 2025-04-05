@@ -7,6 +7,21 @@ export const ensureGrowTablesExist = async (): Promise<boolean> => {
     const supabase = getSupabaseClient();
     console.log('Checking and ensuring Grow tables exist...');
     
+    // First verify Supabase connection is working
+    const { data: connectionTest, error: connectionError } = await supabase
+      .from('user_uuids')
+      .select('count')
+      .limit(1)
+      .maybeSingle();
+      
+    if (connectionError && connectionError.code !== '42P01') {
+      console.error('Supabase connection error before table check:', connectionError);
+      toast.error("Database connection error", { 
+        description: "Please check your internet connection" 
+      });
+      return false;
+    }
+    
     // Check if projects table exists
     const { data: projectsTable, error: projectsError } = await supabase
       .from('projects')
@@ -107,38 +122,64 @@ const createProjectsTable = async () => {
   const supabase = getSupabaseClient();
   
   try {
-    // Try first using SQL RPC if available
-    const { error: rpcError } = await supabase.rpc('create_projects_table');
+    // First, check if we have table creation permissions
+    const { data: rpcAvailable, error: rpcCheckError } = await supabase.rpc('version');
+    const canUseRPC = !rpcCheckError;
     
-    if (rpcError) {
-      console.log('RPC method failed, trying direct SQL execution');
+    if (canUseRPC) {
+      // Try first using SQL RPC if available
+      const { error: rpcError } = await supabase.rpc('create_projects_table');
       
-      // If RPC doesn't exist, try creating directly using REST API (this is more likely to work)
-      const { error } = await supabase.from('projects').insert({
-        id: '00000000-0000-0000-0000-000000000000', // temp ID
-        name: 'Test Project',
-        description: 'This is a test project to create the table',
-        upvotes: 0,
-        downvotes: 0,
-        created_at: new Date().toISOString()
-      });
-      
-      // If there was an error but the table was created (likely a permission error),
-      // we can consider this a success
-      if (error && error.code !== '42P01') {
-        // Check table again to confirm it was created despite error
-        const { error: checkError } = await supabase
-          .from('projects')
-          .select('id')
-          .limit(1);
-          
-        if (checkError && checkError.code === '42P01') {
-          throw new Error('Failed to create projects table');
-        }
+      if (rpcError) {
+        console.log('RPC method failed, trying direct SQL execution');
+        await createProjectsTableDirectly();
       }
+    } else {
+      // If RPC doesn't exist or we don't have permission, try creating directly
+      await createProjectsTableDirectly();
     }
   } catch (error) {
     console.error('Error creating projects table:', error);
+    throw error;
+  }
+};
+
+const createProjectsTableDirectly = async () => {
+  const supabase = getSupabaseClient();
+  
+  try {
+    // Try inserting a sample record to create the table with default columns
+    const { error } = await supabase.from('projects').insert({
+      id: '00000000-0000-0000-0000-000000000000', // temp ID
+      name: 'Test Project',
+      description: 'This is a test project to create the table',
+      upvotes: 0,
+      downvotes: 0,
+      created_at: new Date().toISOString()
+    });
+    
+    // If there was an error but the table was created (likely a permission error),
+    // we can consider this a success
+    if (error && error.code !== '42P01') {
+      // Check table again to confirm it was created despite error
+      const { error: checkError } = await supabase
+        .from('projects')
+        .select('id')
+        .limit(1);
+        
+      if (checkError && checkError.code === '42P01') {
+        throw new Error('Failed to create projects table');
+      }
+    }
+    
+    // Try to add additional columns if needed
+    try {
+      await supabase.rpc('ensure_projects_table_columns');
+    } catch (columnError) {
+      console.warn('Could not ensure all columns exist:', columnError);
+    }
+  } catch (error) {
+    console.error('Error in direct table creation:', error);
     throw error;
   }
 };
@@ -147,35 +188,53 @@ const createProjectVotesTable = async () => {
   const supabase = getSupabaseClient();
   
   try {
-    // Try first using SQL RPC if available
-    const { error: rpcError } = await supabase.rpc('create_project_votes_table');
+    // Check if we can use RPC
+    const { data: rpcAvailable, error: rpcCheckError } = await supabase.rpc('version');
+    const canUseRPC = !rpcCheckError;
     
-    if (rpcError) {
-      console.log('RPC method failed, trying direct SQL execution');
+    if (canUseRPC) {
+      // Try first using SQL RPC if available
+      const { error: rpcError } = await supabase.rpc('create_project_votes_table');
       
-      // If RPC doesn't exist, try creating directly using REST API
-      const { error } = await supabase.from('project_votes').insert({
-        project_id: '00000000-0000-0000-0000-000000000000', // temp ID
-        user_uuid: '00000000-0000-0000-0000-000000000000',
-        vote: 0
-      });
-      
-      // If there was an error but the table was created (likely a permission error),
-      // we can consider this a success
-      if (error && error.code !== '42P01') {
-        // Check table again to confirm it was created despite error
-        const { error: checkError } = await supabase
-          .from('project_votes')
-          .select('user_uuid')
-          .limit(1);
-          
-        if (checkError && checkError.code === '42P01') {
-          throw new Error('Failed to create project_votes table');
-        }
+      if (rpcError) {
+        console.log('RPC method failed, trying direct SQL execution');
+        await createVotesTableDirectly();
       }
+    } else {
+      await createVotesTableDirectly();
     }
   } catch (error) {
     console.error('Error creating project votes table:', error);
+    throw error;
+  }
+};
+
+const createVotesTableDirectly = async () => {
+  const supabase = getSupabaseClient();
+  
+  try {
+    // Try inserting a sample record to create the table with default columns
+    const { error } = await supabase.from('project_votes').insert({
+      project_id: '00000000-0000-0000-0000-000000000000', // temp ID
+      user_uuid: '00000000-0000-0000-0000-000000000000',
+      vote: 0
+    });
+    
+    // If there was an error but the table was created (likely a permission error),
+    // we can consider this a success
+    if (error && error.code !== '42P01') {
+      // Check table again to confirm it was created despite error
+      const { error: checkError } = await supabase
+        .from('project_votes')
+        .select('user_uuid')
+        .limit(1);
+        
+      if (checkError && checkError.code === '42P01') {
+        throw new Error('Failed to create project_votes table');
+      }
+    }
+  } catch (error) {
+    console.error('Error in direct votes table creation:', error);
     throw error;
   }
 };
@@ -184,12 +243,19 @@ const setupRlsPolicies = async () => {
   const supabase = getSupabaseClient();
   
   try {
-    // Apply RLS policies using stored procedures
+    // Try to apply RLS policies using stored procedures
     const { error } = await supabase.rpc('setup_grow_rls_policies');
     
     if (error) {
       console.warn('Failed to setup RLS policies:', error);
-      // This is considered a soft fail, so we don't throw an error
+      
+      // Try alternative RPC methods that might exist
+      try {
+        await supabase.rpc('enable_projects_rls');
+        await supabase.rpc('enable_project_votes_rls');
+      } catch (alternativeError) {
+        console.warn('Alternative RLS setup failed:', alternativeError);
+      }
     }
   } catch (error) {
     console.warn('Exception setting up RLS policies:', error);

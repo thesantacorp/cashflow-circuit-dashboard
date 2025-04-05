@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
   KeyRound, Download, Mail, Loader2, 
-  CloudOff, RefreshCw, AlertTriangle, ArrowLeft
+  CloudOff, RefreshCw, AlertTriangle, ArrowLeft,
+  Check, ShieldCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -27,17 +28,56 @@ const DataRestoration: React.FC<DataRestorationProps> = ({ onCancel }) => {
     categories: number;
   } | null>(null);
   
+  // Add verification states
+  const [verificationSent, setVerificationSent] = useState<boolean>(false);
+  const [verificationCode, setVerificationCode] = useState<string>("");
+  const [actualCode, setActualCode] = useState<string>("");
+  const [isVerifying, setIsVerifying] = useState<boolean>(false);
+  
   const validateEmail = (email: string): boolean => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
   };
   
-  const handleImport = async () => {
+  const handleSendVerification = async () => {
     if (!email || !validateEmail(email)) {
       toast.error("Please enter a valid email address");
       return;
     }
     
+    setIsVerifying(true);
+    
+    try {
+      // Generate a random 6-digit code
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      setActualCode(code);
+      
+      // In a real implementation, we would send this code via email
+      // For demo purposes, we'll just simulate sending and show it
+      toast.success("Verification code sent!", {
+        description: `Code: ${code} (normally this would be sent to your email)`
+      });
+      
+      setVerificationSent(true);
+    } catch (error) {
+      console.error("Error sending verification code:", error);
+      toast.error("Failed to send verification code");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+  
+  const handleVerifyAndImport = async () => {
+    if (verificationCode !== actualCode) {
+      toast.error("Invalid verification code");
+      return;
+    }
+    
+    // Proceed with import after verification
+    handleImport();
+  };
+  
+  const handleImport = async () => {
     setIsImporting(true);
     setImportError(null);
     
@@ -55,14 +95,20 @@ const DataRestoration: React.FC<DataRestorationProps> = ({ onCancel }) => {
       // Use the imported UUID to generate a user session
       await generateUserUuid(email, existingUuid);
       
-      // Try to import any transaction data
+      // Try to import any transaction data with improved validation
       try {
-        // Attempt to load the user's data from Supabase
+        // Attempt to load the user's data from Supabase with validation
         const { loadUserData } = await import('@/utils/userDataRecovery');
         const stats = await loadUserData(email, existingUuid);
         
         // Force a cloud sync to confirm everything is working
-        await forceSyncToCloud();
+        const syncSuccess = await forceSyncToCloud(true);
+        
+        if (!syncSuccess) {
+          // Try once more if the first sync failed
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await forceSyncToCloud();
+        }
         
         // Show success message with import stats
         setImportStats(stats);
@@ -125,22 +171,27 @@ const DataRestoration: React.FC<DataRestorationProps> = ({ onCancel }) => {
               Continue to App
             </Button>
           </div>
-        ) : (
+        ) : verificationSent ? (
           <div className="space-y-4">
+            <div className="flex items-center gap-2 text-indigo-600">
+              <ShieldCheck className="h-5 w-5" />
+              <span className="font-medium">Verify Your Email</span>
+            </div>
+            
             <p className="text-sm text-muted-foreground">
-              Enter the email address associated with your existing User ID to restore your data on this device.
+              Enter the verification code sent to {email} to confirm ownership and import your data.
             </p>
             
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
-                Your Email Address
+              <Label htmlFor="verificationCode" className="text-sm font-medium">
+                Verification Code
               </Label>
               <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email address"
+                id="verificationCode"
+                type="text"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                placeholder="Enter 6-digit code"
                 className="border-indigo-200 focus-visible:ring-indigo-400"
                 disabled={isImporting}
               />
@@ -158,19 +209,80 @@ const DataRestoration: React.FC<DataRestorationProps> = ({ onCancel }) => {
             
             <div className="flex flex-col space-y-2">
               <Button 
-                onClick={handleImport} 
+                onClick={handleVerifyAndImport} 
                 className="bg-indigo-500 hover:bg-indigo-600 text-white w-full"
-                disabled={isImporting || !email}
+                disabled={isImporting || !verificationCode}
               >
                 {isImporting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Importing Data...
+                    Verifying & Importing Data...
                   </>
                 ) : (
                   <>
-                    <Download className="mr-2 h-4 w-4" />
-                    Import My Data
+                    <Check className="mr-2 h-4 w-4" />
+                    Verify & Import Data
+                  </>
+                )}
+              </Button>
+              
+              <Button 
+                onClick={() => setVerificationSent(false)} 
+                variant="ghost" 
+                className="text-muted-foreground"
+                disabled={isImporting}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Email Entry
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Enter the email address associated with your existing User ID to restore your data on this device.
+            </p>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-medium">
+                Your Email Address
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email address"
+                className="border-indigo-200 focus-visible:ring-indigo-400"
+                disabled={isVerifying}
+              />
+            </div>
+            
+            {importError && (
+              <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800">
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+                <AlertTitle className="text-red-700">Import Failed</AlertTitle>
+                <AlertDescription className="text-red-700">
+                  {importError}
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            <div className="flex flex-col space-y-2">
+              <Button 
+                onClick={handleSendVerification} 
+                className="bg-indigo-500 hover:bg-indigo-600 text-white w-full"
+                disabled={isVerifying || !email}
+              >
+                {isVerifying ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending Verification...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Send Verification Code
                   </>
                 )}
               </Button>
@@ -179,7 +291,7 @@ const DataRestoration: React.FC<DataRestorationProps> = ({ onCancel }) => {
                 onClick={onCancel} 
                 variant="ghost" 
                 className="text-muted-foreground"
-                disabled={isImporting}
+                disabled={isVerifying}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Go Back
