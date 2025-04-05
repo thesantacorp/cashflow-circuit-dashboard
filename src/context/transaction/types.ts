@@ -22,15 +22,18 @@ export interface TransactionState {
 export interface TransactionContextProps {
   state: TransactionState;
   dispatch: React.Dispatch<TransactionAction>;
-  addTransaction: (transaction: Omit<Transaction, "id">) => void;
-  updateTransaction: (transaction: Transaction) => void;
-  deleteTransaction: (id: string) => void;
-  addCategory: (category: Omit<Category, "id">) => void;
-  deleteCategory: (id: string) => void;
+  userUuid: string | null;
+  generateUserUuid: () => string;
+  checkUuidExists: () => boolean;
+  addTransaction: (transaction: Omit<Transaction, "id">) => boolean;
+  updateTransaction: (transaction: Transaction) => boolean;
+  deleteTransaction: (id: string) => boolean;
+  addCategory: (category: Omit<Category, "id">) => boolean;
+  deleteCategory: (id: string) => boolean;
   getTransactionsByType: (type: TransactionType) => Transaction[];
   getCategoriesByType: (type: TransactionType) => Category[];
   getCategoryById: (id: string) => Category | undefined;
   getTotalByType: (type: TransactionType) => number;
-  importData: (transactions: Transaction[]) => void;
-  replaceAllData: (transactions: Transaction[]) => void;
+  importData: (transactions: Transaction[]) => boolean;
+  replaceAllData: (transactions: Transaction[]) => boolean;
 }

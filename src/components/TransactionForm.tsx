@@ -13,6 +13,7 @@ import CategorySelector from "./form/CategorySelector";
 import DatePicker from "./form/DatePicker";
 import EmotionSelector from "./form/EmotionSelector";
 import WarningAlert from "./form/WarningAlert";
+import UuidCheck from "./form/UuidCheck";
 
 interface TransactionFormProps {
   type: TransactionType;
@@ -20,7 +21,7 @@ interface TransactionFormProps {
 }
 
 const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) => {
-  const { addTransaction, getCategoriesByType, state } = useTransactions();
+  const { addTransaction, getCategoriesByType, state, checkUuidExists } = useTransactions();
   const { currencySymbol } = useCurrency();
   const categories = getCategoriesByType(type);
   
@@ -30,6 +31,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
   const [date, setDate] = useState<Date>(new Date());
   const [emotionalState, setEmotionalState] = useState<EmotionalState>("neutral");
   const [warning, setWarning] = useState<string | null>(null);
+  const [showUuidCheck, setShowUuidCheck] = useState<boolean>(!checkUuidExists());
 
   const resetForm = () => {
     setAmount("");
@@ -71,12 +73,18 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Check UUID before proceeding
+    if (!checkUuidExists()) {
+      setShowUuidCheck(true);
+      return;
+    }
+    
     if (!amount || !categoryId) return;
     
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) return;
     
-    addTransaction({
+    const success = addTransaction({
       amount: parsedAmount,
       categoryId,
       description,
@@ -85,9 +93,16 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
       emotionalState,
     });
     
-    resetForm();
-    if (onSuccess) onSuccess();
+    if (success) {
+      resetForm();
+      if (onSuccess) onSuccess();
+    }
   };
+
+  // Re-check UUID status when the component is displayed
+  React.useEffect(() => {
+    setShowUuidCheck(!checkUuidExists());
+  }, [checkUuidExists]);
 
   return (
     <Card className="border-orange-200 shadow-lg bg-gradient-to-b from-white to-orange-50/30">
@@ -98,6 +113,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4 pt-4">
+          {showUuidCheck && <UuidCheck onUuidGenerated={() => setShowUuidCheck(false)} />}
+          
           <WarningAlert message={warning || ""} />
           
           <AmountInput 
@@ -140,6 +157,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
           <Button 
             type="submit" 
             className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+            disabled={showUuidCheck}
           >
             Add {type === "expense" ? "Expense" : "Income"}
           </Button>

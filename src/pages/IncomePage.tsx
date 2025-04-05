@@ -9,10 +9,14 @@ import CurrencySelector from "@/components/CurrencySelector";
 import LocalStorageInfo from "@/components/LocalStorageInfo";
 import { useIsMobile } from "@/hooks/use-mobile";
 import IncomeInsights from "@/components/IncomeInsights";
+import { useTransactions } from "@/context/transaction";
+import UuidStatus from "@/components/UuidStatus";
 
 const IncomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
   const isMobile = useIsMobile();
+  const { checkUuidExists } = useTransactions();
+  const hasUuid = checkUuidExists();
 
   return (
     <div className="container py-6 max-w-7xl">
@@ -20,6 +24,12 @@ const IncomePage: React.FC = () => {
         <h1 className="text-3xl font-bold">Income</h1>
         <CurrencySelector />
       </div>
+      
+      {!hasUuid && (
+        <div className="mb-6">
+          <UuidStatus />
+        </div>
+      )}
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
         <TabsList className="grid w-full grid-cols-3">
