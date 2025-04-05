@@ -5,16 +5,28 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// Define the structure of a user profile
+interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  backup_approved: boolean;
+  backup_last_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 type AuthContextType = {
   session: Session | null;
   user: User | null;
-  profile: any | null;
+  profile: UserProfile | null;
   isLoading: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  updateProfile: (updates: Partial<any>) => Promise<void>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   updateBackupApproval: (approved: boolean) => Promise<void>;
   isBackupApproved: boolean;
 };
@@ -24,7 +36,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isBackupApproved, setIsBackupApproved] = useState(false);
   const navigate = useNavigate();
@@ -82,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      setProfile(data);
+      setProfile(data as UserProfile);
       setIsBackupApproved(!!data?.backup_approved);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
@@ -163,7 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateProfile = async (updates: Partial<any>) => {
+  const updateProfile = async (updates: Partial<UserProfile>) => {
     try {
       if (!user) throw new Error('No user logged in');
       

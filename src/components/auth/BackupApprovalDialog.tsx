@@ -2,10 +2,11 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { LoaderIcon, CloudCheckIcon, GoogleIcon, ShieldIcon } from 'lucide-react';
+import { LoaderIcon, CloudIcon, ShieldIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 
+// Custom Google icon component
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -52,7 +53,7 @@ const BackupApprovalDialog = () => {
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle className="flex items-center text-2xl">
-            <CloudCheckIcon className="mr-2 h-6 w-6 text-orange-500" />
+            <CloudIcon className="mr-2 h-6 w-6 text-orange-500" />
             Approve Automatic Backups
           </CardTitle>
           <CardDescription>
@@ -81,7 +82,7 @@ const BackupApprovalDialog = () => {
             
             <div className="flex items-start">
               <div className="bg-blue-100 p-2 rounded-full mr-3">
-                <CloudCheckIcon className="h-5 w-5 text-blue-600" />
+                <CloudIcon className="h-5 w-5 text-blue-600" />
               </div>
               <div>
                 <h3 className="text-sm font-medium">Daily Automatic Backups</h3>
