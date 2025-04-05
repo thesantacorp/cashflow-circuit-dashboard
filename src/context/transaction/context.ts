@@ -1,6 +1,7 @@
 
 import { createContext, useContext } from "react";
-import { TransactionState, Transaction, Category } from "@/types";
+import { TransactionState } from "./types";
+import { Transaction, Category } from "@/types";
 
 interface TransactionContextProps {
   state: TransactionState;
