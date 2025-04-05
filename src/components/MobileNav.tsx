@@ -152,7 +152,7 @@ const MobileNav: React.FC = () => {
             />
           </div>
           
-          <DrawerFooter className="pt-2 border-t border-orange-200/50">
+          <DrawerFooter className="pt-2 border-t border-orange-200/50 bg-gradient-to-b from-orange-50 to-white">
             <Button 
               variant="outline" 
               onClick={() => setIsDrawerOpen(false)}
@@ -188,7 +188,7 @@ const MobileNav: React.FC = () => {
               onClose={closeSettingsSheet} 
             />
           </div>
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/20 bg-gradient-to-r from-orange-600 to-amber-600">
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/20 bg-gradient-to-br from-orange-500 to-amber-500">
             <Button 
               variant="secondary" 
               onClick={closeSettingsSheet} 

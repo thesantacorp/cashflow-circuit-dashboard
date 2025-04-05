@@ -237,7 +237,7 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
       <div className="flex flex-col sm:flex-row gap-2 mt-4">
         <Button 
           variant="outline" 
-          className="flex items-center gap-2" 
+          className="flex items-center gap-2 text-black" 
           onClick={handleExportCSV}
         >
           <Download className="h-4 w-4" />
@@ -246,7 +246,7 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
         
         <Button 
           variant="outline" 
-          className="flex items-center gap-2" 
+          className="flex items-center gap-2 text-black" 
           onClick={handleImportClick}
         >
           <Upload className="h-4 w-4" />
