@@ -29,6 +29,7 @@ const queryClient = new QueryClient();
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
+  const [supabaseInitialized, setSupabaseInitialized] = useState(false);
 
   useEffect(() => {
     const initApp = async () => {
@@ -41,10 +42,11 @@ function App() {
       // Initialize Supabase connection
       try {
         await initializeSupabase();
+        setSupabaseInitialized(true);
       } catch (error) {
         console.error("Failed to initialize Supabase:", error);
         toast.error("Could not connect to the database", {
-          description: "Some features may not be available",
+          description: "Your data will be stored locally only",
           duration: 5000,
         });
       }
@@ -52,7 +54,7 @@ function App() {
       // Simulating app initialization time
       setTimeout(() => {
         setIsLoading(false);
-      }, 2000);
+      }, 1500);
     };
     
     initApp();
@@ -71,6 +73,7 @@ function App() {
                   <AnimatePresence>
                     {isLoading && <LoadingScreen />}
                   </AnimatePresence>
+                  
                   <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white overflow-x-hidden">
                     <Routes>
                       <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />

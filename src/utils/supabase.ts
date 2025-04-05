@@ -6,26 +6,53 @@ import { toast } from 'sonner';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Check for required environment variables
+// Validate environment variables
 if (!supabaseUrl || supabaseUrl === 'YOUR_SUPABASE_URL') {
   console.error('Missing or invalid VITE_SUPABASE_URL environment variable');
-  toast.error('Supabase URL is missing. Please check your environment variables.');
 }
 
 if (!supabaseAnonKey || supabaseAnonKey === 'YOUR_SUPABASE_ANON_KEY') {
   console.error('Missing or invalid VITE_SUPABASE_ANON_KEY environment variable');
-  toast.error('Supabase key is missing. Please check your environment variables.');
 }
 
-// Create Supabase client (no fallbacks - we want to fail early if config is missing)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create Supabase client with validation
+export const supabase = createClient(
+  supabaseUrl || '',  // Providing empty string as fallback to prevent crash
+  supabaseAnonKey || ''  // Providing empty string as fallback to prevent crash
+);
 
 // Table name for user UUIDs
 export const UUID_TABLE = 'user_uuids';
 
+// SQL for creating the table
+const CREATE_UUID_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS ${UUID_TABLE} (
+    id SERIAL PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    uuid TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+`;
+
 // Check if the user_uuids table exists, and create it if it doesn't
 export async function ensureUuidTableExists(): Promise<boolean> {
   try {
+    // First check if we have valid credentials
+    if (!supabaseUrl || !supabaseAnonKey || 
+        supabaseUrl === 'YOUR_SUPABASE_URL' || 
+        supabaseAnonKey === 'YOUR_SUPABASE_ANON_KEY') {
+      console.error('Missing or invalid Supabase credentials');
+      return false;
+    }
+    
+    // Verify connection works
+    const { data: connectionTest, error: connectionError } = await supabase.from('_tables').select('name').limit(1);
+    
+    if (connectionError) {
+      console.error('Error connecting to Supabase:', connectionError);
+      return false;
+    }
+    
     // First check if the table exists by trying to query it
     const { error } = await supabase
       .from(UUID_TABLE)
@@ -34,6 +61,7 @@ export async function ensureUuidTableExists(): Promise<boolean> {
     
     if (!error) {
       // Table exists, we're good to go
+      console.log('UUID table exists');
       return true;
     }
     
@@ -43,16 +71,33 @@ export async function ensureUuidTableExists(): Promise<boolean> {
       return false;
     }
     
-    // Table doesn't exist, let's try to create it through SQL
-    // Note: This requires additional permissions that may not be available with the anon key
-    const { error: createError } = await supabase.rpc('create_user_uuids_table');
+    // Table doesn't exist, let's create it
+    const { error: createError } = await supabase.rpc('create_uuid_table');
     
+    // If RPC fails (likely doesn't exist), try direct SQL
     if (createError) {
-      console.error('Error creating UUID table:', createError);
-      toast.error('Could not create the required database table. Please contact support.');
+      console.log('RPC not available, trying direct SQL');
+      const { error: sqlError } = await supabase.sql(CREATE_UUID_TABLE_SQL);
+      
+      if (sqlError) {
+        console.error('Error creating UUID table with SQL:', sqlError);
+        toast.error('Could not create the required database table');
+        return false;
+      }
+    }
+    
+    // Verify table was created
+    const { error: verifyError } = await supabase
+      .from(UUID_TABLE)
+      .select('id')
+      .limit(1);
+      
+    if (verifyError) {
+      console.error('Error verifying table creation:', verifyError);
       return false;
     }
     
+    console.log('UUID table created successfully');
     return true;
   } catch (err) {
     console.error('Error ensuring UUID table exists:', err);
@@ -64,6 +109,11 @@ export async function ensureUuidTableExists(): Promise<boolean> {
 export async function fetchUserUuid(email: string): Promise<string | null> {
   if (!email) {
     console.error('No email provided to fetch UUID');
+    return null;
+  }
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Missing Supabase credentials');
     return null;
   }
   
@@ -92,6 +142,12 @@ export async function storeUserUuid(email: string, uuid: string): Promise<boolea
     return false;
   }
   
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Missing Supabase credentials');
+    toast.error('Supabase connection not configured');
+    return false;
+  }
+  
   try {
     // Check if entry already exists
     const { data: existingData, error: fetchError } = await supabase
@@ -102,7 +158,6 @@ export async function storeUserUuid(email: string, uuid: string): Promise<boolea
 
     if (fetchError && !fetchError.message.includes('No rows found')) {
       console.error('Error checking for existing UUID:', fetchError);
-      toast.error('Failed to check if user already exists');
       return false;
     }
 
