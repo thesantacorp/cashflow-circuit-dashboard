@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -12,14 +11,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import EditTransactionModal from "./EditTransactionModal";
 
 interface TransactionListProps {
-  type: TransactionType;
+  type?: TransactionType;
   limit?: number;
+  title?: string;
   showViewAll?: boolean;
 }
 
 type TimePeriod = "day" | "week" | "month" | "year" | "all";
 
-const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showViewAll = false }) => {
+const TransactionList: React.FC<TransactionListProps> = ({ type = "expense", limit, title = "Transactions", showViewAll = false }) => {
   const { getTransactionsByType, deleteTransaction, getCategoryById } = useTransactions();
   const { currencySymbol } = useCurrency();
   const transactions = getTransactionsByType(type);
@@ -61,15 +61,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
     });
   };
 
-  // Filter transactions by time period
   const filteredTransactions = filterTransactionsByTimePeriod(transactions, timePeriod);
   
-  // Sort transactions by date (newest first)
   const sortedTransactions = [...filteredTransactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
   
-  // Apply limit if specified
   const displayTransactions = limit ? sortedTransactions.slice(0, limit) : sortedTransactions;
 
   const handleEdit = (transaction: Transaction) => {
@@ -108,7 +105,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
       <Card className="border-orange-200 shadow-lg bg-gradient-to-b from-white to-orange-50/30">
         <CardHeader className="border-b border-orange-100">
           <div className="flex flex-wrap justify-between items-center">
-            <CardTitle className="text-orange-600">Recent Transactions</CardTitle>
+            <CardTitle className="text-orange-600">{title}</CardTitle>
             <Select value={timePeriod} onValueChange={(value: TimePeriod) => setTimePeriod(value)}>
               <SelectTrigger className="w-[130px]">
                 <SelectValue placeholder="Time Period" />

@@ -42,4 +42,5 @@ export type TransactionContextType = {
   getTotalByType: (type: "income" | "expense") => number;
   importData: (transactions: Transaction[]) => boolean;
   replaceAllData: (transactions: Transaction[]) => boolean;
+  getAllTransactions: () => Transaction[]; // Added this function
 };

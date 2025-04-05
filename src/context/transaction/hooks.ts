@@ -10,5 +10,12 @@ export function useTransactions() {
     throw new Error("useTransactions must be used within a TransactionProvider");
   }
 
+  // Add the getAllTransactions function if it's not already defined in the context
+  if (!context.getAllTransactions) {
+    context.getAllTransactions = () => {
+      return context.state.transactions;
+    };
+  }
+
   return context;
 }

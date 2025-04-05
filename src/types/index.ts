@@ -1,5 +1,5 @@
 
-export type TransactionType = "expense" | "income";
+export type TransactionType = "expense" | "income" | "combined";
 export type Currency = "USD" | "EUR" | "GBP" | "CAD" | "AUD" | "JPY" | "NGN" | "GHS" | "KES" | "XOF";
 export type EmotionalState = "happy" | "stressed" | "bored" | "excited" | "sad" | "neutral" | "hopeful";
 export type BackupFrequency = "daily" | "weekly" | "monthly" | "manual";
