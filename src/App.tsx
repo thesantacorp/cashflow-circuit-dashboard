@@ -25,6 +25,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import { initSessionTracking } from "./utils/sessionTracking";
 import { initRecoverySystem } from "./utils/userDataRecovery";
 import { getSupabaseClient, checkDatabaseConnection } from "./utils/supabase/client";
+import { checkSupabaseConnection } from "./utils/supabaseInit";
 import { toast } from "sonner";
 
 // Create QueryClient with production-ready settings
