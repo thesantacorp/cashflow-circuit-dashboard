@@ -1,37 +1,56 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useReducer, useEffect } from "react";
 import { TransactionContext } from "./context";
-import { useUuidManagement } from "./hooks/useUuidManagement";
-import { useTransactionOperations } from "./hooks/useTransactionOperations";
 import { useDataOperations } from "./hooks/useDataOperations";
 import { toast } from "sonner";
-import { checkSupabaseConnection } from "@/utils/supabaseInit";
 
 // Create provider
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  // Load state from localStorage
+  const savedState = localStorage.getItem("transactionState");
+  const initialState = savedState ? JSON.parse(savedState) : { transactions: [], categories: [] };
   
-  // Use the extracted hooks
-  const { 
-    userUuid, 
-    userEmail, 
-    generateUserUuid,
-    syncStatus,
-    connectionVerified,
-    forceSyncToCloud: originalForceSyncToCloud,
-    checkSyncStatus: originalCheckSyncStatus 
-  } = useUuidManagement();
-  
-  const { 
-    state, 
-    dispatch, 
-    addTransaction, 
-    updateTransaction, 
-    deleteTransaction, 
-    addCategory, 
-    deleteCategory 
-  } = useTransactionOperations(userUuid);
-  
+  const [state, dispatch] = useReducer(
+    (state, action) => {
+      switch (action.type) {
+        case "ADD_TRANSACTION":
+          return { ...state, transactions: [...state.transactions, action.payload] };
+        case "UPDATE_TRANSACTION":
+          return {
+            ...state,
+            transactions: state.transactions.map(t => 
+              t.id === action.payload.id ? action.payload : t
+            )
+          };
+        case "DELETE_TRANSACTION":
+          return {
+            ...state,
+            transactions: state.transactions.filter(t => t.id !== action.payload)
+          };
+        case "ADD_CATEGORY":
+          return { ...state, categories: [...state.categories, action.payload] };
+        case "DELETE_CATEGORY":
+          return {
+            ...state,
+            categories: state.categories.filter(c => c.id !== action.payload)
+          };
+        case "IMPORT_DATA":
+          return { ...state, ...action.payload };
+        case "REPLACE_ALL_DATA":
+          return action.payload;
+        default:
+          return state;
+      }
+    },
+    initialState
+  );
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("transactionState", JSON.stringify(state));
+  }, [state]);
+
+  // Use the data operations hook
   const { 
     importData, 
     replaceAllData, 
@@ -39,123 +58,58 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getCategoriesByType, 
     getCategoryById, 
     getTotalByType 
-  } = useDataOperations(state, userUuid, dispatch);
+  } = useDataOperations(state, dispatch);
 
-  // Wrapper functions to match the context interface
-  const checkUuidExists = (): boolean => {
-    return userUuid !== null;
+  // Basic transaction operations
+  const addTransaction = (transaction) => {
+    dispatch({
+      type: "ADD_TRANSACTION",
+      payload: { ...transaction, id: crypto.randomUUID() },
+    });
+    toast.success("Transaction added successfully");
+    return true;
   };
 
-  const getUserEmail = (): string | null => {
-    return userEmail;
-  };
-  
-  // Wrap the forceSyncToCloud to update lastSyncTime
-  const forceSyncToCloud = async (silent?: boolean): Promise<boolean> => {
-    const result = await originalForceSyncToCloud(silent);
-    if (result) {
-      setLastSyncTime(new Date());
-    }
-    return result;
-  };
-  
-  // Wrap checkSyncStatus to update lastSyncTime when synced
-  const checkSyncStatus = async (): Promise<boolean> => {
-    const result = await originalCheckSyncStatus();
-    if (result && syncStatus === 'synced') {
-      setLastSyncTime(new Date());
-    }
-    return result;
+  const updateTransaction = (transaction) => {
+    dispatch({ 
+      type: "UPDATE_TRANSACTION", 
+      payload: transaction 
+    });
+    toast.success("Transaction updated successfully");
+    return true;
   };
 
-  // Listen for app visibility changes to auto-sync
-  useEffect(() => {
-    const handleAppVisible = async () => {
-      if (userUuid && userEmail) {
-        console.log('App is visible again, checking Supabase connection...');
-        
-        try {
-          // First check if Supabase is available
-          const isConnected = await checkSupabaseConnection();
-          
-          if (isConnected) {
-            console.log('Supabase connection is available, checking UUID sync status...');
-            try {
-              const syncResult = await checkSyncStatus();
-              if (syncResult) {
-                setLastSyncTime(new Date());
-              }
-            } catch (error) {
-              console.error('Error checking UUID sync status on visibility change:', error);
-              // Don't show toast to avoid spamming the user when returning to tab
-            }
-          } else {
-            console.log('Supabase connection is not available, skipping sync check');
-          }
-        } catch (error) {
-          console.error('Error checking connection on visibility change:', error);
-        }
-      }
-    };
+  const deleteTransaction = (id) => {
+    dispatch({ 
+      type: "DELETE_TRANSACTION", 
+      payload: id
+    });
+    toast.success("Transaction deleted successfully");
+    return true;
+  };
 
-    window.addEventListener('app-visible', handleAppVisible);
-    
-    // Check sync status on mount if we have userUuid and email
-    if (userUuid && userEmail && syncStatus !== 'synced') {
-      console.log('Component mounted, verifying UUID sync status...');
-      checkSyncStatus().catch(error => {
-        console.error('Error on initial sync status check:', error);
-      });
-    }
+  const addCategory = (category) => {
+    dispatch({
+      type: "ADD_CATEGORY",
+      payload: { ...category, id: crypto.randomUUID() },
+    });
+    toast.success("Category added successfully");
+    return true;
+  };
 
-    return () => {
-      window.removeEventListener('app-visible', handleAppVisible);
-    };
-  }, [userUuid, userEmail, syncStatus, checkSyncStatus]);
-
-  // Handle sync status transitions
-  useEffect(() => {
-    // When transitioning to synced, show a confirmation
-    if (syncStatus === 'synced' && userUuid && userEmail) {
-      console.log('UUID is now synced with Supabase');
-      setLastSyncTime(new Date());
-    }
-    
-    // When first receiving errors, try to auto-recover
-    if (syncStatus === 'error' && userUuid && userEmail) {
-      console.log('Sync error detected, will retry once after delay');
-      const retryTimer = setTimeout(() => {
-        console.log('Attempting recovery from sync error...');
-        forceSyncToCloud(true).catch(console.error);
-      }, 5000);
-      
-      return () => clearTimeout(retryTimer);
-    }
-  }, [syncStatus, userUuid, userEmail, forceSyncToCloud]);
-  
-  // Watch for online/offline transitions to handle sync retry
-  useEffect(() => {
-    if (connectionVerified && userUuid && userEmail && syncStatus === 'local-only') {
-      console.log('Connection restored and UUID is local-only, checking sync status...');
-      checkSyncStatus().catch(console.error);
-    }
-  }, [connectionVerified, userUuid, userEmail, syncStatus, checkSyncStatus]);
+  const deleteCategory = (id) => {
+    dispatch({ 
+      type: "DELETE_CATEGORY", 
+      payload: id
+    });
+    return true;
+  };
 
   return (
     <TransactionContext.Provider
       value={{
         state,
         dispatch,
-        userUuid,
-        userEmail,
-        syncStatus,
-        connectionVerified,
-        lastSyncTime,
-        generateUserUuid,
-        checkUuidExists,
-        getUserEmail,
-        forceSyncToCloud,
-        checkSyncStatus,
         addTransaction,
         updateTransaction,
         deleteTransaction,

@@ -1,5 +1,5 @@
 
-// This file contains the code to be deployed as a Supabase Edge Function.
+// This file contains a basic email sending Edge Function template.
 // Copy and paste this code when creating the function in the Supabase dashboard.
 /*
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
@@ -17,8 +17,7 @@ serve(async (req) => {
     // Parse the request body
     const { email, subject, message } = await req.json();
     
-    // Log the request (but hide sensitive data)
-    console.log(`Processing UUID email request to: ${email}, subject: ${subject}`);
+    console.log(`Processing email request to: ${email}, subject: ${subject}`);
     
     if (!email || !subject || !message) {
       return new Response(
@@ -59,7 +58,7 @@ serve(async (req) => {
 
       await client.close();
       
-      console.log(`UUID email sent successfully to ${email}`);
+      console.log(`Email sent successfully to ${email}`);
       
       return new Response(
         JSON.stringify({ success: true }),
@@ -82,15 +81,15 @@ serve(async (req) => {
 });
 */
 
-// This file serves as a template/documentation for the Supabase Edge Function
+// This file serves as a template/documentation for a general email sending Supabase Edge Function
 // The actual code needs to be deployed in Supabase, not compiled with your app
-export const EDGE_FUNCTION_NAME = 'send-uuid-email';
+export const EDGE_FUNCTION_NAME = 'send-email';
 
 // Instructions for deploying this function in Supabase:
 // 1. Go to your Supabase dashboard
 // 2. Select your project
 // 3. In the left sidebar, click on "Edge Functions"
-// 4. Create a new function named 'send-uuid-email'
+// 4. Create a new function named 'send-email'
 // 5. Copy the code from the comment above into the function editor
 // 6. Deploy the function
 // 7. In the left sidebar, click on "Project Settings"

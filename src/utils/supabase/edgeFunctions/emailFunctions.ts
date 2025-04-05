@@ -12,12 +12,12 @@ export interface SmtpConfig {
   fromEmail: string;
 }
 
-// Helper function to attempt to send an email through Supabase
+// Helper function to send an email through Supabase Edge Function
 export async function sendEmailViaSupabase(
   recipient: string, 
   subject: string, 
   body: string,
-  functionName: 'send-uuid-email' | 'send-recovery-email' | 'send-verification-code'
+  functionName: 'send-email' | 'send-recovery-email' | 'send-verification-code'
 ): Promise<boolean> {
   const supabase = getSupabaseClient();
   
@@ -69,7 +69,7 @@ export async function sendEmailViaSupabase(
   }
 }
 
-// Export function to create and deploy edge functions if needed
+// Export function to verify email functions
 export async function verifyEmailFunctionsExist(): Promise<boolean> {
   try {
     return await verifyEmailFunctionsSetup();
