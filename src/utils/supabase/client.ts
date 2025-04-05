@@ -11,24 +11,73 @@ const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    
+    // Email configuration
+    flowType: 'pkce',
+    // Ensure production-ready settings for email
+    emailRedirectTo: window.location.origin
   },
   global: {
-    // Increase timeout for better reliability on slow connections
+    // Enhanced fetch with improved timeout and error handling
     fetch: (url, options) => {
+      // Create an abort controller to manage the timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
+      const timeoutId = setTimeout(() => controller.abort(), 45000); // Extended timeout to 45 seconds
       
-      return fetch(url, { 
+      // Add custom headers for better tracking and debugging
+      const enhancedOptions = {
         ...options,
-        signal: controller.signal
-      }).finally(() => clearTimeout(timeoutId));
+        signal: controller.signal,
+        headers: {
+          ...options?.headers,
+          'X-Client-Info': 'financial-app-production'
+        }
+      };
+      
+      return fetch(url, enhancedOptions)
+        .finally(() => clearTimeout(timeoutId));
     }
   }
 });
 
 // Export the client directly to avoid creating multiple instances
 export const getSupabaseClient = () => supabaseClient;
+
+// Enhanced function to send verification emails
+export const sendEmailVerification = async (email: string): Promise<{success: boolean, message: string}> => {
+  try {
+    console.log('Sending email verification to:', email);
+    
+    // Production-ready email verification via Supabase Auth
+    const { error } = await supabaseClient.auth.resend({
+      type: 'signup',
+      email: email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/email-verified`
+      }
+    });
+    
+    if (error) {
+      console.error('Error sending verification email:', error);
+      return { 
+        success: false, 
+        message: 'Failed to send verification email. Please check your email address and try again.'
+      };
+    }
+    
+    return { 
+      success: true, 
+      message: 'Verification email sent successfully. Please check your inbox.'
+    };
+  } catch (error) {
+    console.error('Exception sending verification email:', error);
+    return { 
+      success: false, 
+      message: 'An error occurred while sending the verification email. Please try again.'
+    };
+  }
+};
 
 // Enhanced function to check if this is a RLS policy error with more specific detection
 export const isRlsPolicyError = (error: any): boolean => {
@@ -98,7 +147,8 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY
+          'apikey': SUPABASE_ANON_KEY,
+          'X-Client-Info': 'financial-app-production'
         }
       });
       

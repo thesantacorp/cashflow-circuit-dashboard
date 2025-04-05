@@ -28,7 +28,17 @@ import { initRecoverySystem } from "./utils/userDataRecovery";
 import { initializeSupabase, checkSupabaseConnection } from "./utils/supabaseInit";
 import { toast } from "sonner";
 
-const queryClient = new QueryClient();
+// Create QueryClient with production-ready settings
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      staleTime: 30000,
+      refetchOnWindowFocus: false
+    }
+  }
+});
+
 const MAX_LOADING_TIME = 4000; // Reduced max loading time to improve UX
 
 function App() {
@@ -107,13 +117,25 @@ function App() {
           return;
         }
       
-        // Check connection to Supabase
+        // Check connection to Supabase - make multiple attempts
         console.log("Initializing Supabase connection...");
-        const success = await initializeSupabase();
+        let success = await initializeSupabase();
+        
+        // If first attempt fails, try again after a short delay
+        if (!success) {
+          console.log("First initialization attempt failed, retrying...");
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          success = await initializeSupabase();
+        }
+        
         setSupabaseInitialized(success);
         
         if (!success) {
           console.warn("Continuing without full Supabase initialization");
+          toast.warning("Some online features may be limited", {
+            description: "We'll try to reconnect automatically",
+            duration: 5000
+          });
         }
         
         // Continue app initialization regardless of Supabase connection
