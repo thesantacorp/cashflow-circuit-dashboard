@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -12,7 +11,7 @@ import StatCards from "@/components/admin/StatCards";
 import DashboardCharts from "@/components/admin/DashboardCharts";
 import FinancialInsights from "@/components/admin/FinancialInsights";
 import UserSessionsCard from "@/components/admin/UserSessionsCard";
-import AdminCrowdfundingTab from "@/components/admin/AdminOverviewTab";
+import AdminOverviewTab from "@/components/admin/AdminOverviewTab";
 
 const AdminDashboard: React.FC = () => {
   const [username, setUsername] = useState("");
@@ -23,7 +22,6 @@ const AdminDashboard: React.FC = () => {
   const { transactions, categories } = state;
   const { currencySymbol } = useCurrency();
   
-  // Retrieve usage data from localStorage
   const [usageStats, setUsageStats] = useState({
     totalSessions: 0,
     averageSessionDuration: 0,
@@ -38,7 +36,6 @@ const AdminDashboard: React.FC = () => {
       const sessions = localStorage.getItem('sessions') ? JSON.parse(localStorage.getItem('sessions')!) : [];
       const users = new Set(sessions.map((s: any) => s.userId));
       
-      // Calculate average session duration
       let totalDuration = 0;
       sessions.forEach((session: any) => {
         if (session.duration) {
@@ -48,7 +45,6 @@ const AdminDashboard: React.FC = () => {
       
       const avgDuration = sessions.length > 0 ? Math.round(totalDuration / sessions.length) : 0;
       
-      // Find last active time
       const lastSession = sessions.sort((a: any, b: any) => 
         new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
       )[0];
@@ -67,7 +63,6 @@ const AdminDashboard: React.FC = () => {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Check hardcoded credentials (using the same as notification dashboard for consistency)
     if (username === "SupErAdmIn" && password === "K9$PzW2e&xL!mG7@sV3#nQ8*tD5^jF6") {
       setIsAuthenticated(true);
       toast.success("Logged in successfully");
@@ -90,22 +85,18 @@ const AdminDashboard: React.FC = () => {
     navigate("/admin/notifications");
   };
   
-  // Prepare data for charts
   const getMonthlyTransactionData = () => {
     const monthlyData: { [key: string]: { expenses: number, income: number } } = {};
     const now = new Date();
     
-    // Initialize last 6 months
     for (let i = 5; i >= 0; i--) {
       const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthKey = format(month, "MMM yyyy");
       monthlyData[monthKey] = { expenses: 0, income: 0 };
     }
     
-    // Fill with transaction data
     transactions.forEach(transaction => {
       const date = new Date(transaction.date);
-      // Only include last 6 months
       if (date >= new Date(now.getFullYear(), now.getMonth() - 5, 1)) {
         const monthKey = format(date, "MMM yyyy");
         if (monthlyData[monthKey]) {
@@ -118,7 +109,6 @@ const AdminDashboard: React.FC = () => {
       }
     });
     
-    // Convert to array for recharts
     return Object.keys(monthlyData).map(month => ({
       name: month,
       expenses: monthlyData[month].expenses,
@@ -142,10 +132,9 @@ const AdminDashboard: React.FC = () => {
     return Object.keys(categoryTotals)
       .map(name => ({ name, value: categoryTotals[name] }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 5); // Top 5 categories
+      .slice(0, 5);
   };
 
-  // Helper function to calculate total by type
   const getTotalByType = (type: string) => {
     return transactions
       .filter((t) => t.type === type)
@@ -196,7 +185,7 @@ const AdminDashboard: React.FC = () => {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
           <TabsTrigger value="users">User Activities</TabsTrigger>
-          <TabsTrigger value="crowdfunding">Crowdfunding</TabsTrigger>
+          <TabsTrigger value="admin">Admin</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview">
@@ -220,8 +209,8 @@ const AdminDashboard: React.FC = () => {
           <UserSessionsCard usageStats={usageStats} />
         </TabsContent>
         
-        <TabsContent value="crowdfunding">
-          <AdminCrowdfundingTab />
+        <TabsContent value="admin">
+          <AdminOverviewTab />
         </TabsContent>
       </Tabs>
     </div>
