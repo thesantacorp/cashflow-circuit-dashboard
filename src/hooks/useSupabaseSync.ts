@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTransactions } from '@/context/transaction';
 import { useAuth } from '@/context/AuthContext';
 import { getSupabaseClient } from '@/utils/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { TransactionType, EmotionalState } from '@/types';
 
@@ -56,6 +57,28 @@ export function useSupabaseSync() {
     throw new Error(`${operationName} failed after ${MAX_RETRIES} attempts`);
   }, []);
 
+  // Function to get the best available Supabase client
+  const getBestClient = useCallback(async () => {
+    // First try the integrated client
+    try {
+      const { data, error } = await supabase.from('user_uuids').select('count', { count: 'exact', head: true }).limit(1);
+      if (!error) {
+        console.log('Using integrated Supabase client');
+        return supabase;
+      }
+    } catch (err) {
+      console.log('Integrated client failed, falling back to custom client');
+    }
+    
+    // If that fails, try the custom client
+    const customClient = getSupabaseClient();
+    if (!customClient) {
+      throw new Error('Failed to initialize Supabase client');
+    }
+    console.log('Using custom Supabase client');
+    return customClient;
+  }, []);
+
   // Function to backup data to Supabase
   const backupToSupabase = useCallback(async () => {
     if (!user) {
@@ -66,29 +89,25 @@ export function useSupabaseSync() {
     setIsSyncing(true);
     
     try {
-      // Get a fresh client for each operation to avoid stale connections
-      const supabase = getSupabaseClient();
-      
-      if (!supabase) {
-        throw new Error('Failed to initialize Supabase client');
-      }
+      // Get the best available client
+      const client = await getBestClient();
       
       // Check connection to Supabase before proceeding
       await executeWithRetry(async () => {
-        const { data, error } = await supabase.from('user_uuids').select('count', { count: 'exact', head: true }).limit(1);
+        const { data, error } = await client.from('user_uuids').select('count', { count: 'exact', head: true }).limit(1);
         if (error) throw error;
         return data;
       }, 'Connection check');
       
       // Delete existing data for this user to prevent duplicates
       await executeWithRetry(async () => {
-        const { error } = await (supabase.from('transactions') as any).delete().eq('user_email', user.email);
+        const { error } = await (client.from('transactions') as any).delete().eq('user_email', user.email);
         if (error) throw error;
         return true;
       }, 'Delete existing transactions');
       
       await executeWithRetry(async () => {
-        const { error } = await (supabase.from('categories') as any).delete().eq('user_email', user.email);
+        const { error } = await (client.from('categories') as any).delete().eq('user_email', user.email);
         if (error) throw error;
         return true;
       }, 'Delete existing categories');
@@ -115,7 +134,7 @@ export function useSupabaseSync() {
           }));
           
           await executeWithRetry(async () => {
-            const { error } = await (supabase.from('transactions') as any).insert(transactionRows);
+            const { error } = await (client.from('transactions') as any).insert(transactionRows);
             if (error) throw error;
             return true;
           }, `Insert transactions batch ${i + 1}/${batches}`);
@@ -133,7 +152,7 @@ export function useSupabaseSync() {
         }));
         
         await executeWithRetry(async () => {
-          const { error } = await (supabase.from('categories') as any).insert(categoryRows);
+          const { error } = await (client.from('categories') as any).insert(categoryRows);
           if (error) throw error;
           return true;
         }, 'Insert categories');
@@ -142,7 +161,7 @@ export function useSupabaseSync() {
       // Update profile with last backup date
       if (user.id) {
         await executeWithRetry(async () => {
-          const { error } = await supabase
+          const { error } = await client
             .from('profiles')
             .update({ 
               backup_last_date: new Date().toISOString()
@@ -168,7 +187,7 @@ export function useSupabaseSync() {
     } finally {
       setIsSyncing(false);
     }
-  }, [user, state.transactions, state.categories, executeWithRetry]);
+  }, [user, state.transactions, state.categories, executeWithRetry, getBestClient]);
 
   // Function to restore data from Supabase
   const restoreFromSupabase = useCallback(async () => {
@@ -180,16 +199,12 @@ export function useSupabaseSync() {
     setIsSyncing(true);
     
     try {
-      // Get a fresh client for each operation
-      const supabase = getSupabaseClient();
-      
-      if (!supabase) {
-        throw new Error('Failed to initialize Supabase client');
-      }
+      // Get the best available client
+      const client = await getBestClient();
       
       // Fetch transactions
       const { data: transactionsData, error: transactionsError } = await executeWithRetry(async () => {
-        return await (supabase.from('transactions') as any)
+        return await (client.from('transactions') as any)
           .select('*')
           .eq('user_email', user.email);
       }, 'Fetch transactions');
@@ -198,7 +213,7 @@ export function useSupabaseSync() {
       
       // Fetch categories
       const { data: categoriesData, error: categoriesError } = await executeWithRetry(async () => {
-        return await (supabase.from('categories') as any)
+        return await (client.from('categories') as any)
           .select('*')
           .eq('user_email', user.email);
       }, 'Fetch categories');
@@ -242,18 +257,15 @@ export function useSupabaseSync() {
     } finally {
       setIsSyncing(false);
     }
-  }, [user, executeWithRetry, replaceAllData]);
+  }, [user, executeWithRetry, replaceAllData, getBestClient]);
 
   // Auto-sync data when a user logs in
   useEffect(() => {
     if (user && profile) {
       const syncData = async () => {
         try {
-          const supabase = getSupabaseClient();
-          
-          if (!supabase) {
-            throw new Error('Failed to initialize Supabase client');
-          }
+          // Get the best available client
+          const client = await getBestClient();
           
           // Check if we have local data
           const hasLocalData = state.transactions.length > 0 || state.categories.length > 0;
@@ -261,7 +273,7 @@ export function useSupabaseSync() {
           // Check if we have remote data
           let remoteCount = 0;
           try {
-            const { data } = await supabase
+            const { data } = await client
               .from('transactions')
               .select('count', { count: 'exact', head: true })
               .eq('user_email', user.email);
@@ -319,7 +331,7 @@ export function useSupabaseSync() {
       
       syncData().catch(console.error);
     }
-  }, [user, profile, state.transactions.length, state.categories.length, backupToSupabase, restoreFromSupabase]);
+  }, [user, profile, state.transactions.length, state.categories.length, backupToSupabase, restoreFromSupabase, getBestClient]);
 
   // Auto-backup when data changes (with debounce)
   useEffect(() => {

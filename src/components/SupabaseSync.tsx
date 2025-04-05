@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { formatDistanceToNow } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { checkDatabaseConnection } from "@/utils/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SupabaseSyncProps {
   minimal?: boolean;
@@ -35,11 +36,31 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
     setConnectionError(null);
     
     try {
+      // First try with the integrated client
+      try {
+        const { data, error } = await supabase
+          .from('user_uuids')
+          .select('count', { count: 'exact', head: true })
+          .limit(1);
+        
+        if (!error) {
+          // Connection successful with integrated client
+          setIsCheckingConnection(false);
+          return true;
+        }
+      } catch (err) {
+        console.log('Integrated client check failed, trying fallback client');
+      }
+      
+      // If that fails, try with the fallback client
       const isConnected = await checkDatabaseConnection();
       
       if (!isConnected) {
         setConnectionError("Could not connect to database. Please try again later.");
+        return false;
       }
+      
+      return true;
     } catch (error) {
       console.error("Connection error:", error);
       setConnectionError(
@@ -47,6 +68,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
           ? `Connection error: ${error.message}` 
           : "Unknown connection error"
       );
+      return false;
     } finally {
       setIsCheckingConnection(false);
     }
@@ -55,6 +77,23 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
   const handleOperation = async (operation: () => Promise<boolean>) => {
     setConnectionError(null);
     
+    // First try with the integrated client
+    try {
+      const { data, error } = await supabase
+        .from('user_uuids')
+        .select('count', { count: 'exact', head: true })
+        .limit(1);
+      
+      if (!error) {
+        // Connection successful with integrated client, proceed with operation
+        await operation();
+        return;
+      }
+    } catch (err) {
+      console.log('Integrated client check failed, trying fallback client');
+    }
+    
+    // If that fails, try with the fallback client
     try {
       const isConnected = await checkDatabaseConnection();
       if (!isConnected) {

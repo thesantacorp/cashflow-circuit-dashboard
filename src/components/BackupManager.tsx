@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,20 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CloudIcon, LoaderIcon, AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { checkDatabaseConnection } from "@/utils/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 
 const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const { isSyncing, backupToSupabase, restoreFromSupabase } = useSupabaseSync();
   const { user, isLoading } = useAuth();
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  // Check connection on mount
+  useEffect(() => {
+    if (user) {
+      verifyConnection();
+    }
+  }, [user]);
 
   if (isLoading) {
     return (
@@ -39,6 +47,23 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     setConnectionError(null);
     
     try {
+      // First try with the integrated client
+      try {
+        const { data, error } = await supabase
+          .from('user_uuids')
+          .select('count', { count: 'exact', head: true })
+          .limit(1);
+        
+        if (!error) {
+          // Connection successful with integrated client
+          setIsCheckingConnection(false);
+          return true;
+        }
+      } catch (err) {
+        console.log('Integrated client check failed, trying fallback client');
+      }
+      
+      // If that fails, try with the fallback client
       const isConnected = await checkDatabaseConnection();
       
       if (!isConnected) {

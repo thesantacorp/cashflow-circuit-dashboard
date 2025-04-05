@@ -2,9 +2,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 
-// Check for valid Supabase URL and key
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://xejnmpsmnakewioiflcj.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhlam5tcHNtbmFrZXdpb2lmbGNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODM3MzA5NjYsImV4cCI6MTk5OTMwNjk2Nn0.R7JQITqV4ODsanBkyaKzeMpWh7cXGZMG7SSLWa8VuXw';
+// Use the values from the integrated Supabase client instead of environment variables
+const SUPABASE_URL = 'https://tsidnalhlgcmcnqawgux.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzaWRuYWxobGdjbWNucWF3Z3V4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM4MjkzNTIsImV4cCI6MjA1OTQwNTM1Mn0.G9voKlG0s22kFnNX2qE8Tfv5xq8amdion7J6Xfi8rKQ';
 
 let supabaseClient: any = null;
 let connectionChecked = false;
@@ -70,7 +70,8 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
   }
   
   try {
-    const supabase = getSupabaseClient();
+    // Use the integrated Supabase client instead
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     if (!supabase) return false;
     
     console.log('Checking Supabase connection...');
