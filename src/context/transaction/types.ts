@@ -24,7 +24,7 @@ export interface TransactionContextProps {
   dispatch: React.Dispatch<TransactionAction>;
   userUuid: string | null;
   userEmail: string | null;
-  generateUserUuid: (email?: string) => string;
+  generateUserUuid: (email?: string) => Promise<string>;
   checkUuidExists: () => boolean;
   getUserEmail: () => string | null;
   addTransaction: (transaction: Omit<Transaction, "id">) => boolean;
