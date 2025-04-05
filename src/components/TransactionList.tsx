@@ -155,10 +155,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ type = "expense", lim
                     <div className="flex items-center gap-2 ml-auto">
                       <span
                         className={`font-semibold ${
-                          type === "expense" ? "text-red-600" : "text-green-600"
+                          transaction.type === "expense" ? "text-red-600" : "text-green-600"
                         }`}
                       >
-                        {type === "expense" ? "-" : "+"}{currencySymbol}{transaction.amount.toFixed(2)}
+                        {transaction.type === "expense" ? "-" : "+"}{currencySymbol}{transaction.amount.toFixed(2)}
                       </span>
                       <div className="flex">
                         <Button
@@ -184,7 +184,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ type = "expense", lim
               })
             ) : (
               <p className="text-center text-muted-foreground py-8">
-                No {type} transactions found for {getPeriodLabel().toLowerCase()}.
+                No {type !== "combined" ? type : ""} transactions found for {getPeriodLabel().toLowerCase()}.
               </p>
             )}
           </div>

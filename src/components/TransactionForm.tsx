@@ -23,7 +23,9 @@ interface TransactionFormProps {
 const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) => {
   const { addTransaction, getCategoriesByType, state, checkUuidExists } = useTransactions();
   const { currencySymbol } = useCurrency();
-  const categories = getCategoriesByType(type);
+  // For combined type, we'll default to expense
+  const formType = type === "combined" ? "expense" : type;
+  const categories = getCategoriesByType(formType);
   
   const [amount, setAmount] = useState<string>("");
   const [categoryId, setCategoryId] = useState<string>("");
@@ -108,7 +110,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
     <Card className="border-orange-200 shadow-lg bg-gradient-to-b from-white to-orange-50/30">
       <CardHeader className="border-b border-orange-100">
         <CardTitle className="text-orange-600">
-          Add {type === "expense" ? "Expense" : "Income"}
+          Add {formType === "expense" ? "Expense" : "Income"}
         </CardTitle>
       </CardHeader>
       <form onSubmit={handleSubmit}>
@@ -134,7 +136,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
             <DatePicker date={date} onDateChange={(newDate) => newDate && setDate(newDate)} />
           </div>
           
-          {type === "expense" && (
+          {formType === "expense" && (
             <EmotionSelector 
               emotionalState={emotionalState} 
               onChange={handleEmotionChange} 
@@ -159,7 +161,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
             className="w-full bg-orange-500 hover:bg-orange-600 text-white"
             disabled={showUuidCheck}
           >
-            Add {type === "expense" ? "Expense" : "Income"}
+            Add {formType === "expense" ? "Expense" : "Income"}
           </Button>
         </CardFooter>
       </form>

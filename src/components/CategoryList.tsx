@@ -15,21 +15,23 @@ interface CategoryListProps {
 
 const CategoryList: React.FC<CategoryListProps> = ({ type }) => {
   const { getCategoriesByType, addCategory, deleteCategory } = useTransactions();
-  const categories = getCategoriesByType(type);
+  // For combined type, we'll default to showing expense categories
+  const displayType = type === "combined" ? "expense" : type;
+  const categories = getCategoriesByType(displayType);
   const [open, setOpen] = useState(false);
   const [newCategory, setNewCategory] = useState<string>("");
-  const [color, setColor] = useState<string>(type === "expense" ? "#e74c3c" : "#27ae60");
+  const [color, setColor] = useState<string>(displayType === "expense" ? "#e74c3c" : "#27ae60");
 
   const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (newCategory.trim()) {
       addCategory({
         name: newCategory.trim(),
-        type,
+        type: displayType,
         color,
       });
       setNewCategory("");
-      setColor(type === "expense" ? "#e74c3c" : "#27ae60");
+      setColor(displayType === "expense" ? "#e74c3c" : "#27ae60");
       setOpen(false);
     }
   };
@@ -38,7 +40,7 @@ const CategoryList: React.FC<CategoryListProps> = ({ type }) => {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">
-          {type === "expense" ? "Expense" : "Income"} Categories
+          {displayType === "expense" ? "Expense" : "Income"} Categories
         </h2>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -49,7 +51,7 @@ const CategoryList: React.FC<CategoryListProps> = ({ type }) => {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New {type === "expense" ? "Expense" : "Income"} Category</DialogTitle>
+              <DialogTitle>Add New {displayType === "expense" ? "Expense" : "Income"} Category</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleAddCategory} className="space-y-4">
               <div className="space-y-2">
