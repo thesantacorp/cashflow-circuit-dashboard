@@ -10,14 +10,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { BackupFrequency } from "@/types";
+import { BackupFrequency, BackupSettings } from "@/types";
 
 interface BackupSettingsProps {
-  settings: {
-    enabled: boolean;
-    frequency: BackupFrequency;
-    lastBackup?: number;
-  };
+  settings: BackupSettings;
   enableBackup: (enabled: boolean) => void;
   setBackupFrequency: (frequency: BackupFrequency) => void;
   handleGoogleSignOut: () => void;

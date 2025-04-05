@@ -3,15 +3,11 @@ import React from "react";
 import BackupSignInSection from "./BackupSignInSection";
 import BackupSettingsSection from "./BackupSettingsSection";
 import BackupActionButtons from "./BackupActionButtons";
-import { BackupFrequency } from "@/types";
+import { BackupFrequency, BackupSettings } from "@/types";
 
 interface BackupSheetContentProps {
   isAuthenticated: boolean;
-  settings: {
-    enabled: boolean;
-    frequency: BackupFrequency;
-    lastBackup?: number;
-  };
+  settings: BackupSettings;
   isBackingUp: boolean;
   isRestoring: boolean;
   handleGoogleSignIn: () => void;
