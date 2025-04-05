@@ -6,7 +6,9 @@ import {
   ArrowDownIcon, 
   ArrowUpIcon, 
   Bell, 
-  BellOff
+  BellOff,
+  UserIcon,
+  LogOutIcon
 } from "lucide-react";
 import { useTransactions } from "@/context/transaction";
 import CurrencySelector from "./CurrencySelector";
@@ -15,6 +17,7 @@ import MobileNav from "./MobileNav";
 import { useIsMobile } from "@/hooks/use-mobile";
 import AppLogo from "./AppLogo";
 import { useNotifications } from "@/context/NotificationContext";
+import { useAuth } from "@/context/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +26,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import NotificationSettings from "./NotificationSettings";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -31,6 +41,7 @@ const Navbar: React.FC = () => {
   const { currencySymbol } = useCurrency();
   const isMobile = useIsMobile();
   const { permission, isSupported } = useNotifications();
+  const { user, profile, signOut } = useAuth();
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   
   const totalExpenses = getTotalByType("expense");
@@ -127,6 +138,37 @@ const Navbar: React.FC = () => {
               </span>
             </div>
           </div>
+          
+          {/* User menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="rounded-full w-10 h-10 bg-white/10 hover:bg-white/20 p-0"
+              >
+                <UserIcon size={18} className="text-white" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="flex items-center justify-start p-2">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">{profile?.full_name || 'User'}</p>
+                  <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                </div>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/profile')}>
+                <UserIcon className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => signOut()}>
+                <LogOutIcon className="mr-2 h-4 w-4" />
+                <span>Sign out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </nav>
