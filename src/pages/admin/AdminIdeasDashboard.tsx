@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, ImageIcon } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -23,8 +23,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { IdeasLoading } from '@/components/ideas/IdeasLoading';
-import { EmptyIdeasState } from '@/components/ideas/EmptyIdeasState';
 import { AdminIdeasTable } from '@/components/admin/ideas/AdminIdeasTable';
 import { AdminIdeaForm } from '@/components/admin/ideas/AdminIdeaForm';
 import { AdminVotesStatsGrid } from '@/components/admin/ideas/AdminVotesStatsGrid';
