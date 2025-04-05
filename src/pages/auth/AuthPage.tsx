@@ -36,7 +36,7 @@ const AuthPage = () => {
           <div className="text-center mb-8">
             <AppLogo className="h-12 w-12 mx-auto mb-2" />
             <h1 className="text-2xl font-bold text-slate-800">Stack'd</h1>
-            <p className="text-slate-500">Track your finances with ease</p>
+            <p className="text-slate-500">Don't just track, grow your finances.</p>
           </div>
           
           <div className="bg-white p-6 rounded-lg shadow-md">
