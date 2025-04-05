@@ -78,7 +78,25 @@ const SpendingRecommendations: React.FC = () => {
       
       const emotionalRatio = totalExpenses > 0 ? emotionalSpending / totalExpenses : 0;
 
-      // Add recommendations based on analysis
+      // More advanced recommendations
+      const advancedRecommendations = [
+        "Try the 50/30/20 rule: Allocate 50% of income to needs, 30% to wants, and 20% to savings and debt repayment.",
+        "Consider using cashback or rewards credit cards for regular purchases to earn points on necessary expenses.",
+        "Review your subscriptions quarterly. The average person wastes $273/year on unused subscriptions.",
+        "Practice the 24-hour rule for non-essential purchases over $50 to prevent impulse buying.",
+        "Set up automatic transfers to a high-yield savings account on payday to build an emergency fund.",
+        "Compare your grocery spending with the USDA food plans to see if you're overspending on food.",
+        "Try meal prepping to reduce food waste and avoid expensive takeout meals during busy workdays.",
+        "Consider negotiating bills annually - many service providers offer loyalty discounts upon request.",
+        "Look into refinancing high-interest loans when your credit score improves significantly.",
+        "Review your tax withholding to ensure you're not giving the government an interest-free loan.",
+        "Track price drops on major planned purchases using price-tracking tools to buy at the optimal time.",
+        "Invest small amounts regularly rather than waiting to have a large sum - compound interest works better over time.",
+        "When getting a raise, increase your retirement contributions before lifestyle inflation kicks in.",
+        "Consider a spending freeze for one week each month to reset consumption habits and boost savings.",
+      ];
+
+      // Add specific recommendations based on analysis
       if (topCategories.length > 0) {
         recommendations.push(`Your top spending category is ${topCategories[0].name}. Consider setting a budget for this category to manage expenses better.`);
       }
@@ -98,6 +116,10 @@ const SpendingRecommendations: React.FC = () => {
       if (recentSpending > totalIncome * 0.5 && totalIncome > 0) {
         recommendations.push(`Your spending has been high in the last 7 days (${recentSpending.toFixed(2)}). Consider slowing down for the rest of the month.`);
       }
+
+      // Add 2-3 random advanced recommendations
+      const shuffledAdvanced = [...advancedRecommendations].sort(() => 0.5 - Math.random());
+      recommendations.push(...shuffledAdvanced.slice(0, 3));
 
       // Ensure we have at least one recommendation
       if (recommendations.length === 0) {

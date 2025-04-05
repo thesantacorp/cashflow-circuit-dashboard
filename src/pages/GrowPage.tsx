@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getSupabaseClient } from "@/utils/supabase/client";
 import GrowProjectsList from "@/components/grow/GrowProjectsList";
 import GrowPageHeader from "@/components/grow/GrowPageHeader";
-import { Project } from "@/types";
+import { Project } from "@/types/project";
 import ProjectsLoadingState from "@/components/grow/ProjectsLoadingState";
 import ProjectsEmptyState from "@/components/grow/ProjectsEmptyState";
 
@@ -15,6 +14,7 @@ const GrowPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterState, setFilterState] = useState<"all" | "active" | "expired">("all");
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -23,8 +23,25 @@ const GrowPage: React.FC = () => {
 
   const fetchProjects = async () => {
     setIsLoading(true);
+    setError(null);
+    
     try {
       const supabase = getSupabaseClient();
+      
+      // First, check if the projects table exists
+      const { error: tableCheckError } = await supabase
+        .from('projects')
+        .select('id')
+        .limit(1);
+        
+      if (tableCheckError && tableCheckError.code === '42P01') {
+        // Table doesn't exist - likely needs initialization
+        console.error("Projects table doesn't exist:", tableCheckError);
+        setProjects([]);
+        setError("Projects database needs initialization");
+        setIsLoading(false);
+        return;
+      }
       
       let query = supabase
         .from('projects')
@@ -43,7 +60,10 @@ const GrowPage: React.FC = () => {
       
       if (error) {
         console.error("Error fetching projects:", error);
-        toast.error("Failed to load innovation projects");
+        toast.error("Failed to load innovation projects", { 
+          description: error.message || "Database error" 
+        });
+        setError("Failed to load projects");
         setProjects([]);
       } else {
         // Process projects to add voting status from local storage
@@ -59,6 +79,7 @@ const GrowPage: React.FC = () => {
     } catch (err) {
       console.error("Exception fetching projects:", err);
       toast.error("Failed to load innovation projects");
+      setError("Failed to load projects");
       setProjects([]);
     } finally {
       setIsLoading(false);
@@ -130,10 +151,26 @@ const GrowPage: React.FC = () => {
     <div className="container mx-auto py-6 px-4">
       <GrowPageHeader />
       
+      {error && (
+        <div className="my-6 p-4 bg-orange-50 border border-orange-200 rounded-lg text-center">
+          <p className="text-orange-800 mb-2">{error}</p>
+          <Button 
+            variant="outline"
+            onClick={() => fetchProjects()}
+            className="bg-white border-orange-300 hover:bg-orange-50"
+          >
+            Try Again
+          </Button>
+        </div>
+      )}
+      
       <Tabs 
         defaultValue="all" 
         className="mt-6"
-        onValueChange={(value) => setFilterState(value as "all" | "active" | "expired")}
+        onValueChange={(value) => {
+          setFilterState(value as "all" | "active" | "expired");
+          fetchProjects();
+        }}
       >
         <TabsList>
           <TabsTrigger value="all">All Ideas</TabsTrigger>
@@ -145,7 +182,7 @@ const GrowPage: React.FC = () => {
           {isLoading ? (
             <ProjectsLoadingState />
           ) : filteredProjects.length === 0 ? (
-            <ProjectsEmptyState />
+            <ProjectsEmptyState message={error ? "No projects found. Try again later." : undefined} />
           ) : (
             <GrowProjectsList projects={filteredProjects} onVote={handleVote} />
           )}
@@ -155,7 +192,7 @@ const GrowPage: React.FC = () => {
           {isLoading ? (
             <ProjectsLoadingState />
           ) : filteredProjects.filter(p => !p.expiration_date || new Date(p.expiration_date) > new Date()).length === 0 ? (
-            <ProjectsEmptyState />
+            <ProjectsEmptyState message={error ? "No active projects found. Try again later." : undefined} />
           ) : (
             <GrowProjectsList 
               projects={filteredProjects.filter(p => !p.expiration_date || new Date(p.expiration_date) > new Date())}
@@ -168,7 +205,7 @@ const GrowPage: React.FC = () => {
           {isLoading ? (
             <ProjectsLoadingState />
           ) : filteredProjects.filter(p => p.expiration_date && new Date(p.expiration_date) <= new Date()).length === 0 ? (
-            <ProjectsEmptyState message="No expired ideas available." />
+            <ProjectsEmptyState message={error ? "No expired projects found. Try again later." : "No expired ideas available."} />
           ) : (
             <GrowProjectsList 
               projects={filteredProjects.filter(p => p.expiration_date && new Date(p.expiration_date) <= new Date())}

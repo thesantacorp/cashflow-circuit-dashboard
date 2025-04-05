@@ -6,6 +6,7 @@ import MobileSettingsMenu from "./MobileSettingsMenu";
 interface NavigationItem {
   name: string;
   path: string;
+  icon?: React.ReactNode;
 }
 
 interface SettingsItem {
