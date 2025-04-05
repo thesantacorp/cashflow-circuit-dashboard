@@ -82,21 +82,18 @@ const OverviewPageEnhanced: React.FC = () => {
         </TabsList>
         
         <TabsContent value="dashboard" className="pt-4 space-y-6">
-          {!hasUuid && isMobile && <UuidStatus />}
           <Dashboard type="expense" />
           {!isMobile && <LocalStorageInfo />}
           {!isMobile && <DataExportImport />}
         </TabsContent>
         
         <TabsContent value="emotions" className="pt-4 space-y-6">
-          {!hasUuid && isMobile && <UuidStatus />}
           <EmotionInsightsEnhanced />
           {!isMobile && <LocalStorageInfo />}
           {!isMobile && <DataExportImport />}
         </TabsContent>
         
         <TabsContent value="recommendations" className="pt-4 space-y-6">
-          {!hasUuid && isMobile && <UuidStatus />}
           <SpendingRecommendations />
           {!isMobile && <LocalStorageInfo />}
           {!isMobile && <DataExportImport />}
