@@ -1,29 +1,8 @@
 
 import { getSupabaseClient } from "./supabase/client";
 import { toast } from "sonner";
-import { sendEmailViaSupabase, setGlobalSmtpConfig } from "./supabase/edgeFunctions/emailFunctions";
+import { sendEmailViaSupabase } from "./supabase/edgeFunctions/emailFunctions";
 import { verifyEmailFunctionsSetup } from "./supabase/emailFunctionVerification";
-
-// Function to set up SMTP configuration
-export function setupEmailService(
-  host: string, 
-  username: string, 
-  password: string, 
-  fromEmail: string, 
-  port = 587
-): void {
-  setGlobalSmtpConfig({
-    host,
-    username,
-    password,
-    port,
-    fromEmail
-  });
-  
-  toast.success('Email service configured successfully', {
-    description: `SMTP settings for ${host} have been saved`
-  });
-}
 
 // Send email with UUID using Supabase Edge Function
 export async function sendEmailWithUuid(email: string, uuid: string): Promise<boolean> {
@@ -145,151 +124,96 @@ export async function sendDataRecoveryVerificationCode(email: string, code: stri
   }
 }
 
-// Helper function to show email setup error
+// Helper function to show email setup error with instructions
 function showEmailSetupError() {
   toast.error("Email service not configured", {
-    description: "Supabase edge functions for sending emails need to be set up",
+    description: "Supabase Edge Functions for sending emails need to be set up",
     duration: 10000,
     action: {
-      label: "Configure Now",
+      label: "Setup Guide",
       onClick: () => {
-        // Display email configuration form
         const setupWindow = window.open("", "_blank");
         if (setupWindow) {
           setupWindow.document.write(`
             <html>
               <head>
-                <title>Email Setup Configuration</title>
+                <title>Email Function Setup Guide</title>
                 <style>
                   body { font-family: Arial, sans-serif; line-height: 1.6; margin: 20px; max-width: 800px; }
-                  .form-group { margin-bottom: 15px; }
-                  label { display: block; margin-bottom: 5px; font-weight: bold; }
-                  input[type="text"], input[type="password"], input[type="number"] { 
-                    width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; 
-                  }
-                  button { 
-                    background: #4f46e5; color: white; border: none; padding: 10px 15px; 
-                    border-radius: 4px; cursor: pointer; font-size: 16px; 
-                  }
-                  button:hover { background: #4338ca; }
+                  pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+                  h1, h2 { color: #333; }
+                  code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; }
+                  .steps { margin-left: 20px; }
                   .note { background: #fffde7; padding: 10px; border-left: 4px solid #ffd600; margin: 10px 0; }
                 </style>
               </head>
               <body>
-                <h1>Email Service Configuration</h1>
-                <p>Configure your SMTP settings to enable email functionality in Stack'd Finance.</p>
+                <h1>Server-Side Email Setup Guide</h1>
+                <p>To enable email functionality in Stack'd Finance, you need to set up three Supabase Edge Functions with proper environment variables:</p>
                 
-                <div class="note">
-                  <p><strong>Note:</strong> This configuration will be stored in your browser and included with the email requests. 
-                  For security, use an app-specific password if your email provider supports it.</p>
-                </div>
-                
-                <form id="smtpForm">
-                  <div class="form-group">
-                    <label for="host">SMTP Host:</label>
-                    <input type="text" id="host" placeholder="e.g., smtp.gmail.com" required>
-                  </div>
+                <div class="steps">
+                  <h2>Step 1: Create the Edge Functions</h2>
+                  <ol>
+                    <li>Go to your <strong>Supabase Dashboard</strong></li>
+                    <li>Select your project</li>
+                    <li>In the left sidebar, click on <strong>Edge Functions</strong></li>
+                    <li>Create three functions with exactly these names:
+                      <ul>
+                        <li><code>send-uuid-email</code></li>
+                        <li><code>send-recovery-email</code></li>
+                        <li><code>send-verification-code</code></li>
+                      </ul>
+                    </li>
+                    <li>Copy the code from the corresponding files in your project:
+                      <ul>
+                        <li><code>src/utils/supabase/edgeFunctions/send-uuid-email.ts</code></li>
+                        <li><code>src/utils/supabase/edgeFunctions/send-recovery-email.ts</code></li>
+                        <li><code>src/utils/supabase/edgeFunctions/send-verification-code.ts</code></li>
+                      </ul>
+                    <li>Make sure to copy only the code inside the comment block (between /* and */)</li>
+                  </ol>
                   
-                  <div class="form-group">
-                    <label for="username">SMTP Username (Email):</label>
-                    <input type="text" id="username" placeholder="your.email@example.com" required>
-                  </div>
-                  
-                  <div class="form-group">
-                    <label for="password">SMTP Password or App Password:</label>
-                    <input type="password" id="password" required>
-                  </div>
-                  
-                  <div class="form-group">
-                    <label for="port">SMTP Port:</label>
-                    <input type="number" id="port" value="587" required>
-                  </div>
-                  
-                  <div class="form-group">
-                    <label for="fromEmail">From Email Address:</label>
-                    <input type="text" id="fromEmail" placeholder="usually same as username" required>
-                  </div>
+                  <h2>Step 2: Configure Environment Variables</h2>
+                  <ol>
+                    <li>In your Supabase Dashboard, select your project</li>
+                    <li>In the left sidebar, click on <strong>Project Settings</strong> (gear/cog icon)</li>
+                    <li>Click on <strong>API</strong></li>
+                    <li>Scroll down to <strong>Environment Variables</strong></li>
+                    <li>Click <strong>+ Add new variable</strong> and add:
+                      <ul>
+                        <li><code>SMTP_HOST</code> (e.g., smtp.gmail.com)</li>
+                        <li><code>SMTP_USERNAME</code> (your email address)</li>
+                        <li><code>SMTP_PASSWORD</code> (your email password or app password)</li>
+                        <li><code>SMTP_PORT</code> (usually 587)</li>
+                        <li><code>FROM_EMAIL</code> (the email address that will appear in the From field)</li>
+                      </ul>
+                    </li>
+                  </ol>
                   
                   <div class="note">
-                    <p><strong>Gmail Users:</strong> You'll need to create an "App Password" instead of using your regular password.
-                    <a href="https://support.google.com/accounts/answer/185833" target="_blank">Learn how to create an App Password</a></p>
+                    <strong>Note for Gmail users:</strong> You'll need to create an "App Password" instead of using your regular password.
+                    <a href="https://support.google.com/accounts/answer/185833" target="_blank">Learn how to create an App Password</a>
                   </div>
                   
-                  <button type="submit">Save Configuration</button>
-                </form>
-                
-                <script>
-                  document.getElementById('smtpForm').addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    
-                    const config = {
-                      host: document.getElementById('host').value,
-                      username: document.getElementById('username').value,
-                      password: document.getElementById('password').value,
-                      port: parseInt(document.getElementById('port').value),
-                      fromEmail: document.getElementById('fromEmail').value
-                    };
-                    
-                    // Store in localStorage
-                    localStorage.setItem('stackd_smtp_config', JSON.stringify(config));
-                    
-                    // Send back to parent window through postMessage
-                    window.opener.postMessage({
-                      type: 'smtp_config',
-                      config: config
-                    }, '*');
-                    
-                    // Show success and close window after delay
-                    document.body.innerHTML = '<h1>Configuration Saved!</h1><p>You can close this window now. Your email service should be ready to use.</p>';
-                    setTimeout(() => window.close(), 3000);
-                  });
-                  
-                  // Auto-fill from localStorage if available
-                  const savedConfig = localStorage.getItem('stackd_smtp_config');
-                  if (savedConfig) {
-                    const config = JSON.parse(savedConfig);
-                    document.getElementById('host').value = config.host || '';
-                    document.getElementById('username').value = config.username || '';
-                    document.getElementById('fromEmail').value = config.fromEmail || config.username || '';
-                    document.getElementById('port').value = config.port || 587;
-                    // Don't pre-fill password for security
-                  }
-                </script>
+                  <h2>Step 3: Test Your Setup</h2>
+                  <ol>
+                    <li>After deploying your functions and setting environment variables, test one function:</li>
+                    <li>Go to <strong>Edge Functions</strong>, select one of your functions</li>
+                    <li>Click the <strong>Test</strong> tab</li>
+                    <li>Enter test data in JSON format:</li>
+                    <pre>{
+  "email": "test@example.com",
+  "subject": "Test Email",
+  "message": "This is a test message"
+}</pre>
+                    <li>Click <strong>Run</strong> to test</li>
+                  </ol>
+                </div>
               </body>
             </html>
           `);
-          
-          // Listen for the configuration from the popup
-          window.addEventListener('message', function(event) {
-            if (event.data && event.data.type === 'smtp_config') {
-              const config = event.data.config;
-              setupEmailService(config.host, config.username, config.password, config.fromEmail, config.port);
-            }
-          });
         }
       }
     }
   });
-}
-
-// Check if we have stored SMTP config and use it
-export function initEmailService(): void {
-  try {
-    const savedConfig = localStorage.getItem('stackd_smtp_config');
-    if (savedConfig) {
-      const config = JSON.parse(savedConfig);
-      if (config.host && config.username && config.password && config.fromEmail) {
-        console.log('Found stored SMTP configuration, initializing email service');
-        setupEmailService(
-          config.host, 
-          config.username, 
-          config.password, 
-          config.fromEmail, 
-          config.port || 587
-        );
-      }
-    }
-  } catch (error) {
-    console.error('Error initializing email service from stored config:', error);
-  }
 }

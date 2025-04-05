@@ -1,4 +1,3 @@
-
 import { getSupabaseClient } from "./client";
 import { toast } from "sonner";
 
@@ -40,7 +39,7 @@ export async function verifyEmailFunctionsSetup(): Promise<boolean> {
 // Helper to display setup instructions if functions aren't configured
 export function showEmailFunctionSetupInstructions(): void {
   toast.error('Email functions not configured', { 
-    description: 'Please set up the required Supabase Edge Functions for email sending',
+    description: 'Server-side email functions need to be set up in Supabase',
     duration: 10000,
     action: {
       label: 'Setup Guide',
@@ -62,36 +61,38 @@ export function showEmailFunctionSetupInstructions(): void {
                 </style>
               </head>
               <body>
-                <h1>Email Function Setup Guide</h1>
-                <p>To enable email functionality in Stack'd Finance, you need to set up three Supabase Edge Functions:</p>
+                <h1>Server-Side Email Setup Guide</h1>
+                <p>To enable email functionality in Stack'd Finance, you need to set up three Supabase Edge Functions with proper environment variables:</p>
                 
                 <div class="steps">
                   <h2>Step 1: Create the Edge Functions</h2>
                   <ol>
                     <li>Go to your <strong>Supabase Dashboard</strong></li>
-                    <li>Navigate to <strong>Edge Functions</strong> in the left sidebar</li>
-                    <li>Create the following three functions:
+                    <li>Select your project</li>
+                    <li>In the left sidebar, click on <strong>Edge Functions</strong></li>
+                    <li>Create three functions with exactly these names:
                       <ul>
-                        <li><code>send-uuid-email</code> - For sending User IDs</li>
-                        <li><code>send-recovery-email</code> - For sending recovery links</li>
-                        <li><code>send-verification-code</code> - For sending verification codes</li>
+                        <li><code>send-uuid-email</code></li>
+                        <li><code>send-recovery-email</code></li>
+                        <li><code>send-verification-code</code></li>
                       </ul>
                     </li>
-                    <li>For each function, copy the code from the corresponding file in:
+                    <li>Copy the code from the corresponding files in your project:
                       <ul>
                         <li><code>src/utils/supabase/edgeFunctions/send-uuid-email.ts</code></li>
                         <li><code>src/utils/supabase/edgeFunctions/send-recovery-email.ts</code></li>
                         <li><code>src/utils/supabase/edgeFunctions/send-verification-code.ts</code></li>
                       </ul>
-                    </li>
-                    <li>Make sure to copy only the code inside the <code>/*...*/</code> comment block</li>
+                    <li>Make sure to copy only the code inside the comment block (between /* and */)</li>
                   </ol>
                   
                   <h2>Step 2: Configure Environment Variables</h2>
                   <ol>
-                    <li>In your Supabase Dashboard, go to <strong>Settings</strong> > <strong>API</strong></li>
-                    <li>Scroll to <strong>Environment Variables</strong></li>
-                    <li>Add the following variables:
+                    <li>In your Supabase Dashboard, select your project</li>
+                    <li>In the left sidebar, click on <strong>Project Settings</strong> (gear/cog icon)</li>
+                    <li>Click on <strong>API</strong></li>
+                    <li>Scroll down to <strong>Environment Variables</strong></li>
+                    <li>Click <strong>+ Add new variable</strong> and add:
                       <ul>
                         <li><code>SMTP_HOST</code> (e.g., smtp.gmail.com)</li>
                         <li><code>SMTP_USERNAME</code> (your email address)</li>
@@ -103,16 +104,9 @@ export function showEmailFunctionSetupInstructions(): void {
                   </ol>
                   
                   <div class="note">
-                    <strong>Note for Gmail users:</strong> You may need to create an "App Password" instead of using your regular password.
+                    <strong>Note for Gmail users:</strong> You'll need to create an "App Password" instead of using your regular password.
                     <a href="https://support.google.com/accounts/answer/185833" target="_blank">Learn how to create an App Password</a>
                   </div>
-                  
-                  <h2>Step 3: Deploy and Test</h2>
-                  <ol>
-                    <li>Deploy each function</li>
-                    <li>Return to your Stack'd Finance app</li>
-                    <li>Test the email functionality</li>
-                  </ol>
                 </div>
               </body>
             </html>

@@ -12,15 +12,6 @@ export interface SmtpConfig {
   fromEmail: string;
 }
 
-// Global SMTP config that can be set at runtime
-let globalSmtpConfig: SmtpConfig | null = null;
-
-// Function to set global SMTP configuration
-export function setGlobalSmtpConfig(config: SmtpConfig): void {
-  globalSmtpConfig = config;
-  console.log('Global SMTP configuration set');
-}
-
 // Helper function to attempt to send an email through Supabase
 export async function sendEmailViaSupabase(
   recipient: string, 
@@ -47,18 +38,12 @@ export async function sendEmailViaSupabase(
       subject: subject
     });
     
-    // Prepare the request payload, including SMTP config if available
-    const payload: any = { 
+    // Prepare the request payload
+    const payload = { 
       email: recipient,
       subject,
-      message: body,
+      message: body
     };
-    
-    // Add SMTP config if available globally
-    if (globalSmtpConfig) {
-      console.log('Using global SMTP configuration for email');
-      payload.smtpConfig = globalSmtpConfig;
-    }
     
     const { data, error } = await supabase.functions.invoke(functionName, {
       body: payload
