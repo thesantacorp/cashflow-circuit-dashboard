@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,8 @@ import { Project } from "@/types/project";
 import ProjectsLoadingState from "@/components/grow/ProjectsLoadingState";
 import ProjectsEmptyState from "@/components/grow/ProjectsEmptyState";
 import { ensureGrowTablesExist } from "@/utils/supabase/grow";
-import { CircleX, AlertTriangle, Loader2 } from "lucide-react";
+import { checkSupabaseConnection } from "@/utils/supabaseInit"; 
+import { CircleX, AlertTriangle, Loader2, WifiOff } from "lucide-react";
 
 const GrowPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -19,11 +21,34 @@ const GrowPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
   const [initAttempts, setInitAttempts] = useState(0);
+  const [connectionStatus, setConnectionStatus] = useState<'checking'|'online'|'offline'>('checking');
   const navigate = useNavigate();
   
   useEffect(() => {
-    checkTablesAndFetchProjects();
+    checkConnectionAndInit();
   }, []);
+
+  const checkConnectionAndInit = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    // First check if we have a database connection
+    setConnectionStatus('checking');
+    const isConnected = await checkSupabaseConnection();
+    setConnectionStatus(isConnected ? 'online' : 'offline');
+    
+    if (!isConnected) {
+      setError("No database connection available");
+      setIsLoading(false);
+      toast.error("No database connection", { 
+        description: "Check your internet connection and try again" 
+      });
+      return;
+    }
+    
+    // Now proceed with table initialization
+    await checkTablesAndFetchProjects();
+  };
 
   const checkTablesAndFetchProjects = async () => {
     setIsLoading(true);
@@ -75,7 +100,7 @@ const GrowPage: React.FC = () => {
         
         // If table doesn't exist despite our initialization
         if (error.code === '42P01') {
-          setError("Projects database needs initialization");
+          setError("Projects database needs setup");
           setProjects([]);
         } else {
           toast.error("Failed to load innovation projects", { 
@@ -173,7 +198,26 @@ const GrowPage: React.FC = () => {
     <div className="container mx-auto py-6 px-4">
       <GrowPageHeader />
       
-      {error && (
+      {connectionStatus === 'offline' && (
+        <div className="my-6 p-4 bg-red-50 border border-red-200 rounded-lg text-center">
+          <div className="flex items-center justify-center mb-2">
+            <WifiOff className="h-5 w-5 text-red-500 mr-2" />
+            <p className="text-red-800 font-medium">No database connection</p>
+          </div>
+          <p className="text-sm text-red-700 mb-3">
+            Check your internet connection and make sure you can access the database.
+          </p>
+          <Button 
+            variant="outline" 
+            className="bg-white border-red-300 hover:bg-red-50"
+            onClick={checkConnectionAndInit}
+          >
+            Try Again
+          </Button>
+        </div>
+      )}
+      
+      {connectionStatus === 'online' && error && (
         <div className="my-6 p-4 bg-orange-50 border border-orange-200 rounded-lg text-center">
           <div className="flex items-center justify-center mb-2">
             <AlertTriangle className="h-5 w-5 text-orange-500 mr-2" />
@@ -207,7 +251,6 @@ const GrowPage: React.FC = () => {
         className="mt-6"
         onValueChange={(value) => {
           setFilterState(value as "all" | "active" | "expired");
-          fetchProjects();
         }}
       >
         <TabsList>

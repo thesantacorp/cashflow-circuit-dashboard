@@ -3,6 +3,7 @@ import { getSupabaseClient } from '../client';
 import { toast } from 'sonner';
 import { createProjectsTable, createProjectVotesTable, createAllGrowTables } from './tableOperations';
 import { createStorageBucketGuaranteed } from './storageOperations';
+import { checkSupabaseConnection } from '../../supabaseInit';
 
 export const ensureGrowTablesExist = async (): Promise<boolean> => {
   try {
@@ -10,6 +11,16 @@ export const ensureGrowTablesExist = async (): Promise<boolean> => {
     console.log('Checking and ensuring Grow tables exist...');
     
     // First verify Supabase connection is working
+    const isConnected = await checkSupabaseConnection();
+    if (!isConnected) {
+      console.error('Supabase connection not available');
+      toast.error("Database connection error", { 
+        description: "Please check your internet connection" 
+      });
+      return false;
+    }
+    
+    // Try a simple query first to verify basic connectivity
     const { data: connectionTest, error: connectionError } = await supabase
       .from('user_uuids')
       .select('count')
@@ -18,13 +29,19 @@ export const ensureGrowTablesExist = async (): Promise<boolean> => {
       
     if (connectionError && connectionError.code !== '42P01') {
       console.error('Supabase connection error before table check:', connectionError);
-      toast.error("Database connection error", { 
-        description: "Please check your internet connection" 
-      });
+      if (connectionError.message?.includes('fetch failed')) {
+        toast.error("Network connection error", { 
+          description: "Please check your internet connection and try again" 
+        });
+      } else {
+        toast.error("Database connection error", { 
+          description: "Please try again later" 
+        });
+      }
       return false;
     }
     
-    // Create all tables in the correct order
+    // Create all tables in the correct order with proper headers
     const tablesCreated = await createAllGrowTables();
     
     if (!tablesCreated) {
@@ -40,7 +57,9 @@ export const ensureGrowTablesExist = async (): Promise<boolean> => {
     
     if (!bucketCreated) {
       console.error('Failed to create storage bucket');
-      toast.warning("File storage initialization failed");
+      toast.warning("File storage initialization failed", {
+        description: "Project images may not be supported"
+      });
       // Continue anyway since we can operate without storage
     }
     
