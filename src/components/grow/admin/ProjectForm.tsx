@@ -21,7 +21,7 @@ interface ProjectFormProps {
 const ProjectForm: React.FC<ProjectFormProps> = ({ project, onClose }) => {
   const [name, setName] = useState(project?.name || "");
   const [description, setDescription] = useState(project?.description || "");
-  const [fundingGoal, setFundingGoal] = useState(project?.funding_goal?.toString() || "");
+  const [amount, setAmount] = useState(project?.amount?.toString() || "");
   const [liveLink, setLiveLink] = useState(project?.live_link || "");
   const [moreDetails, setMoreDetails] = useState(project?.more_details || "");
   const [hasExpiration, setHasExpiration] = useState(!!project?.expiration_date);
@@ -69,32 +69,58 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ project, onClose }) => {
       
       // Upload image if a new one was selected
       if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        const filePath = `project-images/${fileName}`;
-        
-        const { error: uploadError, data: uploadData } = await supabase.storage
-          .from('grow')
-          .upload(filePath, imageFile);
+        try {
+          // First, ensure the bucket exists
+          const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('grow');
           
-        if (uploadError) {
-          console.error("Error uploading image:", uploadError);
+          if (bucketError && bucketError.message.includes('does not exist')) {
+            // Create bucket if it doesn't exist
+            const { error: createBucketError } = await supabase.storage.createBucket('grow', {
+              public: true,
+              fileSizeLimit: 5242880 // 5MB
+            });
+            
+            if (createBucketError) {
+              console.error("Error creating storage bucket:", createBucketError);
+              toast.error("Failed to set up storage");
+              setIsSubmitting(false);
+              return;
+            }
+          }
+          
+          const fileExt = imageFile.name.split('.').pop();
+          const fileName = `${Date.now()}.${fileExt}`;
+          const filePath = `project-images/${fileName}`;
+          
+          const { error: uploadError, data: uploadData } = await supabase.storage
+            .from('grow')
+            .upload(filePath, imageFile);
+            
+          if (uploadError) {
+            console.error("Error uploading image:", uploadError);
+            toast.error("Failed to upload image");
+            setIsSubmitting(false);
+            return;
+          }
+          
+          // Get public URL for the uploaded image
+          const { data: { publicUrl } } = supabase.storage
+            .from('grow')
+            .getPublicUrl(filePath);
+            
+          imageUrl = publicUrl;
+        } catch (imageError) {
+          console.error("Exception during image upload:", imageError);
           toast.error("Failed to upload image");
           setIsSubmitting(false);
           return;
         }
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from('grow')
-          .getPublicUrl(filePath);
-          
-        imageUrl = publicUrl;
       }
       
       const projectData = {
         name,
         description,
-        funding_goal: fundingGoal ? parseFloat(fundingGoal) : null,
+        amount: amount ? parseFloat(amount) : null,
         live_link: liveLink || null,
         more_details: moreDetails || null,
         expiration_date: hasExpiration && expirationDate ? expirationDate.toISOString() : null,
@@ -172,12 +198,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ project, onClose }) => {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="fundingGoal" className="text-gray-700">Funding Goal</Label>
+            <Label htmlFor="amount" className="text-gray-700">Amount</Label>
             <Input
-              id="fundingGoal"
+              id="amount"
               type="number"
-              value={fundingGoal}
-              onChange={(e) => setFundingGoal(e.target.value)}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
               className="mt-1"
               placeholder="Enter amount"
               min="0"

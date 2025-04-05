@@ -4,7 +4,7 @@ export interface Project {
   name: string;
   description?: string;
   image_url?: string | null;
-  funding_goal?: number | null;
+  amount?: number | null;
   live_link?: string | null;
   more_details?: string | null;
   expiration_date?: string | null; // ISO date string

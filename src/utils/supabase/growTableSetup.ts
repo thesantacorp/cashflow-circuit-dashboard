@@ -33,6 +33,23 @@ export const ensureGrowTablesExist = async (): Promise<boolean> => {
       return false;
     }
     
+    // Check if storage bucket exists
+    const { data: bucketData, error: bucketError } = await supabase.storage.getBucket('grow');
+    
+    if (bucketError && bucketError.message.includes('does not exist')) {
+      console.log('Grow storage bucket does not exist, creating...');
+      const { error: createBucketError } = await supabase.storage.createBucket('grow', {
+        public: true,
+        fileSizeLimit: 5242880 // 5MB
+      });
+      
+      if (createBucketError) {
+        console.error('Error creating Grow storage bucket:', createBucketError);
+      } else {
+        console.log('Grow storage bucket created successfully');
+      }
+    }
+    
     // Set up RLS policies
     await setupRlsPolicies();
     
