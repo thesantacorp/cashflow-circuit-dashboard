@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Server, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { verifySupabaseSetup, attemptSupabaseSetupFix } from "@/utils/supabaseVerification";
+import { verifySupabaseSetup, attemptSupabaseSetupFix } from "@/utils/verification";
 import RlsConfigGuide from "./RlsConfigGuide";
 import StatusGrid from "./status/StatusGrid";
 import VerificationActions from "./status/VerificationActions";
@@ -31,7 +30,6 @@ const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({
   } | null>(null);
   const [isFixing, setIsFixing] = useState(false);
   
-  // Auto-verify on component mount if requested
   useEffect(() => {
     if (autoVerify) {
       runVerification();
@@ -45,7 +43,6 @@ const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({
       toast.loading('Verifying Supabase connection...', { id: 'verification' });
       const result = await verifySupabaseSetup();
       
-      // Check specifically for RLS policy issues
       const hasRlsError = result.details.includes('policy');
       setVerification({
         ...result,
@@ -90,7 +87,6 @@ const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({
       
       if (success) {
         toast.success('Successfully applied fixes!', { id: 'fix-attempt' });
-        // Re-run verification to update the UI
         await runVerification();
       } else {
         toast.error('Automatic fix was not successful', { 
@@ -158,7 +154,6 @@ const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({
         )}
       </Card>
       
-      {/* Show RLS Policy Guide if we detect an RLS policy error */}
       {verification?.hasRlsError && !verification.hasWriteAccess && (
         <div id="rls-config-guide">
           <RlsConfigGuide />

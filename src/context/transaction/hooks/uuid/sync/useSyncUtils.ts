@@ -21,7 +21,7 @@ export function useSyncUtils({
 
       // First check connection if not already verified
       if (!connectionVerified) {
-        const { verifySupabaseSetup } = await import('@/utils/supabaseVerification');
+        const { verifySupabaseSetup } = await import('@/utils/verification');
         const verification = await verifySupabaseSetup();
         setConnectionVerified(verification.connected);
         setTableVerified(verification.tableExists);

@@ -1,6 +1,5 @@
 
 import { useCallback } from "react";
-import { verifySupabaseSetup } from "@/utils/supabaseVerification";
 import { syncQueue } from "@/utils/supabaseInit";
 import { SyncBaseProps } from "./types";
 
@@ -30,6 +29,7 @@ export function useSyncStatus({
         const statusCheck = Promise.resolve().then(async () => {
           // First verify connection and table
           if (!connectionVerified || !tableVerified) {
+            const { verifySupabaseSetup } = await import('@/utils/verification');
             const verification = await verifySupabaseSetup();
             setConnectionVerified(verification.connected);
             setTableVerified(verification.tableExists);

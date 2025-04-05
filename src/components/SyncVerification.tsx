@@ -15,8 +15,6 @@ const SyncVerification: React.FC = () => {
   const [hasRlsPolicyIssue, setHasRlsPolicyIssue] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<'checking' | 'synced' | 'not-synced' | 'rls-issue' | null>(null);
   
-  const syncStatusCheckerRef = useRef<HTMLDivElement>(null);
-  
   // Check for RLS policy issues when component mounts
   useEffect(() => {
     if (userUuid && userEmail) {
@@ -33,7 +31,7 @@ const SyncVerification: React.FC = () => {
   
   const checkIfRlsPolicyIssue = async () => {
     try {
-      const { verifySupabaseSetup } = await import('@/utils/supabaseVerification');
+      const { verifySupabaseSetup } = await import('@/utils/verification');
       const result = await verifySupabaseSetup();
       
       if (result.connected && result.tableExists && !result.hasWriteAccess && 
@@ -107,7 +105,6 @@ const SyncVerification: React.FC = () => {
             userUuid={userUuid}
             userEmail={userEmail}
             forceSyncToCloud={forceSyncToCloud}
-            ref={syncStatusCheckerRef}
           />
           
           {/* Verification Status Section */}
