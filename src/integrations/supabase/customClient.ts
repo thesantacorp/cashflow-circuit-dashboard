@@ -42,9 +42,8 @@ export const customClient = {
   // Ideas table operations
   ideas: {
     select: () => supabase.from('ideas').select(),
-    insert: (data: IdeaInsert | IdeaInsert[]) => {
-      const payload = Array.isArray(data) ? data : [data];
-      return supabase.from('ideas').insert(payload);
+    insert: (data: IdeaInsert) => {
+      return supabase.from('ideas').insert(data);
     },
     update: (data: IdeaUpdate) => supabase.from('ideas').update(data),
     delete: () => supabase.from('ideas').delete(),
@@ -52,9 +51,8 @@ export const customClient = {
   // Votes table operations
   votes: {
     select: () => supabase.from('votes').select(),
-    insert: (data: VoteInsert | VoteInsert[]) => {
-      const payload = Array.isArray(data) ? data : [data];
-      return supabase.from('votes').insert(payload);
+    insert: (data: VoteInsert) => {
+      return supabase.from('votes').insert(data);
     },
     update: (data: VoteUpdate) => supabase.from('votes').update(data),
     delete: () => supabase.from('votes').delete(),
