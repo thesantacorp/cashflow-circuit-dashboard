@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
   KeyRound, Check, Star, Clock, Rocket, Zap, Mail, Loader2, 
-  Cloud, CloudOff, RefreshCw, AlertTriangle, Wifi, WifiOff 
+  Cloud, CloudOff, RefreshCw, AlertTriangle, Wifi, WifiOff, Shield
 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import SyncVerification from "./SyncVerification";
+import RlsConfigGuide from "./RlsConfigGuide";
 
 const UuidStatus: React.FC = () => {
   const { 
@@ -29,8 +29,8 @@ const UuidStatus: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [showVerification, setShowVerification] = useState<boolean>(false);
   const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
+  const [hasRlsIssue, setHasRlsIssue] = useState<boolean>(false);
 
-  // Check sync status on mount
   useEffect(() => {
     if (userUuid && userEmail) {
       checkSyncStatus().then(() => {
@@ -60,7 +60,6 @@ const UuidStatus: React.FC = () => {
       await generateUserUuid(email);
       setShowEmailInput(false);
       setEmail("");
-      // Automatically show verification after generation
       setShowVerification(true);
     } catch (error) {
       console.error("Error generating UUID:", error);
@@ -76,7 +75,6 @@ const UuidStatus: React.FC = () => {
       const success = await forceSyncToCloud();
       if (success) {
         toast.success("Successfully synced to cloud!");
-        // Automatically show verification after sync
         setShowVerification(true);
         setLastCheckTime(new Date());
       }
@@ -90,7 +88,25 @@ const UuidStatus: React.FC = () => {
   const handleVerifyStatus = () => {
     checkSyncStatus().then(() => {
       setLastCheckTime(new Date());
+      
+      if (syncStatus === 'error') {
+        checkForRlsIssues();
+      }
     });
+  };
+
+  const checkForRlsIssues = async () => {
+    try {
+      const { verifySupabaseSetup } = await import('@/utils/supabaseVerification');
+      const result = await verifySupabaseSetup();
+      
+      if (result.connected && !result.hasWriteAccess && result.details.includes('RLS')) {
+        setHasRlsIssue(true);
+        setShowVerification(true);
+      }
+    } catch (error) {
+      console.error('Error checking for RLS issues:', error);
+    }
   };
 
   const getSyncStatusDisplay = () => {
@@ -115,8 +131,8 @@ const UuidStatus: React.FC = () => {
         };
       case 'error':
         return {
-          icon: <AlertTriangle className="h-4 w-4" />,
-          text: 'Sync error',
+          icon: hasRlsIssue ? <Shield className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />,
+          text: hasRlsIssue ? 'RLS policy error' : 'Sync error',
           color: 'text-red-600'
         };
       default:
@@ -127,8 +143,6 @@ const UuidStatus: React.FC = () => {
         };
     }
   };
-
-  const statusDisplay = getSyncStatusDisplay();
 
   return (
     <>
@@ -156,7 +170,6 @@ const UuidStatus: React.FC = () => {
                 </div>
               )}
               
-              {/* Connection status indicator */}
               <div className={`flex items-center gap-2 text-sm mt-1 ${
                 connectionVerified ? 'text-green-600' : 'text-amber-600'
               }`}>
@@ -173,7 +186,6 @@ const UuidStatus: React.FC = () => {
                 )}
               </div>
               
-              {/* Sync status indicator */}
               <div className={`flex items-center gap-2 text-sm mt-1 ${statusDisplay.color}`}>
                 {statusDisplay.icon}
                 <span>{statusDisplay.text}</span>
@@ -185,7 +197,6 @@ const UuidStatus: React.FC = () => {
                 </div>
               )}
               
-              {/* Action buttons based on sync status */}
               <div className="flex flex-wrap gap-2 mt-2">
                 {(syncStatus === 'local-only' || syncStatus === 'error') && (
                   <Button
@@ -224,13 +235,14 @@ const UuidStatus: React.FC = () => {
                   onClick={() => setShowVerification(!showVerification)}
                   variant={showVerification ? "default" : "outline"}
                   size="sm"
-                  className={`flex-1 ${showVerification ? "bg-indigo-600 hover:bg-indigo-700 text-white" : ""}`}
+                  className={`flex-1 ${showVerification ? "bg-indigo-600 hover:bg-indigo-700 text-white" : ""} ${
+                    hasRlsIssue ? "border-red-400 text-red-600 hover:border-red-500" : ""
+                  }`}
                 >
-                  {showVerification ? "Hide Details" : "Show Details"}
+                  {showVerification ? "Hide Details" : hasRlsIssue ? "Show RLS Fix Guide" : "Show Details"}
                 </Button>
               </div>
               
-              {/* Offline warning */}
               {!connectionVerified && (
                 <Alert variant="warning" className="mt-3 bg-amber-50 border-amber-200">
                   <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -284,7 +296,6 @@ const UuidStatus: React.FC = () => {
                 </p>
               )}
               
-              {/* Connection status for new users */}
               <div className={`flex items-center gap-2 text-sm ${
                 connectionVerified ? 'text-green-600' : 'text-amber-600'
               }`}>
@@ -322,8 +333,15 @@ const UuidStatus: React.FC = () => {
         </CardContent>
       </Card>
       
-      {/* Verification component - conditionally shown */}
-      {userUuid && showVerification && <div className="mt-4"><SyncVerification /></div>}
+      {userUuid && showVerification && (
+        <div className="mt-4">
+          <SyncVerification />
+        </div>
+      )}
+      
+      <div id="rls-config-guide" style={{ display: 'none' }}>
+        <RlsConfigGuide />
+      </div>
     </>
   );
 };

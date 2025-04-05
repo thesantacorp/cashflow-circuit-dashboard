@@ -1,9 +1,9 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, XCircle, AlertCircle, Server, Database } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, AlertCircle, Server, Database, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { verifySupabaseSetup, attemptSupabaseSetupFix } from "@/utils/supabaseVerification";
 import RlsConfigGuide from "./RlsConfigGuide";
@@ -11,11 +11,13 @@ import RlsConfigGuide from "./RlsConfigGuide";
 interface VerificationStatusProps {
   className?: string;
   onComplete?: (success: boolean) => void;
+  autoVerify?: boolean;
 }
 
 const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({ 
   className,
-  onComplete 
+  onComplete,
+  autoVerify = false
 }) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [verification, setVerification] = useState<{
@@ -27,6 +29,13 @@ const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({
     hasRlsError?: boolean;
   } | null>(null);
   const [isFixing, setIsFixing] = useState(false);
+  
+  // Auto-verify on component mount if requested
+  useEffect(() => {
+    if (autoVerify) {
+      runVerification();
+    }
+  }, [autoVerify]);
   
   const runVerification = async () => {
     setIsVerifying(true);
@@ -46,9 +55,16 @@ const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({
         toast.success('All Supabase settings are properly configured!', { id: 'verification' });
         if (onComplete) onComplete(true);
       } else if (result.connected && result.tableExists && !result.hasWriteAccess && hasRlsError) {
-        toast.error('Supabase RLS policy configuration needed', { 
+        toast.error('Database permission error (42501)', { 
           id: 'verification',
-          description: 'Database permissions need to be updated'
+          description: 'Row-Level Security policies are restricting write access',
+          duration: 10000
+        });
+        if (onComplete) onComplete(false);
+      } else if (!result.connected) {
+        toast.error('Cannot connect to Supabase', {
+          id: 'verification',
+          description: 'Check your internet connection and try again'
         });
         if (onComplete) onComplete(false);
       } else {
@@ -68,15 +84,22 @@ const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({
     setIsFixing(true);
     
     try {
+      toast.loading('Attempting to fix database issues...', { id: 'fix-attempt' });
       const success = await attemptSupabaseSetupFix();
       
       if (success) {
+        toast.success('Successfully applied fixes!', { id: 'fix-attempt' });
         // Re-run verification to update the UI
         await runVerification();
+      } else {
+        toast.error('Automatic fix was not successful', { 
+          id: 'fix-attempt',
+          description: 'Please follow the manual steps in the guide below'
+        });
       }
     } catch (error) {
       console.error('Fix attempt error:', error);
-      toast.error('Error attempting to fix Supabase setup');
+      toast.error('Error attempting to fix Supabase setup', { id: 'fix-attempt' });
     } finally {
       setIsFixing(false);
     }
@@ -89,7 +112,7 @@ const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({
           <div className="flex items-center justify-between">
             <h3 className="text-md font-semibold text-indigo-700 flex items-center gap-2">
               <Server className="h-4 w-4" />
-              Supabase Connection Status
+              Database Connection Status
             </h3>
             
             <Button 
@@ -97,6 +120,7 @@ const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({
               size="sm"
               onClick={runVerification}
               disabled={isVerifying || isFixing}
+              className="relative"
             >
               {isVerifying ? (
                 <>
@@ -104,7 +128,10 @@ const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({
                   Verifying...
                 </>
               ) : (
-                'Verify Connection'
+                <>
+                  <RefreshCw className="mr-2 h-3 w-3" />
+                  Verify Connection
+                </>
               )}
             </Button>
           </div>
@@ -134,22 +161,24 @@ const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({
                   label="Write Access"
                   status={verification.hasWriteAccess}
                   description={verification.hasWriteAccess ? "Can write to database" : "Cannot write to database"}
+                  important={!verification.hasWriteAccess && verification.hasRlsError}
                 />
               </div>
               
-              {!verification.tableExists && (
-                <div className="mt-2">
+              {/* Action buttons based on verification results */}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {!verification.tableExists && (
                   <Button 
                     size="sm"
                     variant="outline" 
-                    className="w-full bg-indigo-100 hover:bg-indigo-200 border-indigo-300"
+                    className="flex-1 bg-indigo-100 hover:bg-indigo-200 border-indigo-300"
                     onClick={attemptFix}
                     disabled={isFixing}
                   >
                     {isFixing ? (
                       <>
                         <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                        Attempting fix...
+                        Creating table...
                       </>
                     ) : (
                       <>
@@ -158,8 +187,38 @@ const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({
                       </>
                     )}
                   </Button>
-                </div>
-              )}
+                )}
+
+                {/* Refresh button */}
+                <Button 
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={runVerification}
+                  disabled={isVerifying}
+                >
+                  <RefreshCw className="mr-2 h-3 w-3" />
+                  Refresh Status
+                </Button>
+
+                {/* View RLS Guide button only if there's an RLS issue */}
+                {verification.hasRlsError && !verification.hasWriteAccess && (
+                  <Button 
+                    size="sm"
+                    variant="default"
+                    className="flex-1 bg-red-600 hover:bg-red-700"
+                    onClick={() => {
+                      const rlsGuide = document.getElementById('rls-config-guide');
+                      if (rlsGuide) {
+                        rlsGuide.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
+                  >
+                    <AlertCircle className="mr-2 h-3 w-3" />
+                    View RLS Fix Guide
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </CardContent>
@@ -173,7 +232,9 @@ const SyncVerificationStatus: React.FC<VerificationStatusProps> = ({
       
       {/* Show RLS Policy Guide if we detect an RLS policy error */}
       {verification?.hasRlsError && !verification.hasWriteAccess && (
-        <RlsConfigGuide />
+        <div id="rls-config-guide">
+          <RlsConfigGuide />
+        </div>
       )}
     </div>
   );
@@ -183,12 +244,13 @@ interface StatusItemProps {
   label: string;
   status: boolean;
   description: string;
+  important?: boolean;
 }
 
-const StatusItem: React.FC<StatusItemProps> = ({ label, status, description }) => (
-  <div className="flex flex-col gap-1">
+const StatusItem: React.FC<StatusItemProps> = ({ label, status, description, important }) => (
+  <div className={`flex flex-col gap-1 ${important ? 'bg-red-50 p-2 rounded-md border border-red-100' : ''}`}>
     <div className="flex items-center justify-between">
-      <span className="text-sm font-medium">{label}:</span>
+      <span className={`text-sm font-medium ${important ? 'text-red-700' : ''}`}>{label}:</span>
       <Badge 
         variant={status ? "default" : "destructive"}
         className={`${status ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200'}`}
@@ -196,7 +258,7 @@ const StatusItem: React.FC<StatusItemProps> = ({ label, status, description }) =
         {status ? "OK" : "Issue"}
       </Badge>
     </div>
-    <p className="text-xs text-gray-600 flex items-center gap-1">
+    <p className={`text-xs ${important ? 'text-red-700' : 'text-gray-600'} flex items-center gap-1`}>
       {status ? (
         <CheckCircle2 className="h-3 w-3 text-green-600" />
       ) : (

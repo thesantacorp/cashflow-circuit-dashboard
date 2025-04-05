@@ -43,7 +43,8 @@ export const isRlsPolicyError = (error: any): boolean => {
     messageIncludes('policy') || 
     messageIncludes('violates row-level security') ||
     messageIncludes('permission denied') ||
-    messageIncludes('rls');
+    messageIncludes('rls') ||
+    messageIncludes('permission'); // Added for broader detection
     
   // Check error details for similar keywords
   const detailsInclude = (str: string) =>
@@ -51,7 +52,8 @@ export const isRlsPolicyError = (error: any): boolean => {
     
   const detailsHaveRlsKeywords =
     detailsInclude('policy') ||
-    detailsInclude('rls');
+    detailsInclude('rls') ||
+    detailsInclude('permission');
   
   // Log detailed information for debugging
   if (isPermissionDenied || hasRlsKeywords || detailsHaveRlsKeywords) {
@@ -60,4 +62,33 @@ export const isRlsPolicyError = (error: any): boolean => {
   
   // Return true if any of the checks indicate an RLS policy error
   return isPermissionDenied || hasRlsKeywords || detailsHaveRlsKeywords;
+};
+
+// Function to check if we have a database connection
+export const checkDatabaseConnection = async (): Promise<boolean> => {
+  try {
+    const start = Date.now();
+    const { data, error } = await supabaseClient.from('user_uuids').select('count').limit(1).maybeSingle();
+    const duration = Date.now() - start;
+    
+    console.log(`Database connection check completed in ${duration}ms`);
+    
+    // If we get an RLS policy error, the connection is still working
+    // but the policies are blocking access
+    if (error && isRlsPolicyError(error)) {
+      console.log('Database connection successful (RLS policies detected)');
+      return true;
+    }
+    
+    // If we get any other error, the connection might be down
+    if (error && !isRlsPolicyError(error)) {
+      console.error('Database connection error:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (err) {
+    console.error('Database connection exception:', err);
+    return false;
+  }
 };
