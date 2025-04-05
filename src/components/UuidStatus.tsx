@@ -15,14 +15,14 @@ const UuidStatus: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [showEmailInput, setShowEmailInput] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [showVerification, setShowVerification] = useState<boolean>(false);
+  const [showVerification, setShowVerification] = useState<boolean>(true); // Show verification by default
 
   // Check sync status on mount
   useEffect(() => {
     if (userUuid && userEmail) {
       checkSyncStatus();
     }
-  }, [userUuid, userEmail]);
+  }, [userUuid, userEmail, checkSyncStatus]);
 
   const validateEmail = (email: string): boolean => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -45,6 +45,8 @@ const UuidStatus: React.FC = () => {
       await generateUserUuid(email);
       setShowEmailInput(false);
       setEmail("");
+      // Automatically show verification after generation
+      setShowVerification(true);
     } catch (error) {
       console.error("Error generating UUID:", error);
       toast.error("Failed to generate User ID. Please try again.");
@@ -56,7 +58,12 @@ const UuidStatus: React.FC = () => {
   const handleSyncToCloud = async () => {
     setIsSyncing(true);
     try {
-      await forceSyncToCloud();
+      const success = await forceSyncToCloud();
+      if (success) {
+        toast.success("Successfully synced to cloud!");
+        // Automatically show verification after sync
+        setShowVerification(true);
+      }
     } catch (error) {
       console.error("Error syncing to cloud:", error);
     } finally {
@@ -140,9 +147,9 @@ const UuidStatus: React.FC = () => {
               
               <Button
                 onClick={() => setShowVerification(!showVerification)}
-                variant="ghost"
+                variant={showVerification ? "default" : "ghost"}
                 size="sm"
-                className="mt-1 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                className={`mt-3 ${showVerification ? "bg-indigo-600 hover:bg-indigo-700 text-white" : "text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"}`}
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
                 {showVerification ? "Hide Verification" : "Verify Cloud Sync"}
@@ -213,8 +220,8 @@ const UuidStatus: React.FC = () => {
         </CardContent>
       </Card>
       
-      {/* Verification component */}
-      {showVerification && <div className="mt-4"><SyncVerification /></div>}
+      {/* Verification component - now shown by default when user has a UUID */}
+      {userUuid && showVerification && <div className="mt-4"><SyncVerification /></div>}
     </>
   );
 };

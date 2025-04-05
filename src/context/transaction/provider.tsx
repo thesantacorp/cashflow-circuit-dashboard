@@ -42,7 +42,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Listen for app visibility changes to auto-sync
   useEffect(() => {
     const handleAppVisible = async () => {
-      if (userUuid && userEmail && syncStatus === 'local-only') {
+      if (userUuid && userEmail) {
         console.log('App is visible again, checking UUID sync status...');
         await checkSyncStatus();
       }
@@ -50,15 +50,28 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     window.addEventListener('app-visible', handleAppVisible);
     
-    // Also check sync status on mount
+    // Check sync status on mount - always check regardless of current status
     if (userUuid && userEmail) {
+      console.log('App loaded, verifying UUID sync status...');
       checkSyncStatus();
     }
 
     return () => {
       window.removeEventListener('app-visible', handleAppVisible);
     };
-  }, [userUuid, userEmail, syncStatus, checkSyncStatus]);
+  }, [userUuid, userEmail, checkSyncStatus]);
+
+  // Initial sync attempt when provider loads
+  useEffect(() => {
+    const initialSync = async () => {
+      if (userUuid && userEmail && syncStatus === 'local-only') {
+        console.log('Initial load, attempting to sync local UUID to cloud...');
+        await forceSyncToCloud();
+      }
+    };
+    
+    initialSync();
+  }, [userUuid, userEmail, syncStatus, forceSyncToCloud]);
 
   return (
     <TransactionContext.Provider

@@ -1,19 +1,26 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { verifyUuidInSupabase, getAllUuids } from "@/utils/supabase";
 import { useTransactions } from "@/context/transaction";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle, XCircle, RefreshCw, Database, Eye, EyeOff } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, RefreshCw, Database, Eye, EyeOff, Shield } from "lucide-react";
 import { toast } from "sonner";
 
 const SyncVerification: React.FC = () => {
-  const { userUuid, userEmail } = useTransactions();
+  const { userUuid, userEmail, forceSyncToCloud } = useTransactions();
   const [syncStatus, setSyncStatus] = useState<'checking' | 'synced' | 'not-synced' | null>(null);
   const [allUuids, setAllUuids] = useState<any[] | null>(null);
   const [showAllUuids, setShowAllUuids] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Auto-check verification on component mount
+  useEffect(() => {
+    if (userUuid && userEmail) {
+      checkSyncStatus();
+    }
+  }, [userUuid, userEmail]);
   
   const checkSyncStatus = async () => {
     if (!userUuid || !userEmail) {
@@ -29,9 +36,20 @@ const SyncVerification: React.FC = () => {
       setSyncStatus(isInSupabase ? 'synced' : 'not-synced');
       
       if (isInSupabase) {
-        toast.success("Verified! Your User ID is successfully stored in the cloud.");
+        toast.success("Verified! Your User ID is successfully synced to the cloud.");
       } else {
         toast.error("Your User ID is not yet synced to the cloud.");
+        
+        // Auto-attempt sync if not synced
+        const syncAttempt = await forceSyncToCloud();
+        if (syncAttempt) {
+          // Re-verify after sync attempt
+          const recheck = await verifyUuidInSupabase(userEmail, userUuid);
+          if (recheck) {
+            setSyncStatus('synced');
+            toast.success("Successfully synced your User ID to the cloud!");
+          }
+        }
       }
     } catch (error) {
       console.error("Error verifying sync status:", error);
@@ -64,17 +82,17 @@ const SyncVerification: React.FC = () => {
     <Card className="border-indigo-200 shadow-lg">
       <CardHeader className="border-b border-indigo-100">
         <CardTitle className="text-indigo-600 flex items-center gap-2">
-          <Database className="h-5 w-5" />
-          Sync Verification
+          <Shield className="h-5 w-5" />
+          Cloud Sync Verification
         </CardTitle>
         <CardDescription>
-          Verify if your User ID is properly synced to the cloud
+          Verify if your User ID is properly synced to the cloud database
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-4 space-y-4">
         {/* Check sync status section */}
-        <div className="space-y-2">
-          <h3 className="font-medium text-sm text-indigo-700">Check Your User ID Sync Status:</h3>
+        <div className="space-y-3">
+          <h3 className="font-medium text-sm text-indigo-700">Your User ID Cloud Sync Status:</h3>
           
           {userUuid && userEmail ? (
             <div>
@@ -94,16 +112,24 @@ const SyncVerification: React.FC = () => {
                     <span>Checking sync status...</span>
                   </div>
                 ) : syncStatus === 'synced' ? (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <CheckCircle className="h-5 w-5" />
-                    <span>Successfully synced to cloud!</span>
+                  <div className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center gap-3">
+                    <CheckCircle className="h-6 w-6 text-green-600" />
+                    <div>
+                      <h4 className="font-semibold text-green-800">Successfully synced to cloud!</h4>
+                      <p className="text-sm text-green-700">Your User ID is securely stored in the cloud database</p>
+                    </div>
                   </div>
                 ) : syncStatus === 'not-synced' ? (
-                  <div className="flex items-center gap-2 text-red-600">
-                    <XCircle className="h-5 w-5" />
-                    <span>Not synced to cloud</span>
+                  <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center gap-3">
+                    <XCircle className="h-6 w-6 text-red-600" />
+                    <div>
+                      <h4 className="font-semibold text-red-800">Not synced to cloud</h4>
+                      <p className="text-sm text-red-700">Your User ID is only stored locally</p>
+                    </div>
                   </div>
-                ) : null}
+                ) : (
+                  <p className="text-sm text-gray-600">Click the button below to check if your User ID is synced to the cloud.</p>
+                )}
                 
                 <Button 
                   onClick={checkSyncStatus} 
@@ -111,7 +137,7 @@ const SyncVerification: React.FC = () => {
                   disabled={isLoading}
                 >
                   <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  Verify Sync Status
+                  {syncStatus === null ? "Check Sync Status" : "Refresh Sync Status"}
                 </Button>
               </div>
             </div>
