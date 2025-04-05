@@ -4,7 +4,6 @@ import NotificationSettings from "../NotificationSettings";
 import CurrencySelector from "../CurrencySelector";
 import DataExportImport from "../DataExportImport";
 import BackupManager from "../BackupManager";
-import DataRecovery from "../DataRecovery";
 
 interface SettingsSheetContentProps {
   activeSheet: string | null;
@@ -22,8 +21,6 @@ const SettingsSheetContent: React.FC<SettingsSheetContentProps> = ({ activeSheet
       return <NotificationSettings />;
     case "backup":
       return <BackupManager onClose={onClose} />;
-    case "recovery":
-      return <DataRecovery />;
     default:
       return (
         <div className="flex items-center justify-center h-full text-white">

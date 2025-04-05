@@ -1,4 +1,8 @@
 
-// This file is now just a proxy to maintain backward compatibility
-// It re-exports all functionality from the new modular structure
-export * from './userRecovery';
+// This file is now just an empty stub to maintain imports
+// All recovery functionality has been removed
+
+export const recoverUserData = () => {
+  console.warn("Data recovery functionality has been removed");
+  return false;
+};
