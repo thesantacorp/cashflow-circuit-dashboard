@@ -126,7 +126,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, title })
                         )}
                         {type === "combined" && (
                           <Badge
-                            variant={transaction.type === "expense" ? "destructive" : "success"}
+                            variant={transaction.type === "expense" ? "destructive" : "default"}
                             className="ml-2"
                           >
                             {transaction.type === "expense" ? "Expense" : "Income"}
