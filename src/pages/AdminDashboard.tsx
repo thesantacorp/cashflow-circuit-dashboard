@@ -86,6 +86,10 @@ const AdminDashboard: React.FC = () => {
     navigate("/admin/notifications");
   };
   
+  const handleGoToIdeas = () => {
+    navigate("/admin/ideas");
+  };
+  
   const getMonthlyTransactionData = () => {
     const monthlyData: { [key: string]: { expenses: number, income: number } } = {};
     const now = new Date();
@@ -167,6 +171,9 @@ const AdminDashboard: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleGoToIdeas}>
+            Manage Ideas
+          </Button>
           <Button variant="outline" onClick={handleGoToNotifications}>
             Notifications Admin
           </Button>

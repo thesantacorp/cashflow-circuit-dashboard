@@ -8,7 +8,8 @@ import {
   Bell, 
   BellOff,
   UserIcon,
-  LogOutIcon
+  LogOutIcon,
+  Lightbulb
 } from "lucide-react";
 import { useTransactions } from "@/context/transaction";
 import CurrencySelector from "./CurrencySelector";
@@ -81,6 +82,15 @@ const Navbar: React.FC = () => {
                 ? "bg-white/20 text-white hover:bg-white/30" 
                 : "text-white hover:bg-white/10"}>
               Income
+            </Button>
+          </Link>
+          <Link to="/ideas">
+            <Button variant={location.pathname === "/ideas" ? "secondary" : "ghost"}
+              className={location.pathname === "/ideas" 
+                ? "bg-white/20 text-white hover:bg-white/30" 
+                : "text-white hover:bg-white/10"}>
+              <Lightbulb className="mr-2 h-4 w-4" />
+              Ideas
             </Button>
           </Link>
         </div>

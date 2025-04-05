@@ -14,17 +14,21 @@ import CommunityLink from "@/components/CommunityLink";
 import OverviewPageEnhanced from "@/pages/OverviewPageEnhanced";
 import ExpensesPage from "@/pages/ExpensesPage";
 import IncomePage from "@/pages/IncomePage";
+import IdeasPage from "@/pages/IdeasPage";
 import NotFound from "./pages/NotFound";
 import AdminNotificationDashboard from "./pages/AdminNotificationDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminIdeasDashboard from "./pages/admin/AdminIdeasDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthPage from "./pages/auth/AuthPage";
 import LoginPage from "./pages/auth/LoginPage";
 import SignupPage from "./pages/auth/SignupPage";
 import VerifyEmailPage from "./pages/auth/VerifyEmailPage";
+import VerificationSuccessPage from "./pages/auth/VerificationSuccessPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import UpdatePasswordPage from "./pages/auth/UpdatePasswordPage";
 import ProfilePage from "./pages/ProfilePage";
+import MobileNavbar from "./components/MobileNavbar";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,6 +60,7 @@ function App() {
                           <Route path="login" element={<LoginPage />} />
                           <Route path="signup" element={<SignupPage />} />
                           <Route path="verify-email" element={<VerifyEmailPage />} />
+                          <Route path="verification-success" element={<VerificationSuccessPage />} />
                           <Route path="forgot-password" element={<ForgotPasswordPage />} />
                           <Route path="update-password" element={<UpdatePasswordPage />} />
                         </Route>
@@ -63,17 +68,19 @@ function App() {
                         {/* Admin routes */}
                         <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />
                         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                        <Route path="/admin/ideas" element={<AdminIdeasDashboard />} />
 
                         {/* Protected routes */}
                         <Route path="/" element={
                           <ProtectedRoute>
                             <>
                               <Navbar />
-                              <main className="flex-1 py-6 px-4 sm:px-6 w-full">
+                              <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
                                 <div className="max-w-7xl mx-auto w-full">
                                   <OverviewPageEnhanced />
                                 </div>
                               </main>
+                              <MobileNavbar />
                               <CommunityLink />
                             </>
                           </ProtectedRoute>
@@ -82,11 +89,12 @@ function App() {
                           <ProtectedRoute>
                             <>
                               <Navbar />
-                              <main className="flex-1 py-6 px-4 sm:px-6 w-full">
+                              <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
                                 <div className="max-w-7xl mx-auto w-full">
                                   <ExpensesPage />
                                 </div>
                               </main>
+                              <MobileNavbar />
                               <CommunityLink />
                             </>
                           </ProtectedRoute>
@@ -95,11 +103,26 @@ function App() {
                           <ProtectedRoute>
                             <>
                               <Navbar />
-                              <main className="flex-1 py-6 px-4 sm:px-6 w-full">
+                              <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
                                 <div className="max-w-7xl mx-auto w-full">
                                   <IncomePage />
                                 </div>
                               </main>
+                              <MobileNavbar />
+                              <CommunityLink />
+                            </>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/ideas" element={
+                          <ProtectedRoute>
+                            <>
+                              <Navbar />
+                              <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
+                                <div className="max-w-7xl mx-auto w-full">
+                                  <IdeasPage />
+                                </div>
+                              </main>
+                              <MobileNavbar />
                               <CommunityLink />
                             </>
                           </ProtectedRoute>
@@ -108,11 +131,12 @@ function App() {
                           <ProtectedRoute>
                             <>
                               <Navbar />
-                              <main className="flex-1 py-6 px-4 sm:px-6 w-full">
+                              <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
                                 <div className="max-w-7xl mx-auto w-full">
                                   <ProfilePage />
                                 </div>
                               </main>
+                              <MobileNavbar />
                               <CommunityLink />
                             </>
                           </ProtectedRoute>

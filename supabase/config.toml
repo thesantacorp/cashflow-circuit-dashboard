@@ -3,3 +3,10 @@ project_id = "tsidnalhlgcmcnqawgux"
 
 [functions.daily-backup]
 verify_jwt = true
+
+[functions.daily-ideas-cleanup]
+verify_jwt = true
+
+[functions.init-storage]
+verify_jwt = true
+
