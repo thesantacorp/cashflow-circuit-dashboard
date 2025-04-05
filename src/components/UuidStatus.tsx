@@ -5,31 +5,41 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { KeyRound, Check, Star, Clock, Rocket, Zap, Mail } from "lucide-react";
+import { KeyRound, Check, Star, Clock, Rocket, Zap, Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const UuidStatus: React.FC = () => {
   const { userUuid, userEmail, generateUserUuid } = useTransactions();
   const [email, setEmail] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [showEmailInput, setShowEmailInput] = useState<boolean>(false);
 
   const validateEmail = (email: string): boolean => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
   };
 
-  const handleGenerateUuid = () => {
-    if (isGenerating && (!email || !validateEmail(email))) {
+  const handleGenerateUuid = async () => {
+    if (!showEmailInput) {
+      setShowEmailInput(true);
+      return;
+    }
+    
+    if (!email || !validateEmail(email)) {
       toast.error("Please enter a valid email address");
       return;
     }
     
-    if (isGenerating) {
-      generateUserUuid(email);
-      setIsGenerating(false);
+    setIsGenerating(true);
+    try {
+      await generateUserUuid(email);
+      setShowEmailInput(false);
       setEmail("");
-    } else {
-      setIsGenerating(true);
+    } catch (error) {
+      console.error("Error generating UUID:", error);
+      toast.error("Failed to generate User ID. Please try again.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -77,7 +87,7 @@ const UuidStatus: React.FC = () => {
               <span>Your ID makes data recovery a breeze. Let's get you set up in no time! 🚀</span>
             </p>
             
-            {isGenerating ? (
+            {showEmailInput ? (
               <div className="space-y-2 mt-2">
                 <Label htmlFor="email" className="text-sm font-medium flex items-center gap-1">
                   <Mail className="h-4 w-4" /> Your Email Address
@@ -104,8 +114,18 @@ const UuidStatus: React.FC = () => {
             <Button 
               onClick={handleGenerateUuid} 
               className="mt-2 bg-orange-500 hover:bg-orange-600 text-white w-full"
+              disabled={isGenerating}
             >
-              {isGenerating ? "Confirm and Generate ID" : "Generate User ID"}
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : showEmailInput ? (
+                "Confirm and Generate ID"
+              ) : (
+                "Generate User ID"
+              )}
             </Button>
           </div>
         )}

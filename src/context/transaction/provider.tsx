@@ -1,8 +1,8 @@
-
 import React, { useReducer, useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "sonner";
 import { Category, Transaction, TransactionType } from "@/types";
+import { fetchUserUuid, storeUserUuid } from "@/utils/supabase";
 
 import { TransactionContext } from "./context";
 import { transactionReducer, initialState } from "./reducer";
@@ -13,6 +13,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // UUID state and email
   const [userUuid, setUserUuid] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Load state from localStorage
   const savedState = localStorage.getItem("transactionState");
@@ -21,16 +22,44 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     savedState ? JSON.parse(savedState) : initialState
   );
 
-  // Check for saved UUID and email in localStorage
+  // Check for saved UUID and email
   useEffect(() => {
-    const savedUuid = localStorage.getItem("userUuid");
-    const savedEmail = localStorage.getItem("userEmail");
-    if (savedUuid) {
-      setUserUuid(savedUuid);
-    }
-    if (savedEmail) {
-      setUserEmail(savedEmail);
-    }
+    const checkSavedUuid = async () => {
+      setIsLoading(true);
+      
+      // First check localStorage to maintain backward compatibility
+      const savedEmail = localStorage.getItem("userEmail");
+      if (savedEmail) {
+        setUserEmail(savedEmail);
+        
+        // Try to fetch from Supabase first
+        const supabaseUuid = await fetchUserUuid(savedEmail);
+        
+        if (supabaseUuid) {
+          setUserUuid(supabaseUuid);
+          // Update localStorage with the Supabase UUID
+          localStorage.setItem("userUuid", supabaseUuid);
+        } else {
+          // Fall back to localStorage UUID if no Supabase UUID
+          const localUuid = localStorage.getItem("userUuid");
+          if (localUuid) {
+            setUserUuid(localUuid);
+            // Migrate localStorage UUID to Supabase
+            await storeUserUuid(savedEmail, localUuid);
+          }
+        }
+      } else {
+        // No saved email, check if we have a UUID in localStorage
+        const localUuid = localStorage.getItem("userUuid");
+        if (localUuid) {
+          setUserUuid(localUuid);
+        }
+      }
+      
+      setIsLoading(false);
+    };
+    
+    checkSavedUuid();
   }, []);
 
   // Save state to localStorage whenever it changes
@@ -39,19 +68,30 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [state]);
 
   // Generate a new UUID for the user and bind it to an email
-  const generateUserUuid = (email?: string) => {
-    const newUuid = uuidv4();
-    localStorage.setItem("userUuid", newUuid);
-    setUserUuid(newUuid);
-    
-    if (email) {
-      localStorage.setItem("userEmail", email);
-      setUserEmail(email);
-      toast.success(`User ID generated and linked to ${email}`);
-    } else {
-      toast.success("User ID generated successfully");
+  const generateUserUuid = async (email?: string) => {
+    if (!email) {
+      toast.error("Email is required to generate a User ID");
+      return "";
     }
     
+    const newUuid = uuidv4();
+    
+    // Store in Supabase
+    const success = await storeUserUuid(email, newUuid);
+    
+    if (!success) {
+      toast.error("Failed to store User ID. Please try again.");
+      return "";
+    }
+    
+    // Keep local copy for fast access
+    localStorage.setItem("userUuid", newUuid);
+    localStorage.setItem("userEmail", email);
+    
+    setUserUuid(newUuid);
+    setUserEmail(email);
+    
+    toast.success(`User ID generated and linked to ${email}`);
     return newUuid;
   };
 

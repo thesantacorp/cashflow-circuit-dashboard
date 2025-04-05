@@ -15,13 +15,14 @@ const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
   const { userUuid, generateUserUuid } = useTransactions();
   const [email, setEmail] = useState<string>("");
   const [showEmailInput, setShowEmailInput] = useState<boolean>(false);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
   
   const validateEmail = (email: string): boolean => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
   };
   
-  const handleGenerateUuid = () => {
+  const handleGenerateUuid = async () => {
     if (!showEmailInput) {
       setShowEmailInput(true);
       return;
@@ -32,9 +33,18 @@ const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
       return;
     }
     
-    generateUserUuid(email);
-    if (onUuidGenerated) {
-      onUuidGenerated();
+    setIsGenerating(true);
+    
+    try {
+      await generateUserUuid(email);
+      if (onUuidGenerated) {
+        onUuidGenerated();
+      }
+    } catch (error) {
+      console.error("Error generating UUID:", error);
+      toast.error("Failed to generate User ID. Please try again.");
+    } finally {
+      setIsGenerating(false);
     }
   };
   
@@ -75,8 +85,13 @@ const UuidCheck: React.FC<UuidCheckProps> = ({ onUuidGenerated }) => {
         <Button 
           onClick={handleGenerateUuid}
           className="bg-orange-500 hover:bg-orange-600 text-white"
+          disabled={isGenerating}
         >
-          {showEmailInput ? "Confirm and Generate ID" : "Generate User ID"}
+          {isGenerating 
+            ? "Generating..." 
+            : showEmailInput 
+              ? "Confirm and Generate ID" 
+              : "Generate User ID"}
         </Button>
       </AlertDescription>
     </Alert>
