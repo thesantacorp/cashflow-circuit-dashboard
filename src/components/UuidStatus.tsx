@@ -3,7 +3,7 @@ import React from "react";
 import { useTransactions } from "@/context/transaction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { KeyRound, Check, AlertCircle } from "lucide-react";
+import { KeyRound, Check, Star, Clock, Rocket, Zap } from "lucide-react";
 
 const UuidStatus: React.FC = () => {
   const { userUuid, generateUserUuid } = useTransactions();
@@ -32,14 +32,25 @@ const UuidStatus: React.FC = () => {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2 text-orange-600">
-              <AlertCircle className="h-5 w-5" />
-              <span className="font-medium">No User ID detected</span>
+            <h3 className="text-lg font-semibold text-orange-600 flex items-center gap-2">
+              <Star className="h-5 w-5" /> Never lose your data! 🌟
+            </h3>
+            
+            <div className="flex items-center gap-2 text-orange-600 mt-1">
+              <Clock className="h-5 w-5" />
+              <span className="font-medium">Create Your Unique ID in Seconds! ⏱️</span>
             </div>
-            <p className="text-sm text-muted-foreground">
-              You need to generate a unique ID before you can add transactions.
-              This ID will be used to identify your transactions and recover your data if needed.
+            
+            <p className="text-sm text-muted-foreground flex items-start gap-2">
+              <Rocket className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span>Your ID makes data recovery a breeze. Let's get you set up in no time! 🚀</span>
             </p>
+            
+            <p className="text-sm text-muted-foreground flex items-start gap-2">
+              <Zap className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span>Simply bind your email and you're all set up 🎉</span>
+            </p>
+            
             <Button 
               onClick={generateUserUuid} 
               className="mt-2 bg-orange-500 hover:bg-orange-600 text-white w-full"
