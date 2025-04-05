@@ -1,6 +1,6 @@
 
 import { supabase } from './client';
-import { PostgrestQueryBuilder } from '@supabase/supabase-js';
+import type { Database } from './types';
 
 // Define interfaces for our database table types
 export interface Idea {
@@ -29,25 +29,20 @@ export interface VoteSummary {
   downvotes: number;
 }
 
-// Type assertion function to help with TypeScript type safety
-function fromTable<T>(tableName: string): PostgrestQueryBuilder<any, any, any, any> {
-  return supabase.from(tableName) as PostgrestQueryBuilder<any, any, any, any>;
-}
-
 // Create a typed wrapper for the supabase client
 export const customClient = {
   // Ideas table operations
   ideas: {
-    select: () => fromTable<Idea>('ideas'),
-    insert: (data: Partial<Idea> | Partial<Idea>[]) => fromTable<Idea>('ideas').insert(data),
-    update: (data: Partial<Idea>) => fromTable<Idea>('ideas').update(data),
-    delete: () => fromTable<Idea>('ideas').delete(),
+    select: () => supabase.from('ideas'),
+    insert: (data: Partial<Idea> | Partial<Idea>[]) => supabase.from('ideas').insert(data),
+    update: (data: Partial<Idea>) => supabase.from('ideas').update(data),
+    delete: () => supabase.from('ideas').delete(),
   },
   // Votes table operations
   votes: {
-    select: () => fromTable<Vote>('votes'),
-    insert: (data: Partial<Vote> | Partial<Vote>[]) => fromTable<Vote>('votes').insert(data),
-    update: (data: Partial<Vote>) => fromTable<Vote>('votes').update(data),
-    delete: () => fromTable<Vote>('votes').delete(),
+    select: () => supabase.from('votes'),
+    insert: (data: Partial<Vote> | Partial<Vote>[]) => supabase.from('votes').insert(data),
+    update: (data: Partial<Vote>) => supabase.from('votes').update(data),
+    delete: () => supabase.from('votes').delete(),
   }
 };
