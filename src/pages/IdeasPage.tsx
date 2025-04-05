@@ -12,7 +12,7 @@ const IdeasPage = () => {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const { userVotes, voteStats, loading: votesLoading, handleVote } = useIdeaVotes(ideas);
+  const { userVotes, voteStats, loading: votesLoading, handleVote } = useIdeaVotes();
 
   // Fetch ideas on component mount
   useEffect(() => {
