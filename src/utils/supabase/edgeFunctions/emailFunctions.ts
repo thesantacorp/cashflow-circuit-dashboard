@@ -1,9 +1,7 @@
 
-// This file provides the implementation details for the Supabase Edge Functions
-// that handle email sending capabilities
-
 import { getSupabaseClient } from "../client";
 import { toast } from "sonner";
+import { verifyEmailFunctionsSetup } from "../emailFunctionVerification";
 
 // Helper function to attempt to send an email through Supabase
 export async function sendEmailViaSupabase(
@@ -14,24 +12,47 @@ export async function sendEmailViaSupabase(
 ): Promise<boolean> {
   const supabase = getSupabaseClient();
   
+  // First verify that email functions are configured
+  const functionsConfigured = await verifyEmailFunctionsSetup();
+  
+  if (!functionsConfigured) {
+    console.error(`Email function ${functionName} is not properly configured`);
+    toast.error('Email functions not configured', {
+      description: 'Please check your Supabase Edge Functions setup'
+    });
+    return false;
+  }
+  
   try {
-    const { error } = await supabase.functions.invoke(functionName, {
+    console.log(`Invoking email function: ${functionName}`, {
+      email: recipient,
+      subject: subject
+    });
+    
+    const { data, error } = await supabase.functions.invoke(functionName, {
       body: { 
         email: recipient,
         subject,
         message: body,
-        // Include any other necessary parameters
       }
     });
     
+    console.log(`Email function response:`, data || error);
+    
     if (error) {
       console.error(`Error invoking ${functionName}:`, error);
+      toast.error(`Failed to send email`, {
+        description: error.message || 'Check console for details'
+      });
       return false;
     }
     
     return true;
   } catch (error) {
     console.error(`Exception in ${functionName}:`, error);
+    toast.error('Email sending failed', { 
+      description: error instanceof Error ? error.message : 'Unknown error occurred'
+    });
     return false;
   }
 }
@@ -39,12 +60,7 @@ export async function sendEmailViaSupabase(
 // Export function to create and deploy edge functions if needed
 export async function verifyEmailFunctionsExist(): Promise<boolean> {
   try {
-    // This would normally check if the functions exist and deploy them if they don't
-    // For our current implementation, we'll assume they exist or will be created manually
-    
-    // You could implement deployment via Supabase Management API if you have admin rights
-    
-    return true;
+    return await verifyEmailFunctionsSetup();
   } catch (error) {
     console.error('Error verifying email functions:', error);
     return false;

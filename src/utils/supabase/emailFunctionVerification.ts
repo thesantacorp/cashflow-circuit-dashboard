@@ -1,3 +1,4 @@
+
 import { getSupabaseClient } from "./client";
 import { toast } from "sonner";
 
@@ -11,10 +12,15 @@ export async function verifyEmailFunctionsSetup(): Promise<boolean> {
       body: { test: true }
     });
     
+    // Log the response for debugging
+    console.log('Email function verification response:', error ? `Error: ${error.message}` : 'Success');
+    
     // Function exists but might return an error for invalid parameters
     // That's expected and indicates the function exists
     if (error) {
-      if (error.message.includes('not found') || error.message.includes('does not exist')) {
+      if (error.message?.includes('not found') || 
+          error.message?.includes('does not exist') || 
+          error.status === 404) {
         console.error('Email function not found:', error);
         return false;
       }
@@ -38,7 +44,6 @@ export function showEmailFunctionSetupInstructions(): void {
     action: {
       label: 'Learn How',
       onClick: () => {
-        // Open documentation or guide in a new tab
         window.open('/docs/email-setup', '_blank');
       }
     }

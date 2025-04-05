@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { getSupabaseClient } from "@/utils/supabase/client";
 import { VerificationData } from "../types";
 import { sendDataRecoveryVerificationCode } from "@/utils/emailService";
+import { verifyEmailFunctionsSetup } from "@/utils/supabase/emailFunctionVerification";
 
 export function useVerification() {
   const [verificationSent, setVerificationSent] = useState<boolean>(false);
@@ -23,6 +24,17 @@ export function useVerification() {
     setIsVerifying(true);
     
     try {
+      // First check if email functions are properly configured
+      const emailFunctionsConfigured = await verifyEmailFunctionsSetup();
+      
+      if (!emailFunctionsConfigured) {
+        toast.error("Email sending is not configured", {
+          description: "Email verification will not be sent. Please contact the administrator."
+        });
+        setIsVerifying(false);
+        return false;
+      }
+      
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       
       // Store the code securely in localStorage with expiration
@@ -32,6 +44,11 @@ export function useVerification() {
         expires: Date.now() + (10 * 60 * 1000) // 10 minutes expiration
       };
       localStorage.setItem('verification_data', JSON.stringify(codeData));
+      
+      console.log("Attempting to send verification code:", {
+        email,
+        codeLength: code.length
+      });
       
       // Send verification code via email service
       const emailSent = await sendDataRecoveryVerificationCode(email, code);
@@ -50,7 +67,9 @@ export function useVerification() {
       }
     } catch (error) {
       console.error("Error in verification process:", error);
-      toast.error("Failed to start verification process");
+      toast.error("Failed to start verification process", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
       return false;
     } finally {
       setIsVerifying(false);
