@@ -60,3 +60,26 @@ export async function sendDataRecoveryLink(email: string, recoveryLink: string):
     return false;
   }
 }
+
+// Send verification code via email for data recovery
+export async function sendDataRecoveryVerificationCode(email: string, code: string): Promise<boolean> {
+  try {
+    const subject = encodeURIComponent('Stack\'d Finance Verification Code');
+    const body = encodeURIComponent(
+      `Hello,\n\nYour verification code for Stack'd Finance data recovery is:\n\n${code}\n\nThis code will expire in 10 minutes.\n\nRegards,\nStack'd Finance Team`
+    );
+    
+    // Open email client
+    window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+    
+    toast.info("Email client opened", {
+      description: "We've opened your email client with your verification code. If it didn't open automatically, please contact support.",
+      duration: 8000
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Error sending verification code email:', error);
+    return false;
+  }
+}

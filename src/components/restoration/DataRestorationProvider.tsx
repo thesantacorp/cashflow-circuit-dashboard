@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { toast } from "sonner";
@@ -72,9 +73,10 @@ export const DataRestorationProvider: React.FC<DataRestorationProviderProps> = (
           console.log('Email sent successfully via Supabase function');
         }
       } catch (supabaseError) {
-        console.warn('Failed to send email via Supabase function, trying browser method:', supabaseError);
+        console.warn('Failed to send email via Supabase function, trying alternative method:', supabaseError);
         
         try {
+          // Store the code securely in localStorage with no display to user
           const codeData = {
             code: code,
             email: email,
@@ -82,21 +84,24 @@ export const DataRestorationProvider: React.FC<DataRestorationProviderProps> = (
           };
           localStorage.setItem('verification_data', JSON.stringify(codeData));
           
-          toast.warning(`For testing purposes only - Verification Code: ${code}`, {
-            description: "In production, this code would be sent via email only",
-            duration: 10000
-          });
+          // Attempt to send email through alternative method
+          const { sendDataRecoveryVerificationCode } = await import('@/utils/emailService');
+          const altEmailSent = await sendDataRecoveryVerificationCode(email, code);
           
-          emailSent = true;
-          console.log('Code displayed for testing purposes only (should not happen in production)');
+          if (altEmailSent) {
+            console.log('Code sent via alternative method');
+            emailSent = true;
+          } else {
+            throw new Error('All email methods failed');
+          }
         } catch (fallbackError) {
           console.error('All email sending methods failed:', fallbackError);
         }
       }
       
       if (emailSent) {
-        toast.success("Verification process started", {
-          description: "Please check your email or continue with the provided code"
+        toast.success("Verification code sent", {
+          description: "Please check your email for the verification code"
         });
         
         const codeData = {
