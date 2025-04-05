@@ -18,7 +18,7 @@ export const getSupabaseClient = () => {
           autoRefreshToken: true,
         },
         global: {
-          fetch: (...args) => {
+          fetch: (...args: Parameters<typeof fetch>) => {
             // Add retry logic and proper error handling
             return fetch(...args).catch(error => {
               console.error('Fetch error in Supabase client:', error);
