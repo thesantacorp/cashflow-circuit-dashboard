@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle, XCircle, RefreshCw, Database, Eye, EyeOff, Shield } from "lucide-react";
 import { toast } from "sonner";
+import SyncVerificationStatus from "./SyncVerificationStatus";
 
 const SyncVerification: React.FC = () => {
   const { userUuid, userEmail, forceSyncToCloud } = useTransactions();
@@ -14,6 +15,7 @@ const SyncVerification: React.FC = () => {
   const [allUuids, setAllUuids] = useState<any[] | null>(null);
   const [showAllUuids, setShowAllUuids] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showServerStatus, setShowServerStatus] = useState(false);
   
   // Auto-check verification on component mount
   useEffect(() => {
@@ -131,14 +133,31 @@ const SyncVerification: React.FC = () => {
                   <p className="text-sm text-gray-600">Click the button below to check if your User ID is synced to the cloud.</p>
                 )}
                 
-                <Button 
-                  onClick={checkSyncStatus} 
-                  className="mt-2 bg-indigo-500 hover:bg-indigo-600 text-white"
-                  disabled={isLoading}
-                >
-                  <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  {syncStatus === null ? "Check Sync Status" : "Refresh Sync Status"}
-                </Button>
+                <div className="flex gap-2 flex-wrap">
+                  <Button 
+                    onClick={checkSyncStatus} 
+                    className="mt-2 bg-indigo-500 hover:bg-indigo-600 text-white"
+                    disabled={isLoading}
+                  >
+                    <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                    {syncStatus === null ? "Check Sync Status" : "Refresh Sync Status"}
+                  </Button>
+                  
+                  <Button
+                    onClick={() => setShowServerStatus(!showServerStatus)}
+                    variant="outline"
+                    className="mt-2"
+                  >
+                    <Database className="mr-2 h-4 w-4" />
+                    {showServerStatus ? "Hide Server Status" : "Check Server Status"}
+                  </Button>
+                </div>
+                
+                {showServerStatus && (
+                  <div className="mt-3">
+                    <SyncVerificationStatus className="mt-2" />
+                  </div>
+                )}
               </div>
             </div>
           ) : (
