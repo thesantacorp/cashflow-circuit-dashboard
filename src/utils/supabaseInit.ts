@@ -1,5 +1,5 @@
 
-import { ensureUuidTableExists } from './supabase';
+import { ensureUuidTableExists, getSupabaseClient } from './supabase';
 import { toast } from 'sonner';
 
 // Store Supabase credentials directly in the code
@@ -9,11 +9,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 export async function initializeSupabase(): Promise<void> {
   try {
-    // Use hardcoded credentials, but still check env variables as fallback
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
-    
-    if (!supabaseUrl || !supabaseAnonKey) {
+    // Check if the initialized client is working
+    const supabaseClient = getSupabaseClient();
+    if (!supabaseClient) {
       toast.error(
         'Supabase configuration is missing or invalid',
         { 
@@ -21,7 +19,22 @@ export async function initializeSupabase(): Promise<void> {
           duration: 10000
         }
       );
-      console.error('Missing or invalid Supabase environment variables');
+      console.error('Failed to initialize Supabase client');
+      return;
+    }
+    
+    // Verify the connection with a simple query
+    const { error: connectionError } = await supabaseClient.from('user_uuids').select('count').limit(1).single();
+    
+    if (connectionError && !connectionError.message.includes('does not exist')) {
+      console.error('Error connecting to Supabase:', connectionError);
+      toast.error(
+        'Error connecting to Supabase',
+        { 
+          description: 'Please check your network connection and try again',
+          duration: 6000
+        }
+      );
       return;
     }
     
@@ -36,7 +49,7 @@ export async function initializeSupabase(): Promise<void> {
       toast.warning(
         'Table setup may be needed',
         { 
-          description: 'If you encounter errors, you may need to manually create the user_uuids table in Supabase',
+          description: 'Please ensure the user_uuids table exists in your Supabase project',
           duration: 8000
         }
       );
