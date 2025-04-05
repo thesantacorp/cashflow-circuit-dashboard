@@ -48,32 +48,17 @@ export const isRlsPolicyError = (error: any): boolean => {
     messageIncludes('rls') ||
     messageIncludes('permission'); // Added for broader detection
     
-  // Check error details for similar keywords
-  const detailsInclude = (str: string) =>
-    error.details?.toLowerCase().includes(str.toLowerCase());
-    
-  const detailsHaveRlsKeywords =
-    detailsInclude('policy') ||
-    detailsInclude('rls') ||
-    detailsInclude('permission');
-  
-  // Log detailed information for debugging
-  if (isPermissionDenied || hasRlsKeywords || detailsHaveRlsKeywords) {
-    console.warn('RLS policy error detected:', error);
-  }
-  
   // Return true if any of the checks indicate an RLS policy error
-  return isPermissionDenied || hasRlsKeywords || detailsHaveRlsKeywords;
+  return isPermissionDenied || hasRlsKeywords;
 };
 
-// Improved function to check if we have a database connection with more reliable verification
+// Improved function to check if we have a database connection
 export const checkDatabaseConnection = async (): Promise<boolean> => {
   try {
     const start = Date.now();
     console.log('Checking Supabase connection...');
     
-    // Try multiple database checks with fallbacks
-    // First try to query the user_uuids table which should exist in most installations
+    // Try to query the user_uuids table which should exist in most installations
     const { data: userData, error: userError } = await supabaseClient
       .from('user_uuids')
       .select('count')
@@ -89,39 +74,26 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
     
     // If not a policy error but another error, try a fallback approach
     if (userError && userError.code === '42P01') { // Table doesn't exist error
-      console.log('user_uuids table does not exist, checking alternative tables...');
-      
       // Try to check if we can access version information which doesn't require table access
-      try {
-        const { data, error: versionError } = await supabaseClient.rpc('version');
-        
-        if (!versionError) {
-          const duration = Date.now() - start;
-          console.log(`Database connection successful via version check in ${duration}ms`);
-          return true;
-        }
-      } catch (versionErr) {
-        console.warn('Version check failed:', versionErr);
+      const { data, error: versionError } = await supabaseClient.rpc('version');
+      
+      if (!versionError) {
+        const duration = Date.now() - start;
+        console.log(`Database connection successful via version check in ${duration}ms`);
+        return true;
       }
       
       // Last resort - try to access public schema information
-      try {
-        const { data, error: schemaError } = await supabaseClient
-          .from('_anon_schema_check')
-          .select('*')
-          .limit(1);
-          
-        // This will likely fail but the error type tells us if we're connected  
-        if (schemaError && (schemaError.code === '42P01' || isRlsPolicyError(schemaError))) {
-          const duration = Date.now() - start;
-          console.log(`Database connection confirmed via schema check in ${duration}ms`);
-          return true;
-        }
-      } catch (schemaErr) {
-        // Even this error might indicate we're connected
+      const { data: schemaData, error: schemaError } = await supabaseClient
+        .from('_anon_schema_check')
+        .select('*')
+        .limit(1);
+        
+      // This will likely fail but the error type tells us if we're connected  
+      if (schemaError && (schemaError.code === '42P01' || isRlsPolicyError(schemaError))) {
         const duration = Date.now() - start;
-        console.log(`Database connection likely active in ${duration}ms despite errors`);
-        return true; // Assume connected if we got a response
+        console.log(`Database connection confirmed via schema check in ${duration}ms`);
+        return true;
       }
     }
     

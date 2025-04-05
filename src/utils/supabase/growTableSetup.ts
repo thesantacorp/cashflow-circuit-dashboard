@@ -1,4 +1,3 @@
-
 import { getSupabaseClient } from './client';
 import { toast } from 'sonner';
 
