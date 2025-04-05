@@ -1,5 +1,7 @@
+
 import React, { useState, useEffect } from "react";
 import { verifyUuidInSupabase, getAllUuids } from "@/utils/supabase/index";
+import { verifySupabaseSetup } from "@/utils/supabaseVerification";
 import { useTransactions } from "@/context/transaction";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
