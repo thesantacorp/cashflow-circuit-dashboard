@@ -27,7 +27,7 @@ const MobileNavMenu: React.FC<MobileNavMenuProps> = ({
           onClick={() => onNavigation(item.path)}
         >
           {item.icon}
-          {item.name}
+          <span className="ml-1">{item.name}</span>
         </Button>
       ))}
     </div>

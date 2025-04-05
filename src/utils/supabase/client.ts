@@ -16,11 +16,13 @@ const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   global: {
     // Increase timeout for better reliability on slow connections
     fetch: (url, options) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
+      
       return fetch(url, { 
         ...options,
-        // Set longer timeout for requests
-        signal: options?.signal || (new AbortController().signal)
-      });
+        signal: controller.signal
+      }).finally(() => clearTimeout(timeoutId));
     }
   }
 });

@@ -13,6 +13,7 @@ import { AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import CommunityLink from "@/components/CommunityLink";
 import LoadingScreen from "@/components/LoadingScreen";
+import ConnectionStatusIndicator from "@/components/ConnectionStatusIndicator";
 import OverviewPageEnhanced from "@/pages/OverviewPageEnhanced";
 import ExpensesPage from "@/pages/ExpensesPage";
 import IncomePage from "@/pages/IncomePage";
@@ -202,6 +203,9 @@ function App() {
                                   You're currently offline. Your data is being saved locally and will sync when you're back online.
                                 </div>
                               )}
+                              <div className="flex justify-between items-center mb-4">
+                                <ConnectionStatusIndicator showControls className="ml-auto" />
+                              </div>
                               <Routes>
                                 <Route path="/" element={<OverviewPageEnhanced />} />
                                 <Route path="/expenses" element={<ExpensesPage />} />
