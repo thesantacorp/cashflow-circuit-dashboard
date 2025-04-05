@@ -18,34 +18,31 @@ export async function storeUserUuid(email: string, uuid: string): Promise<boolea
   const supabase = getSupabaseClient();
   
   try {
+    console.log(`Attempting to store UUID ${uuid} for email ${email} in Supabase...`);
+    
     // First make sure the table exists
     await ensureUuidTableExists();
     
-    // Insert the record using upsert
-    const { error: insertError } = await supabase
+    // Insert the record
+    const { error } = await supabase
       .from('user_uuids')
       .upsert({ 
         email: email.toLowerCase().trim(), 
         uuid: uuid 
-      });
+      }, { onConflict: 'email' });
       
-    if (insertError) {
-      console.error('Error storing user UUID in Supabase:', insertError);
+    if (error) {
+      console.error('Error storing user UUID in Supabase:', error);
       
-      // Try inserting with a direct RPC call as fallback
-      try {
-        const { error: directError } = await supabase
-          .from('user_uuids')
-          .insert([
-            { email: email.toLowerCase().trim(), uuid: uuid }
-          ]);
-          
-        if (directError) {
-          console.error('Direct insert failed:', directError);
-          return false;
-        }
-      } catch (directInsertError) {
-        console.error('Exception during direct insert:', directInsertError);
+      // Try a direct insert as fallback
+      const { error: insertError } = await supabase
+        .from('user_uuids')
+        .insert([
+          { email: email.toLowerCase().trim(), uuid: uuid }
+        ]);
+        
+      if (insertError) {
+        console.error('Direct insert failed:', insertError);
         return false;
       }
     }
@@ -65,6 +62,7 @@ export async function fetchUserUuid(email: string): Promise<string | null> {
   try {
     // Make sure we normalize the email
     const normalizedEmail = email.toLowerCase().trim();
+    console.log(`Attempting to fetch UUID for email ${normalizedEmail} from Supabase...`);
     
     const { data, error } = await supabase
       .from('user_uuids')
@@ -77,6 +75,7 @@ export async function fetchUserUuid(email: string): Promise<string | null> {
       return null;
     }
     
+    console.log(`Retrieved UUID for ${normalizedEmail}:`, data?.uuid);
     return data?.uuid || null;
   } catch (error) {
     console.error('Exception when fetching user UUID from Supabase:', error);
@@ -90,8 +89,9 @@ export async function verifyUuidInSupabase(email: string, uuid: string): Promise
   
   try {
     const normalizedEmail = email.toLowerCase().trim();
+    console.log(`Verifying UUID ${uuid} for ${normalizedEmail} in Supabase...`);
     
-    // First check if the table exists
+    // Check if the table exists
     const tableExists = await checkTableExists('user_uuids');
     if (!tableExists) {
       console.log('user_uuids table does not exist in Supabase');
@@ -103,15 +103,16 @@ export async function verifyUuidInSupabase(email: string, uuid: string): Promise
       .from('user_uuids')
       .select('*')
       .eq('email', normalizedEmail)
-      .eq('uuid', uuid)
-      .single();
+      .eq('uuid', uuid);
       
     if (error) {
       console.error('Error verifying UUID in Supabase:', error);
       return false;
     }
     
-    return !!data;
+    const exists = data && data.length > 0;
+    console.log(`UUID verification result for ${normalizedEmail}: ${exists ? 'Found' : 'Not found'}`);
+    return exists;
   } catch (error) {
     console.error('Exception when verifying UUID in Supabase:', error);
     return false;
@@ -123,6 +124,8 @@ export async function getAllUuids(): Promise<any[] | null> {
   const supabase = getSupabaseClient();
   
   try {
+    console.log('Fetching all UUIDs from Supabase...');
+    
     // Check if the table exists first
     const tableExists = await checkTableExists('user_uuids');
     if (!tableExists) {
@@ -140,6 +143,7 @@ export async function getAllUuids(): Promise<any[] | null> {
       return null;
     }
     
+    console.log(`Retrieved ${data?.length || 0} UUIDs from Supabase`);
     return data || [];
   } catch (error) {
     console.error('Exception when fetching all UUIDs from Supabase:', error);
@@ -152,14 +156,18 @@ export async function checkTableExists(tableName: string): Promise<boolean> {
   const supabase = getSupabaseClient();
   
   try {
+    console.log(`Checking if ${tableName} table exists...`);
+    
     // Try to select a single row from the table
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from(tableName)
       .select('id')
       .limit(1);
     
     // If no error, table exists
-    return !error;
+    const exists = !error;
+    console.log(`Table ${tableName} exists: ${exists}`);
+    return exists;
   } catch (error) {
     console.error(`Error checking if ${tableName} table exists:`, error);
     return false;
@@ -171,6 +179,8 @@ export async function ensureUuidTableExists(): Promise<boolean> {
   const supabase = getSupabaseClient();
   
   try {
+    console.log('Ensuring user_uuids table exists...');
+    
     // First check if the table exists
     const tableExists = await checkTableExists('user_uuids');
     
@@ -180,54 +190,63 @@ export async function ensureUuidTableExists(): Promise<boolean> {
       return true;
     }
     
-    console.log('Creating user_uuids table...');
+    // Define a SQL script to create the table if it doesn't exist
+    const createTableSQL = `
+      CREATE TABLE IF NOT EXISTS user_uuids (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        uuid TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
     
-    // Execute SQL to create the table
-    const { error: createError } = await supabase.rpc('exec_sql', {
-      sql: `
-        CREATE TABLE IF NOT EXISTS user_uuids (
-          id SERIAL PRIMARY KEY,
-          email TEXT UNIQUE NOT NULL,
-          uuid TEXT NOT NULL,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        );
-      `
-    });
+    console.log('Creating user_uuids table with SQL:', createTableSQL);
     
-    if (createError) {
-      console.error('Error creating table with exec_sql:', createError);
-      
-      // Try alternative approach with simple SQL statement
-      const { error: sqlError } = await supabase.rpc('create_user_uuids_table');
+    // Try direct SQL execution with rpc (if function is available)
+    try {
+      const { error: sqlError } = await supabase.rpc('exec_sql', { sql: createTableSQL });
       
       if (sqlError) {
-        console.error('Alternative table creation failed:', sqlError);
-        
-        // If both methods fail, show manual instruction
-        toast.info(
-          'Database setup required',
-          {
-            description: 'Please create a "user_uuids" table in your Supabase project with columns: id (serial), email (text), uuid (text)',
-            duration: 10000
-          }
-        );
-        
+        console.error('Error executing SQL via RPC:', sqlError);
+        throw new Error('RPC failed');
+      }
+    } catch (rpcError) {
+      console.warn('RPC method failed, trying alternative approach:', rpcError);
+      
+      // Try creating the table via REST API (this is a backup approach)
+      const { error: restError } = await supabase
+        .from('user_uuids')
+        .insert({ 
+          email: 'system_test@example.com',
+          uuid: 'test-uuid-for-table-creation'
+        });
+      
+      // If error is not about table not existing, we have a different problem
+      if (restError && !restError.message.includes('relation') && !restError.message.includes('does not exist')) {
+        console.error('Error creating table via REST:', restError);
         return false;
       }
     }
     
-    // Verify table was created successfully
-    const { error: verifyError } = await supabase
-      .from('user_uuids')
-      .select('id')
-      .limit(1);
+    // Verify the table exists now
+    const verifyExists = await checkTableExists('user_uuids');
     
-    if (verifyError) {
-      console.error('Table creation verification failed:', verifyError);
+    if (!verifyExists) {
+      console.error('Table creation failed or verification failed');
+      
+      // Show instruction for manual table creation
+      toast.error(
+        'Could not automatically create the user_uuids table', 
+        {
+          description: 'Please create it manually in your Supabase project',
+          duration: 10000
+        }
+      );
+      
       return false;
     }
     
-    console.log('Successfully created user_uuids table');
+    console.log('Successfully created or verified user_uuids table');
     return true;
   } catch (error) {
     console.error('Exception ensuring user_uuids table exists:', error);

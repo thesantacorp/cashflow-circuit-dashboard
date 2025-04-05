@@ -41,8 +41,12 @@ function App() {
       
       // Initialize Supabase connection
       try {
-        await initializeSupabase();
-        setSupabaseInitialized(true);
+        const success = await initializeSupabase();
+        setSupabaseInitialized(success);
+        
+        if (!success) {
+          console.warn("Supabase initialization was not fully successful");
+        }
       } catch (error) {
         console.error("Failed to initialize Supabase:", error);
         toast.error("Could not connect to the database", {
