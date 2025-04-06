@@ -4,7 +4,6 @@ import { IdeasGrid } from '@/components/ideas/IdeasGrid';
 import { IdeasLoading } from '@/components/ideas/IdeasLoading';
 import { EmptyIdeasState } from '@/components/ideas/EmptyIdeasState';
 import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/button';
 import { useSupabaseSync } from '@/hooks/useSupabaseSync';
 import { useIdeaVotes } from '@/hooks/useIdeaVotes';
 import { supabase } from '@/integrations/supabase/client';
