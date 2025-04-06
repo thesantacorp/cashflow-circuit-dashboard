@@ -12,7 +12,7 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +25,7 @@ const LoginPage: React.FC = () => {
     setIsLoading(true);
     
     try {
-      await login(email, password);
+      await signIn(email, password);
       // Success toast is shown in the Auth context
     } catch (error) {
       console.error('Login error:', error);
