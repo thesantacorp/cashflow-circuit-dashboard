@@ -7,6 +7,7 @@ import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DatabaseIcon, DatabaseBackupIcon, UsersIcon, BarChartIcon } from "lucide-react";
 import AdminLogin from "@/components/admin/AdminLogin";
 import StatCards from "@/components/admin/StatCards";
 import DashboardCharts from "@/components/admin/DashboardCharts";
@@ -171,13 +172,16 @@ const AdminDashboard: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={handleGoToIdeas}>
+          <Button variant="outline" onClick={handleGoToIdeas} className="flex items-center">
+            <BarChartIcon className="mr-2 h-4 w-4" />
             Manage Ideas
           </Button>
-          <Button variant="outline" onClick={handleGoToNotifications}>
-            Notifications Admin
+          <Button variant="outline" onClick={handleGoToNotifications} className="flex items-center">
+            <DatabaseBackupIcon className="mr-2 h-4 w-4" />
+            Notifications
           </Button>
-          <Button variant="outline" onClick={handleBackToApp}>
+          <Button variant="outline" onClick={handleBackToApp} className="flex items-center">
+            <DatabaseIcon className="mr-2 h-4 w-4" />
             Back to App
           </Button>
           <Button variant="destructive" onClick={handleLogout}>
@@ -190,10 +194,22 @@ const AdminDashboard: React.FC = () => {
       
       <Tabs defaultValue="overview" className="mb-8">
         <TabsList className="mb-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="insights">Insights</TabsTrigger>
-          <TabsTrigger value="users">User Activities</TabsTrigger>
-          <TabsTrigger value="admin">Admin</TabsTrigger>
+          <TabsTrigger value="overview">
+            <BarChartIcon className="mr-2 h-4 w-4 inline" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="insights">
+            <DatabaseIcon className="mr-2 h-4 w-4 inline" />
+            Insights
+          </TabsTrigger>
+          <TabsTrigger value="users">
+            <UsersIcon className="mr-2 h-4 w-4 inline" />
+            User Activities
+          </TabsTrigger>
+          <TabsTrigger value="admin">
+            <DatabaseBackupIcon className="mr-2 h-4 w-4 inline" />
+            Admin
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview">

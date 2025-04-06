@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useTransactions } from '@/context/transaction';
 import { useAuth } from '@/context/AuthContext';
@@ -187,18 +186,24 @@ export function useSupabaseSync() {
       setLastSyncDate(now);
       localStorage.setItem('lastTransactionUpdate', now.toISOString());
       
-      toast.success('Data synced successfully to cloud');
+      // Only show success toast on profile page
+      if (location.pathname === '/profile') {
+        toast.success('Data synced successfully to cloud');
+      }
       return true;
     } catch (error: any) {
       console.error('Sync error:', error);
-      toast.error('Failed to sync data', {
-        description: error.message || 'Network error occurred'
-      });
+      // Only show error toast on profile page
+      if (location.pathname === '/profile') {
+        toast.error('Failed to sync data', {
+          description: error.message || 'Network error occurred'
+        });
+      }
       return false;
     } finally {
       setIsSyncing(false);
     }
-  }, [user, state.transactions, state.categories, executeWithRetry, getBestClient]);
+  }, [user, state.transactions, state.categories, executeWithRetry, getBestClient, location.pathname]);
 
   // Function to restore data from Supabase
   const restoreFromSupabase = useCallback(async () => {
@@ -262,18 +267,24 @@ export function useSupabaseSync() {
       setLastSyncDate(now);
       localStorage.setItem('lastTransactionUpdate', now.toISOString());
       
-      toast.success('Data restored successfully from cloud');
+      // Only show success toast on profile page
+      if (location.pathname === '/profile') {
+        toast.success('Data restored successfully from cloud');
+      }
       return true;
     } catch (error: any) {
       console.error('Restore error:', error);
-      toast.error('Failed to restore data', {
-        description: error.message || 'Network error occurred'
-      });
+      // Only show error toast on profile page
+      if (location.pathname === '/profile') {
+        toast.error('Failed to restore data', {
+          description: error.message || 'Network error occurred'
+        });
+      }
       return false;
     } finally {
       setIsSyncing(false);
     }
-  }, [user, executeWithRetry, replaceAllData, getBestClient]);
+  }, [user, executeWithRetry, replaceAllData, getBestClient, location.pathname]);
 
   // Auto-sync data when a user logs in - but with prevention for first login
   useEffect(() => {
@@ -287,7 +298,7 @@ export function useSupabaseSync() {
         
         // Only show the welcome back message on the profile page
         if (location.pathname === '/profile') {
-          toast.info('Welcome back! Please restore your data before making changes.', {
+          toast.info('Existing user just signing in on a new device? Restore data first!', {
             duration: 7000,
             description: 'This prevents overwriting your existing data.'
           });
@@ -370,7 +381,17 @@ export function useSupabaseSync() {
   useEffect(() => {
     if (user && !isFirstLogin) {
       const debounceTimeout = setTimeout(() => {
+        // Don't show toasts for automatic background syncs
+        const originalToast = toast;
+        toast.success = () => { return { id: 'suppressed' }; };
+        toast.error = () => { return { id: 'suppressed' }; };
+        
         syncToSupabase().catch(console.error);
+        
+        // Restore original toast
+        toast.success = originalToast.success;
+        toast.error = originalToast.error;
+        
         localStorage.setItem('lastTransactionUpdate', new Date().toISOString());
       }, 5000); // Debounce to avoid too many requests
       
