@@ -28,6 +28,20 @@ serve(async (req) => {
       supabaseServiceRole,
     );
     
+    // Get current time to check if it's past 9pm (21:00) local time
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    // Only run between 9pm (21:00) and 10pm (22:00)
+    if (currentHour < 21 || currentHour >= 22) {
+      return new Response(JSON.stringify({
+        success: true,
+        message: "Not in backup window (9pm-10pm). Skipping backup."
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
     // Get all users who have approved backups
     const { data: profiles, error: profilesError } = await supabaseAdmin
       .from('profiles')
@@ -38,28 +52,54 @@ serve(async (req) => {
       throw new Error(`Error fetching profiles: ${profilesError.message}`);
     }
     
-    console.log(`Found ${profiles.length} users with backup enabled`);
+    // Filter users who haven't had a backup in the last 24 hours
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    const profilesNeedingBackup = profiles.filter(p => 
+      !p.backup_last_date || p.backup_last_date < twentyFourHoursAgo
+    );
+    
+    console.log(`Found ${profilesNeedingBackup.length} users needing backup out of ${profiles.length} with backup enabled`);
     
     const results = [];
     
     // Process each user's backup
-    for (const profile of profiles) {
+    for (const profile of profilesNeedingBackup) {
       const userId = profile.id;
       
       try {
-        // In a real implementation, we would:
-        // 1. Fetch the user's data (transactions, categories, etc.)
-        // 2. Format it for backup (e.g., JSON, CSV)
-        // 3. Upload to Google Drive via the Drive API
-        // 4. Update the user's backup_last_date
+        // Get all transactions for this user
+        const { data: transactions, error: txError } = await supabaseAdmin
+          .from('transactions')
+          .select('*')
+          .eq('user_email', profile.email);
+          
+        if (txError) throw txError;
         
-        console.log(`Processing backup for user: ${userId}`);
+        // Get all categories for this user
+        const { data: categories, error: catError } = await supabaseAdmin
+          .from('categories')
+          .select('*')
+          .eq('user_email', profile.email);
+          
+        if (catError) throw catError;
+        
+        // Store backup data
+        const { error: backupError } = await supabaseAdmin
+          .from('user_backups')
+          .insert({
+            user_id: userId,
+            transactions_data: transactions || [],
+            categories_data: categories || [],
+            backup_date: now.toISOString()
+          });
+          
+        if (backupError) throw backupError;
         
         // Update the backup last date
         const { error: updateError } = await supabaseAdmin
           .from('profiles')
           .update({ 
-            backup_last_date: new Date().toISOString() 
+            backup_last_date: now.toISOString() 
           })
           .eq('id', userId);
         
@@ -69,6 +109,7 @@ serve(async (req) => {
         
         results.push({
           userId,
+          email: profile.email,
           success: true,
           message: "Backup completed successfully"
         });
@@ -77,6 +118,7 @@ serve(async (req) => {
         
         results.push({
           userId,
+          email: profile.email,
           success: false,
           error: userError.message
         });
@@ -85,7 +127,7 @@ serve(async (req) => {
     
     return new Response(JSON.stringify({ 
       success: true, 
-      processed: profiles.length,
+      processed: profilesNeedingBackup.length,
       results 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

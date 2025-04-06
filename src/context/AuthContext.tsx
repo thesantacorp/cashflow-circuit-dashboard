@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Session, User } from '@supabase/supabase-js';
@@ -29,6 +30,9 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Store the current session ID to track sessions across devices
+const SESSION_KEY = 'current_auth_session_id';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -36,13 +40,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Listen for auth state changes
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
+      async (event, currentSession) => {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
         if (currentSession?.user) {
+          // Check if this is a new login
+          if (event === 'SIGNED_IN') {
+            // Store the current session ID
+            localStorage.setItem(SESSION_KEY, currentSession.access_token);
+            
+            // Register this device for the user
+            try {
+              await supabase.from('user_sessions')
+                .upsert({
+                  user_id: currentSession.user.id,
+                  session_id: currentSession.access_token,
+                  last_seen: new Date().toISOString(),
+                  device_info: navigator.userAgent
+                }, { onConflict: 'session_id' });
+            } catch (error) {
+              console.error('Error registering session:', error);
+            }
+          }
+          
           setTimeout(() => {
             fetchUserProfile(currentSession.user.id);
           }, 0);
@@ -51,17 +75,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         
         if (event === 'SIGNED_OUT') {
+          // Clear local session ID
+          localStorage.removeItem(SESSION_KEY);
           navigate('/auth');
         }
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+    // Check for existing session
+    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       
       if (currentSession?.user) {
-        fetchUserProfile(currentSession.user.id);
+        // Check if this session is still valid or has been invalidated by another login
+        try {
+          const { data, error } = await supabase.from('user_sessions')
+            .select('*')
+            .eq('user_id', currentSession.user.id)
+            .eq('is_active', true)
+            .order('last_seen', { ascending: false })
+            .limit(1);
+            
+          if (error) throw error;
+          
+          // If there's an active session and it's not this one, sign out
+          const storedSessionId = localStorage.getItem(SESSION_KEY);
+          if (data && data.length > 0 && data[0].session_id !== storedSessionId) {
+            console.log('Session invalidated by another login. Signing out.');
+            await supabase.auth.signOut();
+            toast.info('You have been signed out because you signed in on another device');
+            setSession(null);
+            setUser(null);
+          } else {
+            // This is the current active session, update last seen
+            fetchUserProfile(currentSession.user.id);
+            
+            if (storedSessionId) {
+              await supabase.from('user_sessions').upsert({
+                user_id: currentSession.user.id,
+                session_id: storedSessionId,
+                last_seen: new Date().toISOString(),
+                is_active: true
+              }, { onConflict: 'session_id' });
+            }
+          }
+        } catch (error) {
+          console.error('Error checking session validity:', error);
+        }
       }
       
       setIsLoading(false);
@@ -119,12 +180,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
+      
+      // Deactivate any previous sessions for this user
+      if (data.user) {
+        try {
+          // First make all sessions inactive
+          await supabase.from('user_sessions')
+            .update({ is_active: false })
+            .eq('user_id', data.user.id);
+            
+          // Then make current session active
+          await supabase.from('user_sessions').upsert({
+            user_id: data.user.id,
+            session_id: data.session.access_token,
+            last_seen: new Date().toISOString(),
+            is_active: true,
+            device_info: navigator.userAgent
+          }, { onConflict: 'session_id' });
+          
+          localStorage.setItem(SESSION_KEY, data.session.access_token);
+        } catch (sessionError) {
+          console.error('Error updating sessions:', sessionError);
+        }
+      }
+      
       toast.success('Signed in successfully');
     } catch (error: any) {
       toast.error('Sign in failed', {

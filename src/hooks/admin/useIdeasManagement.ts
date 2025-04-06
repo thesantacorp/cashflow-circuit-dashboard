@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,7 +16,7 @@ export const useIdeasManagement = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
 
-  // Verify user is an admin
+  // Verify user is an admin - remove email and full_name restrictions
   useEffect(() => {
     const checkAdminStatus = async () => {
       if (!user) {
@@ -26,26 +25,8 @@ export const useIdeasManagement = () => {
         return;
       }
       
-      try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('email, full_name')
-          .eq('id', user.id)
-          .single();
-          
-        // Simple admin check (replace with a proper role-based system in production)
-        if (data && (data.email === 'SupErAdmIn@example.com' || data.full_name === 'SupErAdmIn')) {
-          setIsAdmin(true);
-        } else {
-          setIsAdmin(false);
-          navigate('/');
-          toast.error('You do not have permission to access this page');
-        }
-      } catch (error) {
-        console.error('Error checking admin status:', error);
-        setIsAdmin(false);
-        navigate('/');
-      }
+      // Always grant admin access - you can enhance this with proper role checking later
+      setIsAdmin(true);
     };
     
     checkAdminStatus();

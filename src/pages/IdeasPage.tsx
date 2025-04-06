@@ -25,12 +25,17 @@ const IdeasPage = () => {
         
         if (error) {
           console.error('Error fetching ideas:', error);
+          setLoading(false); // Make sure to set loading to false even on error
           return;
         }
         
-        // Update state using the updateIdeas function from useIdeaVotes
-        updateIdeas(data || []);
-        setIdeas(data || []);
+        // Make sure both operations happen before setting loading to false
+        if (data) {
+          updateIdeas(data);
+          setIdeas(data);
+        } else {
+          setIdeas([]);
+        }
       } catch (err) {
         console.error('Error in fetchIdeas:', err);
       } finally {

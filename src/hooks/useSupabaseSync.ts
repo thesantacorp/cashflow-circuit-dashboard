@@ -1,19 +1,16 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useTransactions } from '@/context/transaction';
 import { useAuth } from '@/context/AuthContext';
 import { getSupabaseClient } from '@/utils/supabase/client';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { TransactionType, EmotionalState } from '@/types';
-
-type SupabaseCount = {
-  count: number;
-}
 
 // Maximum number of retries for Supabase operations
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // ms
+
+// Key for tracking if this is the first login on this device
+const FIRST_LOGIN_KEY = 'is_first_login_on_device';
 
 /**
  * Utility function to wait for a specified delay
@@ -28,6 +25,17 @@ export function useSupabaseSync() {
   const [lastSyncDate, setLastSyncDate] = useState<Date | null>(null);
   const { state, importData, replaceAllData } = useTransactions();
   const { user, profile } = useAuth();
+  const [isFirstLogin, setIsFirstLogin] = useState<boolean>(() => {
+    return localStorage.getItem(FIRST_LOGIN_KEY) === 'true';
+  });
+
+  // Track if this is the first login on this device
+  useEffect(() => {
+    if (user && !localStorage.getItem(FIRST_LOGIN_KEY)) {
+      localStorage.setItem(FIRST_LOGIN_KEY, 'true');
+      setIsFirstLogin(true);
+    }
+  }, [user]);
 
   /**
    * Execute a Supabase operation with retry logic
@@ -259,9 +267,22 @@ export function useSupabaseSync() {
     }
   }, [user, executeWithRetry, replaceAllData, getBestClient]);
 
-  // Auto-sync data when a user logs in
+  // Auto-sync data when a user logs in - but with prevention for first login
   useEffect(() => {
     if (user && profile) {
+      // Check if this is the first login on this device
+      const isFirstLoginOnDevice = localStorage.getItem(FIRST_LOGIN_KEY) === 'true';
+      
+      // If this is the first login, don't auto-sync to prevent data loss
+      if (isFirstLoginOnDevice) {
+        console.log('First login detected. Auto-sync disabled to prevent data loss.');
+        toast.info('Welcome back! Please restore your data before making changes.', {
+          duration: 7000,
+          description: 'This prevents overwriting your existing data.'
+        });
+        return;
+      }
+      
       const syncData = async () => {
         try {
           // Get the best available client
@@ -333,9 +354,9 @@ export function useSupabaseSync() {
     }
   }, [user, profile, state.transactions.length, state.categories.length, backupToSupabase, restoreFromSupabase, getBestClient]);
 
-  // Auto-backup when data changes (with debounce)
+  // Auto-backup when data changes (with debounce), but NOT on first login
   useEffect(() => {
-    if (user) {
+    if (user && !isFirstLogin) {
       const debounceTimeout = setTimeout(() => {
         backupToSupabase().catch(console.error);
         localStorage.setItem('lastTransactionUpdate', new Date().toISOString());
@@ -343,12 +364,24 @@ export function useSupabaseSync() {
       
       return () => clearTimeout(debounceTimeout);
     }
-  }, [state.transactions, state.categories, user, backupToSupabase]);
+  }, [state.transactions, state.categories, user, backupToSupabase, isFirstLogin]);
+
+  // Clear first login flag on manual restore
+  const handleManualRestore = async () => {
+    const success = await restoreFromSupabase();
+    if (success) {
+      // After successful manual restore, this is no longer considered first login
+      localStorage.setItem(FIRST_LOGIN_KEY, 'false');
+      setIsFirstLogin(false);
+    }
+    return success;
+  };
 
   return {
     isSyncing,
     lastSyncDate,
     backupToSupabase,
-    restoreFromSupabase
+    restoreFromSupabase: handleManualRestore,
+    isFirstLogin
   };
 }

@@ -5,16 +5,17 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CloudIcon, LoaderIcon, AlertCircle, RefreshCw } from "lucide-react";
+import { CloudIcon, LoaderIcon, AlertCircle, RefreshCw, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { checkDatabaseConnection } from "@/utils/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 
 const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
-  const { isSyncing, backupToSupabase, restoreFromSupabase } = useSupabaseSync();
+  const { isSyncing, backupToSupabase, restoreFromSupabase, isFirstLogin } = useSupabaseSync();
   const { user, isLoading } = useAuth();
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'success' | 'error' | null>(null);
 
   // Check connection on mount
   useEffect(() => {
@@ -45,6 +46,7 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const verifyConnection = async () => {
     setIsCheckingConnection(true);
     setConnectionError(null);
+    setConnectionStatus('checking');
     
     try {
       // First try with the integrated client
@@ -57,6 +59,7 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         if (!error) {
           // Connection successful with integrated client
           setIsCheckingConnection(false);
+          setConnectionStatus('success');
           return true;
         }
       } catch (err) {
@@ -68,9 +71,11 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       
       if (!isConnected) {
         setConnectionError("Could not connect to the database. Please try again later.");
+        setConnectionStatus('error');
         return false;
       }
       
+      setConnectionStatus('success');
       return true;
     } catch (error) {
       console.error("Connection verification error:", error);
@@ -79,6 +84,7 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           ? `Connection error: ${error.message}` 
           : "Unknown connection error"
       );
+      setConnectionStatus('error');
       return false;
     } finally {
       setIsCheckingConnection(false);
@@ -126,6 +132,16 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           Backup or restore your financial data to your Supabase account.
         </p>
         
+        {connectionStatus === 'success' && (
+          <Alert className="mb-4 bg-green-50 border-green-200">
+            <CheckCircle className="h-4 w-4 text-green-500" />
+            <AlertTitle className="text-green-700">Connection Good</AlertTitle>
+            <AlertDescription className="text-green-600">
+              Database connection is working properly
+            </AlertDescription>
+          </Alert>
+        )}
+        
         {connectionError && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
@@ -140,6 +156,16 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
               >
                 Try again
               </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {isFirstLogin && (
+          <Alert className="mb-4 bg-blue-50 border-blue-200">
+            <AlertCircle className="h-4 w-4 text-blue-500" />
+            <AlertTitle className="text-blue-700">New Device Detected</AlertTitle>
+            <AlertDescription className="text-blue-600">
+              To avoid overwriting your existing data, please restore your data first before making changes.
             </AlertDescription>
           </Alert>
         )}
