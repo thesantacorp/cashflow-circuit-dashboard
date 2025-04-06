@@ -7,10 +7,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useSupabaseSync } from '@/hooks/useSupabaseSync';
 import { useIdeaVotes } from '@/hooks/useIdeaVotes';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { Idea } from '@/integrations/supabase/customClient';
 
 const IdeasPage = () => {
   const { user } = useAuth();
-  const [ideas, setIdeas] = useState([]);
+  const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(true);
   const { userVotes, voteStats, handleVote, updateIdeas } = useIdeaVotes();
   const { isSyncing } = useSupabaseSync();
@@ -20,24 +22,34 @@ const IdeasPage = () => {
     const fetchIdeas = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase.from('ideas').select('*').order('created_at', { ascending: false });
+        const { data, error } = await supabase
+          .from('ideas')
+          .select('*')
+          .order('created_at', { ascending: false });
         
         if (error) {
           console.error('Error fetching ideas:', error);
-          setLoading(false); // Make sure to set loading to false even on error
+          toast.error('Failed to load ideas. Please try again.');
+          setLoading(false);
           return;
         }
         
         // Make sure both operations happen before setting loading to false
-        if (data) {
-          updateIdeas(data);
-          setIdeas(data);
+        if (data && Array.isArray(data)) {
+          updateIdeas(data as Idea[]);
+          setIdeas(data as Idea[]);
+          
+          // Delay setting loading to false to ensure votes are fetched
+          setTimeout(() => {
+            setLoading(false);
+          }, 500);
         } else {
           setIdeas([]);
+          setLoading(false);
         }
       } catch (err) {
         console.error('Error in fetchIdeas:', err);
-      } finally {
+        toast.error('An unexpected error occurred while loading ideas');
         setLoading(false);
       }
     };

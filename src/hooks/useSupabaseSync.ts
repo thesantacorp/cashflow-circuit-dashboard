@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getSupabaseClient } from '@/utils/supabase/client';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useLocation } from 'react-router-dom';
 
 // Maximum number of retries for Supabase operations
 const MAX_RETRIES = 3;
@@ -28,6 +29,7 @@ export function useSupabaseSync() {
   const [isFirstLogin, setIsFirstLogin] = useState<boolean>(() => {
     return localStorage.getItem(FIRST_LOGIN_KEY) === 'true';
   });
+  const location = useLocation();
 
   // Track if this is the first login on this device
   useEffect(() => {
@@ -276,10 +278,14 @@ export function useSupabaseSync() {
       // If this is the first login, don't auto-sync to prevent data loss
       if (isFirstLoginOnDevice) {
         console.log('First login detected. Auto-sync disabled to prevent data loss.');
-        toast.info('Welcome back! Please restore your data before making changes.', {
-          duration: 7000,
-          description: 'This prevents overwriting your existing data.'
-        });
+        
+        // Only show the welcome back message on the profile page
+        if (location.pathname === '/profile') {
+          toast.info('Welcome back! Please restore your data before making changes.', {
+            duration: 7000,
+            description: 'This prevents overwriting your existing data.'
+          });
+        }
         return;
       }
       
@@ -352,7 +358,7 @@ export function useSupabaseSync() {
       
       syncData().catch(console.error);
     }
-  }, [user, profile, state.transactions.length, state.categories.length, backupToSupabase, restoreFromSupabase, getBestClient]);
+  }, [user, profile, state.transactions.length, state.categories.length, backupToSupabase, restoreFromSupabase, getBestClient, location.pathname]);
 
   // Auto-backup when data changes (with debounce), but NOT on first login
   useEffect(() => {

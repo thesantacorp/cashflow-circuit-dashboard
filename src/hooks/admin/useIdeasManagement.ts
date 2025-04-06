@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,7 +17,7 @@ export const useIdeasManagement = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
 
-  // Verify user is an admin - remove email and full_name restrictions
+  // Verify user is an admin - allow all authenticated users for now
   useEffect(() => {
     const checkAdminStatus = async () => {
       if (!user) {
@@ -25,7 +26,7 @@ export const useIdeasManagement = () => {
         return;
       }
       
-      // Always grant admin access - you can enhance this with proper role checking later
+      // Grant admin access to all authenticated users
       setIsAdmin(true);
     };
     
@@ -39,11 +40,17 @@ export const useIdeasManagement = () => {
     try {
       setLoading(true);
       
-      const { data, error } = await customClient.ideas
+      const { data, error } = await supabase
+        .from('ideas')
         .select()
         .order('created_at', { ascending: false });
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching ideas:', error);
+        toast.error('Failed to fetch ideas: ' + error.message);
+        setLoading(false);
+        return;
+      }
       
       setIdeas(data || []);
       
@@ -52,24 +59,36 @@ export const useIdeasManagement = () => {
         const voteStats: Record<string, VoteSummary> = {};
         
         for (const idea of data) {
-          const { data: upvotes, error: upvotesError } = await customClient.votes
-            .select()
-            .eq('idea_id', idea.id)
-            .eq('vote_type', 'upvote');
+          try {
+            const { data: upvotes, error: upvotesError } = await supabase
+              .from('votes')
+              .select()
+              .eq('idea_id', idea.id)
+              .eq('vote_type', 'upvote');
+              
+            const { data: downvotes, error: downvotesError } = await supabase
+              .from('votes')
+              .select()
+              .eq('idea_id', idea.id)
+              .eq('vote_type', 'downvote');
+              
+            if (upvotesError) {
+              console.error('Error fetching upvotes:', upvotesError);
+              continue;
+            }
+            if (downvotesError) {
+              console.error('Error fetching downvotes:', downvotesError);
+              continue;
+            }
             
-          const { data: downvotes, error: downvotesError } = await customClient.votes
-            .select()
-            .eq('idea_id', idea.id)
-            .eq('vote_type', 'downvote');
-            
-          if (upvotesError) throw upvotesError;
-          if (downvotesError) throw downvotesError;
-          
-          voteStats[idea.id] = {
-            idea_id: idea.id,
-            upvotes: upvotes?.length || 0,
-            downvotes: downvotes?.length || 0
-          };
+            voteStats[idea.id] = {
+              idea_id: idea.id,
+              upvotes: upvotes?.length || 0,
+              downvotes: downvotes?.length || 0
+            };
+          } catch (err) {
+            console.error(`Error processing votes for idea ${idea.id}:`, err);
+          }
         }
         
         setVoteSummary(voteStats);
@@ -113,34 +132,46 @@ export const useIdeasManagement = () => {
       
       // If a new image file is selected, upload it
       if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = `ideas/${fileName}`;
-        
-        // Get pre-signed URL for upload
-        const { data, error: urlError } = await supabase
-          .storage
-          .from('ideas')
-          .createSignedUploadUrl(filePath);
+        try {
+          const fileExt = imageFile.name.split('.').pop();
+          const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+          const filePath = `ideas/${fileName}`;
           
-        if (urlError) throw urlError;
-        
-        // Upload file using signed URL
-        const uploadResponse = await fetch(data.signedUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': imageFile.type },
-          body: imageFile
-        });
-        
-        if (!uploadResponse.ok) throw new Error('Failed to upload image');
-        
-        // Get public URL of uploaded image
-        const { data: { publicUrl } } = supabase
-          .storage
-          .from('ideas')
-          .getPublicUrl(filePath);
+          // Create storage bucket if it doesn't exist
+          const { data: bucketData, error: bucketError } = await supabase
+            .storage
+            .getBucket('ideas');
+            
+          if (!bucketData || bucketError) {
+            console.log('Creating ideas bucket');
+            await supabase.storage.createBucket('ideas', {
+              public: true
+            });
+          }
           
-        finalImageUrl = publicUrl;
+          // Upload file directly
+          const { data, error: uploadError } = await supabase
+            .storage
+            .from('ideas')
+            .upload(filePath, imageFile);
+            
+          if (uploadError) {
+            console.error('Error uploading image:', uploadError);
+            throw uploadError;
+          }
+          
+          // Get public URL of uploaded image
+          const { data: { publicUrl } } = supabase
+            .storage
+            .from('ideas')
+            .getPublicUrl(filePath);
+            
+          finalImageUrl = publicUrl;
+        } catch (uploadErr) {
+          console.error('Error during image upload:', uploadErr);
+          toast.error('Failed to upload image');
+          // Continue with idea creation even if image upload fails
+        }
       }
       
       // Format the date
@@ -148,7 +179,8 @@ export const useIdeasManagement = () => {
       
       if (editingIdea) {
         // Update existing idea
-        const { error } = await customClient.ideas
+        const { data, error } = await supabase
+          .from('ideas')
           .update({
             name,
             description,
@@ -157,14 +189,19 @@ export const useIdeasManagement = () => {
             live_project_link: liveProjectLink || null,
             learn_more_link: learnMoreLink || null
           })
-          .eq('id', editingIdea.id);
+          .eq('id', editingIdea.id)
+          .select();
           
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating idea:', error);
+          throw error;
+        }
         
         toast.success('Idea updated successfully');
       } else {
         // Create new idea
-        const { error } = await customClient.ideas
+        const { data, error } = await supabase
+          .from('ideas')
           .insert({
             name,
             description,
@@ -173,9 +210,13 @@ export const useIdeasManagement = () => {
             live_project_link: liveProjectLink || null,
             learn_more_link: learnMoreLink || null,
             created_by: user?.id
-          });
+          })
+          .select();
           
-        if (error) throw error;
+        if (error) {
+          console.error('Error creating idea:', error);
+          throw error;
+        }
         
         toast.success('Idea created successfully');
       }
@@ -187,7 +228,7 @@ export const useIdeasManagement = () => {
       
     } catch (error: any) {
       console.error('Error saving idea:', error.message);
-      toast.error('Failed to save idea');
+      toast.error('Failed to save idea: ' + error.message);
     } finally {
       setIsUploading(false);
     }
@@ -195,17 +236,21 @@ export const useIdeasManagement = () => {
   
   const handleDeleteIdea = async (id: string) => {
     try {
-      const { error } = await customClient.ideas
+      const { error } = await supabase
+        .from('ideas')
         .delete()
         .eq('id', id);
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting idea:', error);
+        throw error;
+      }
       
       toast.success('Idea deleted successfully');
       fetchIdeas();
     } catch (error: any) {
       console.error('Error deleting idea:', error.message);
-      toast.error('Failed to delete idea');
+      toast.error('Failed to delete idea: ' + error.message);
     }
   };
   
