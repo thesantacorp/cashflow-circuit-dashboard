@@ -3,7 +3,7 @@ import { useTransactions } from '@/context/transaction';
 import { useAuth } from '@/context/AuthContext';
 import { getSupabaseClient } from '@/utils/supabase/client';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 import { useLocation } from 'react-router-dom';
 
 // Maximum number of retries for Supabase operations
@@ -92,7 +92,11 @@ export function useSupabaseSync() {
   // Function to sync data to Supabase (formerly backup)
   const syncToSupabase = useCallback(async () => {
     if (!user) {
-      toast.error('You must be logged in to sync data');
+      toast({
+        title: "Error",
+        description: "You must be logged in to sync data",
+        variant: "destructive"
+      });
       return false;
     }
 
@@ -188,15 +192,21 @@ export function useSupabaseSync() {
       
       // Only show success toast on profile page
       if (location.pathname === '/profile') {
-        toast.success('Data synced successfully to cloud');
+        toast({
+          title: "Success",
+          description: "Data synced successfully to cloud",
+          variant: "default",
+        });
       }
       return true;
     } catch (error: any) {
       console.error('Sync error:', error);
       // Only show error toast on profile page
       if (location.pathname === '/profile') {
-        toast.error('Failed to sync data', {
-          description: error.message || 'Network error occurred'
+        toast({
+          title: "Error",
+          description: error.message || 'Network error occurred',
+          variant: "destructive",
         });
       }
       return false;
@@ -208,7 +218,11 @@ export function useSupabaseSync() {
   // Function to restore data from Supabase
   const restoreFromSupabase = useCallback(async () => {
     if (!user) {
-      toast.error('You must be logged in to restore data');
+      toast({
+        title: "Error",
+        description: "You must be logged in to restore data",
+        variant: "destructive"
+      });
       return false;
     }
 
@@ -269,15 +283,21 @@ export function useSupabaseSync() {
       
       // Only show success toast on profile page
       if (location.pathname === '/profile') {
-        toast.success('Data restored successfully from cloud');
+        toast({
+          title: "Success",
+          description: "Data restored successfully from cloud",
+          variant: "default",
+        });
       }
       return true;
     } catch (error: any) {
       console.error('Restore error:', error);
       // Only show error toast on profile page
       if (location.pathname === '/profile') {
-        toast.error('Failed to restore data', {
-          description: error.message || 'Network error occurred'
+        toast({
+          title: "Error",
+          description: error.message || 'Network error occurred',
+          variant: "destructive",
         });
       }
       return false;
@@ -298,9 +318,10 @@ export function useSupabaseSync() {
         
         // Only show the welcome back message on the profile page
         if (location.pathname === '/profile') {
-          toast.info('Existing user just signing in on a new device? Restore data first!', {
+          toast({
+            title: "Welcome back",
+            description: "Existing user just signing in on a new device? Restore data first!",
             duration: 7000,
-            description: 'This prevents overwriting your existing data.'
           });
         }
         return;
@@ -367,8 +388,10 @@ export function useSupabaseSync() {
           }
         } catch (error) {
           console.error('Auto-sync error:', error);
-          toast.error('Error syncing data', {
-            description: 'We encountered an issue syncing your data. You can try again manually.'
+          toast({
+            title: "Error",
+            description: "We encountered an issue syncing your data. You can try again manually.",
+            variant: "destructive",
           });
         }
       };
@@ -382,15 +405,8 @@ export function useSupabaseSync() {
     if (user && !isFirstLogin) {
       const debounceTimeout = setTimeout(() => {
         // Don't show toasts for automatic background syncs
-        const originalToast = toast;
-        toast.success = () => { return { id: 'suppressed' }; };
-        toast.error = () => { return { id: 'suppressed' }; };
-        
-        syncToSupabase().catch(console.error);
-        
-        // Restore original toast
-        toast.success = originalToast.success;
-        toast.error = originalToast.error;
+        syncToSupabase()
+          .catch(console.error);
         
         localStorage.setItem('lastTransactionUpdate', new Date().toISOString());
       }, 5000); // Debounce to avoid too many requests

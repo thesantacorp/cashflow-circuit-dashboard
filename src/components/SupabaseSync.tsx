@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 import { useAuth } from "@/context/AuthContext";
@@ -9,6 +8,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { checkDatabaseConnection } from "@/utils/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface SupabaseSyncProps {
   minimal?: boolean;
