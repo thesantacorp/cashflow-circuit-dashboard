@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 import { useAuth } from "@/context/AuthContext";
@@ -155,7 +156,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
           Cloud Sync
         </CardTitle>
         <CardDescription>
-          Your data is automatically synced to your account and available on any device
+          Your data is automatically synced in real-time to your account and available instantly on any device
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

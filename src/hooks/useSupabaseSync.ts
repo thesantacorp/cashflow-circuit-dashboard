@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useTransactions } from '@/context/transaction';
 import { useAuth } from '@/context/AuthContext';
@@ -92,11 +93,13 @@ export function useSupabaseSync() {
   // Function to sync data to Supabase (formerly backup)
   const syncToSupabase = useCallback(async () => {
     if (!user) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to sync data",
-        variant: "destructive"
-      });
+      if (location.pathname === '/profile') {
+        toast({
+          title: "Error",
+          description: "You must be logged in to sync data",
+          variant: "destructive"
+        });
+      }
       return false;
     }
 
@@ -195,7 +198,6 @@ export function useSupabaseSync() {
         toast({
           title: "Success",
           description: "Data synced successfully to cloud",
-          variant: "default",
         });
       }
       return true;
@@ -286,7 +288,6 @@ export function useSupabaseSync() {
         toast({
           title: "Success",
           description: "Data restored successfully from cloud",
-          variant: "default",
         });
       }
       return true;
@@ -400,18 +401,13 @@ export function useSupabaseSync() {
     }
   }, [user, profile, state.transactions.length, state.categories.length, syncToSupabase, restoreFromSupabase, getBestClient, location.pathname]);
 
-  // Auto-backup when data changes (with debounce), but NOT on first login
+  // Make sync instant for any data changes
   useEffect(() => {
-    if (user && !isFirstLogin) {
-      const debounceTimeout = setTimeout(() => {
-        // Don't show toasts for automatic background syncs
-        syncToSupabase()
-          .catch(console.error);
-        
-        localStorage.setItem('lastTransactionUpdate', new Date().toISOString());
-      }, 5000); // Debounce to avoid too many requests
+    if (user && !isFirstLogin && (state.transactions.length > 0 || state.categories.length > 0)) {
+      // Immediate sync without debounce for real-time updates across devices
+      syncToSupabase().catch(error => console.error('Instant sync error:', error));
       
-      return () => clearTimeout(debounceTimeout);
+      localStorage.setItem('lastTransactionUpdate', new Date().toISOString());
     }
   }, [state.transactions, state.categories, user, syncToSupabase, isFirstLogin]);
 
