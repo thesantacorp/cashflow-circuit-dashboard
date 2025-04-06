@@ -2,13 +2,14 @@
 import React, { useState, useEffect } from "react";
 import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 import { useAuth } from "@/context/AuthContext";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CloudIcon, LoaderIcon, AlertCircle, RefreshCw, CheckCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CloudIcon, LoaderIcon, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { checkDatabaseConnection } from "@/utils/supabase/client";
-import { supabase } from "@/integrations/supabase/client";
+import { verifyDatabaseConnection } from "@/utils/connectionHelpers";
+import ConnectionStatus from "@/components/backup/ConnectionStatus";
+import FirstLoginAlert from "@/components/backup/FirstLoginAlert";
+import SyncActionButtons from "@/components/backup/SyncActionButtons";
 
 const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const { isSyncing, syncToSupabase, restoreFromSupabase, isFirstLogin } = useSupabaseSync();
@@ -49,25 +50,7 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     setConnectionStatus('checking');
     
     try {
-      // First try with the integrated client
-      try {
-        const { data, error } = await supabase
-          .from('user_uuids')
-          .select('count', { count: 'exact', head: true })
-          .limit(1);
-        
-        if (!error) {
-          // Connection successful with integrated client
-          setIsCheckingConnection(false);
-          setConnectionStatus('success');
-          return true;
-        }
-      } catch (err) {
-        console.log('Integrated client check failed, trying fallback client');
-      }
-      
-      // If that fails, try with the fallback client
-      const isConnected = await checkDatabaseConnection();
+      const isConnected = await verifyDatabaseConnection();
       
       if (!isConnected) {
         setConnectionError("Could not connect to the database. Please try again later.");
@@ -132,71 +115,22 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           Sync or restore your financial data to your cloud account.
         </p>
         
-        {connectionStatus === 'success' && (
-          <Alert className="mb-4 bg-green-50 border-green-200">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            <AlertTitle className="text-green-700">Connection Good</AlertTitle>
-            <AlertDescription className="text-green-600">
-              Database connection is working properly
-            </AlertDescription>
-          </Alert>
-        )}
+        <ConnectionStatus 
+          connectionStatus={connectionStatus}
+          connectionError={connectionError}
+          onRetryConnection={handleRetryConnection}
+          isCheckingConnection={isCheckingConnection}
+        />
         
-        {connectionError && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Connection Error</AlertTitle>
-            <AlertDescription>
-              {connectionError}
-              <Button 
-                variant="link" 
-                onClick={handleRetryConnection} 
-                className="p-0 h-auto text-white underline ml-2"
-                disabled={isCheckingConnection}
-              >
-                Try again
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        {isFirstLogin && (
-          <Alert className="mb-4 bg-blue-50 border-blue-200">
-            <AlertCircle className="h-4 w-4 text-blue-500" />
-            <AlertTitle className="text-blue-700">New Device Detected</AlertTitle>
-            <AlertDescription className="text-blue-600">
-              Existing user just signing in on a new device? Restore data first!
-            </AlertDescription>
-          </Alert>
-        )}
+        <FirstLoginAlert isFirstLogin={isFirstLogin} />
       </CardContent>
-      <CardFooter className="flex justify-between border-t pt-4">
-        <Button
-          variant="outline"
-          onClick={handleSync}
-          disabled={isSyncing || isCheckingConnection}
-          className="border-orange-300 hover:bg-orange-50"
-        >
-          {isSyncing || isCheckingConnection ? (
-            <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <CloudIcon className="mr-2 h-4 w-4" />
-          )}
-          Sync to Cloud
-        </Button>
-        <Button
-          variant="outline"
-          onClick={handleRestore}
-          disabled={isSyncing || isCheckingConnection}
-          className="border-orange-300 hover:bg-orange-50"
-        >
-          {isSyncing || isCheckingConnection ? (
-            <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-4 w-4" />
-          )}
-          Restore Data
-        </Button>
+      <CardFooter>
+        <SyncActionButtons
+          onSync={handleSync}
+          onRestore={handleRestore}
+          isSyncing={isSyncing}
+          isCheckingConnection={isCheckingConnection}
+        />
       </CardFooter>
     </Card>
   );
