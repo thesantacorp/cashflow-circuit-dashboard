@@ -15,7 +15,7 @@ interface SupabaseSyncProps {
 }
 
 const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
-  const { isSyncing, lastSyncDate, backupToSupabase, restoreFromSupabase } = useSupabaseSync();
+  const { isSyncing, lastSyncDate, syncToSupabase, restoreFromSupabase } = useSupabaseSync();
   const { isLoading, user } = useAuth();
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
@@ -119,7 +119,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
           <Button 
             size="sm" 
             variant="outline" 
-            onClick={() => handleOperation(backupToSupabase)} 
+            onClick={() => handleOperation(syncToSupabase)} 
             disabled={isSyncing || isCheckingConnection} 
             className="flex items-center"
           >
@@ -152,7 +152,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
       <CardHeader>
         <CardTitle className="flex items-center">
           <CloudIcon className="mr-2 h-5 w-5 text-orange-500" />
-          Supabase Sync
+          Cloud Sync
         </CardTitle>
         <CardDescription>
           Your data is automatically synced to your account and available on any device
@@ -176,16 +176,21 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
         
         <div className="flex justify-between items-center">
           <div>
-            <h4 className="text-sm font-medium">Manual Backup & Restore</h4>
+            <h4 className="text-sm font-medium">Manual Sync & Restore</h4>
             <p className="text-xs text-slate-500">
-              Force a backup or restore of your data
+              Sync to cloud or restore your data
             </p>
           </div>
           <div className="flex space-x-2">
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleOperation(backupToSupabase)}
+              onClick={() => handleOperation(() => {
+                if (window.confirm('This will upload your current data to the cloud. Continue?')) {
+                  return syncToSupabase();
+                }
+                return Promise.resolve(false);
+              })}
               disabled={isSyncing || isCheckingConnection}
               className="flex items-center"
             >
@@ -194,7 +199,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
               ) : (
                 <CloudIcon className="mr-2 h-3 w-3" />
               )}
-              Backup
+              Sync
             </Button>
             <Button
               size="sm"

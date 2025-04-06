@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useTransactions } from '@/context/transaction';
 import { useAuth } from '@/context/AuthContext';
@@ -89,10 +90,10 @@ export function useSupabaseSync() {
     return customClient;
   }, []);
 
-  // Function to backup data to Supabase
-  const backupToSupabase = useCallback(async () => {
+  // Function to sync data to Supabase (formerly backup)
+  const syncToSupabase = useCallback(async () => {
     if (!user) {
-      toast.error('You must be logged in to backup data');
+      toast.error('You must be logged in to sync data');
       return false;
     }
 
@@ -186,11 +187,11 @@ export function useSupabaseSync() {
       setLastSyncDate(now);
       localStorage.setItem('lastTransactionUpdate', now.toISOString());
       
-      toast.success('Data backed up successfully');
+      toast.success('Data synced successfully to cloud');
       return true;
     } catch (error: any) {
-      console.error('Backup error:', error);
-      toast.error('Failed to backup data', {
+      console.error('Sync error:', error);
+      toast.error('Failed to sync data', {
         description: error.message || 'Network error occurred'
       });
       return false;
@@ -203,6 +204,11 @@ export function useSupabaseSync() {
   const restoreFromSupabase = useCallback(async () => {
     if (!user) {
       toast.error('You must be logged in to restore data');
+      return false;
+    }
+
+    // Confirm overwriting of local data
+    if (!window.confirm('This will replace your current data with data from the cloud. Are you sure you want to continue?')) {
       return false;
     }
 
@@ -256,7 +262,7 @@ export function useSupabaseSync() {
       setLastSyncDate(now);
       localStorage.setItem('lastTransactionUpdate', now.toISOString());
       
-      toast.success('Data restored successfully');
+      toast.success('Data restored successfully from cloud');
       return true;
     } catch (error: any) {
       console.error('Restore error:', error);
@@ -323,7 +329,7 @@ export function useSupabaseSync() {
             await restoreFromSupabase();
           } else if (hasLocalData && remoteCount === 0) {
             // If local data exists but no remote data, backup to remote
-            await backupToSupabase();
+            await syncToSupabase();
           } else if (hasLocalData && remoteCount > 0) {
             // If both exist, check which is newer
             if (profile.backup_last_date) {
@@ -334,7 +340,7 @@ export function useSupabaseSync() {
                 const localDate = new Date(localStorageDate);
                 if (localDate > backupDate) {
                   // Local is newer
-                  await backupToSupabase();
+                  await syncToSupabase();
                 } else {
                   // Remote is newer
                   await restoreFromSupabase();
@@ -345,7 +351,7 @@ export function useSupabaseSync() {
               }
             } else {
               // No backup date in profile, assume local is newer
-              await backupToSupabase();
+              await syncToSupabase();
             }
           }
         } catch (error) {
@@ -358,19 +364,19 @@ export function useSupabaseSync() {
       
       syncData().catch(console.error);
     }
-  }, [user, profile, state.transactions.length, state.categories.length, backupToSupabase, restoreFromSupabase, getBestClient, location.pathname]);
+  }, [user, profile, state.transactions.length, state.categories.length, syncToSupabase, restoreFromSupabase, getBestClient, location.pathname]);
 
   // Auto-backup when data changes (with debounce), but NOT on first login
   useEffect(() => {
     if (user && !isFirstLogin) {
       const debounceTimeout = setTimeout(() => {
-        backupToSupabase().catch(console.error);
+        syncToSupabase().catch(console.error);
         localStorage.setItem('lastTransactionUpdate', new Date().toISOString());
       }, 5000); // Debounce to avoid too many requests
       
       return () => clearTimeout(debounceTimeout);
     }
-  }, [state.transactions, state.categories, user, backupToSupabase, isFirstLogin]);
+  }, [state.transactions, state.categories, user, syncToSupabase, isFirstLogin]);
 
   // Clear first login flag on manual restore
   const handleManualRestore = async () => {
@@ -386,7 +392,8 @@ export function useSupabaseSync() {
   return {
     isSyncing,
     lastSyncDate,
-    backupToSupabase,
+    backupToSupabase: syncToSupabase, // Keep for backward compatibility
+    syncToSupabase,                   // New, clearer naming
     restoreFromSupabase: handleManualRestore,
     isFirstLogin
   };

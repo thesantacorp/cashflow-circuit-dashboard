@@ -67,9 +67,9 @@ const IdeasPage = () => {
 
   return (
     <div className="container max-w-6xl py-8">
-      <h1 className="text-3xl font-bold mb-6">Community Ideas</h1>
+      <h1 className="text-3xl font-bold mb-2">Discover ideas you can deploy</h1>
       <p className="text-muted-foreground mb-8">
-        Vote on features and ideas for the app. The most popular ideas will be implemented next!
+        Start stacking up
       </p>
       <IdeasGrid 
         ideas={ideas}

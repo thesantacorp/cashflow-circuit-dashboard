@@ -81,11 +81,18 @@ const LoginPage = () => {
       
       <div className="mt-6 text-center">
         <p className="text-sm text-slate-600">
+          Don't just track, stack up your finance.
+        </p>
+        <p className="text-sm text-slate-600 mt-4">
           Don't have an account?{' '}
           <Link to="/auth/signup" className="text-orange-600 hover:text-orange-800 font-medium">
             Sign up
           </Link>
         </p>
+      </div>
+
+      <div className="mt-8 pt-4 border-t text-center text-xs text-slate-500">
+        © 2025 Stack'd by Fushure. All rights reserved.
       </div>
     </div>
   );

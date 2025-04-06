@@ -11,7 +11,7 @@ import { checkDatabaseConnection } from "@/utils/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 
 const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
-  const { isSyncing, backupToSupabase, restoreFromSupabase, isFirstLogin } = useSupabaseSync();
+  const { isSyncing, syncToSupabase, restoreFromSupabase, isFirstLogin } = useSupabaseSync();
   const { user, isLoading } = useAuth();
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -37,7 +37,7 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          You must be logged in to manage backups
+          You must be logged in to manage your data
         </AlertDescription>
       </Alert>
     );
@@ -91,13 +91,15 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     }
   };
 
-  const handleBackup = async () => {
+  const handleSync = async () => {
     const connectionValid = await verifyConnection();
     if (!connectionValid) return;
     
-    const success = await backupToSupabase();
-    if (success && onClose) {
-      setTimeout(onClose, 1000);
+    if (window.confirm("This will upload your current data to the cloud. Continue?")) {
+      const success = await syncToSupabase();
+      if (success && onClose) {
+        setTimeout(onClose, 1000);
+      }
     }
   };
 
@@ -105,12 +107,10 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const connectionValid = await verifyConnection();
     if (!connectionValid) return;
     
-    if (window.confirm("This will replace your current data. Are you sure?")) {
-      const success = await restoreFromSupabase();
-      if (success && onClose) {
-        toast.success("Your data has been restored successfully");
-        setTimeout(onClose, 1000);
-      }
+    const success = await restoreFromSupabase();
+    if (success && onClose) {
+      toast.success("Your data has been restored successfully");
+      setTimeout(onClose, 1000);
     }
   };
 
@@ -124,12 +124,12 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       <CardHeader>
         <CardTitle className="flex items-center text-orange-700">
           <CloudIcon className="mr-2 h-5 w-5" />
-          Data Backup
+          Data Management
         </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="mb-4 text-sm text-slate-600">
-          Backup or restore your financial data to your Supabase account.
+          Sync or restore your financial data to your cloud account.
         </p>
         
         {connectionStatus === 'success' && (
@@ -173,7 +173,7 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       <CardFooter className="flex justify-between border-t pt-4">
         <Button
           variant="outline"
-          onClick={handleBackup}
+          onClick={handleSync}
           disabled={isSyncing || isCheckingConnection}
           className="border-orange-300 hover:bg-orange-50"
         >
@@ -182,7 +182,7 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           ) : (
             <CloudIcon className="mr-2 h-4 w-4" />
           )}
-          Backup Now
+          Sync to Cloud
         </Button>
         <Button
           variant="outline"
