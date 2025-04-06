@@ -165,7 +165,7 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             <AlertCircle className="h-4 w-4 text-blue-500" />
             <AlertTitle className="text-blue-700">New Device Detected</AlertTitle>
             <AlertDescription className="text-blue-600">
-              To avoid overwriting your existing data, please restore your data first before making changes.
+              Existing user just signing in on a new device? Restore data first!
             </AlertDescription>
           </Alert>
         )}

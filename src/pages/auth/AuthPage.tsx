@@ -42,10 +42,6 @@ const AuthPage = () => {
           <div className="bg-white p-6 rounded-lg shadow-md">
             <Outlet />
           </div>
-          
-          <div className="text-center mt-6 text-sm text-slate-500">
-            &copy; {new Date().getFullYear()} Stack'd. All rights reserved.
-          </div>
         </div>
       </div>
     </div>
