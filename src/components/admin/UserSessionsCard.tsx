@@ -21,12 +21,14 @@ const UserSessionsCard: React.FC<UserSessionsCardProps> = ({ usageStats }) => {
   const generateMockSessions = () => {
     const sessions = [];
     const now = new Date();
+    const userNames = ['Alex Johnson', 'Sam Taylor', 'Jordan Lee', 'Casey Morgan', 'Riley Smith'];
     
     for (let i = 0; i < Math.min(5, usageStats.totalSessions); i++) {
       const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
       sessions.push({
         id: `session-${i}`,
         userId: `user-${i % 3}`,
+        userName: userNames[i % userNames.length],
         duration: Math.floor(Math.random() * 30) + 5,
         date: date,
         device: ['Desktop', 'Mobile', 'Tablet'][Math.floor(Math.random() * 3)],
@@ -94,7 +96,7 @@ const UserSessionsCard: React.FC<UserSessionsCardProps> = ({ usageStats }) => {
                   <TableBody>
                     {recentSessions.map((session) => (
                       <TableRow key={session.id}>
-                        <TableCell className="font-medium">User {session.userId.split('-')[1]}</TableCell>
+                        <TableCell className="font-medium">{session.userName}</TableCell>
                         <TableCell>{session.device}</TableCell>
                         <TableCell>{session.duration} min</TableCell>
                         <TableCell>{formatDistanceToNow(session.date, { addSuffix: true })}</TableCell>
