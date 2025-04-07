@@ -39,9 +39,7 @@ const AuthPage = () => {
             <p className="text-slate-500">Don't just track, grow your finances.</p>
           </div>
           
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <Outlet />
-          </div>
+          <Outlet />
         </div>
       </div>
     </div>
