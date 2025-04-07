@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useTransactions } from '@/context/transaction';
 import { useAuth } from '@/context/AuthContext';
@@ -25,7 +24,7 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export function useSupabaseSync() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncDate, setLastSyncDate] = useState<Date | null>(null);
-  const { state, importData, replaceAllData } = useTransactions();
+  const { state, importData, replaceAllData, refreshData } = useTransactions();
   const { user, profile } = useAuth();
   const [isFirstLogin, setIsFirstLogin] = useState<boolean>(() => {
     return localStorage.getItem(FIRST_LOGIN_KEY) === 'true';
@@ -37,6 +36,25 @@ export function useSupabaseSync() {
     if (user && !localStorage.getItem(FIRST_LOGIN_KEY)) {
       localStorage.setItem(FIRST_LOGIN_KEY, 'true');
       setIsFirstLogin(true);
+    }
+  }, [user]);
+
+  // Enable real-time functionality for the tables
+  useEffect(() => {
+    if (user) {
+      const enableRealtime = async () => {
+        try {
+          // Check if realtime is already enabled by trying to subscribe to a test channel
+          const testChannel = supabase.channel('test-realtime');
+          await testChannel.subscribe();
+          supabase.removeChannel(testChannel);
+          console.log('Realtime is working');
+        } catch (error) {
+          console.error('Error testing realtime subscription:', error);
+        }
+      };
+      
+      enableRealtime();
     }
   }, [user]);
 
@@ -401,16 +419,6 @@ export function useSupabaseSync() {
     }
   }, [user, profile, state.transactions.length, state.categories.length, syncToSupabase, restoreFromSupabase, getBestClient, location.pathname]);
 
-  // Make sync instant for any data changes
-  useEffect(() => {
-    if (user && !isFirstLogin && (state.transactions.length > 0 || state.categories.length > 0)) {
-      // Immediate sync without debounce for real-time updates across devices
-      syncToSupabase().catch(error => console.error('Instant sync error:', error));
-      
-      localStorage.setItem('lastTransactionUpdate', new Date().toISOString());
-    }
-  }, [state.transactions, state.categories, user, syncToSupabase, isFirstLogin]);
-
   // Clear first login flag on manual restore
   const handleManualRestore = async () => {
     const success = await restoreFromSupabase();
@@ -421,6 +429,13 @@ export function useSupabaseSync() {
     }
     return success;
   };
+
+  // Update UI with latest sync time
+  useEffect(() => {
+    if (user && profile && profile.backup_last_date) {
+      setLastSyncDate(new Date(profile.backup_last_date));
+    }
+  }, [user, profile]);
 
   return {
     isSyncing,

@@ -23,6 +23,8 @@ interface TransactionContextType {
   getTotalByType: (type: TransactionType) => number;
   importData: (data: Partial<TransactionState>) => void;
   replaceAllData: (data: TransactionState) => void;
+  lastSyncTime: Date | null;
+  refreshData?: () => Promise<boolean>;
 }
 
 // Create the context

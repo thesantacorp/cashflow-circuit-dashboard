@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -15,15 +15,15 @@ const AuthPage = () => {
   }
 
   // If user is already authenticated and tries to access /auth directly,
-  // redirect to the root page
+  // redirect to the expenses page
   if (user && location.pathname === '/auth') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/expenses" replace />;
   }
 
   // If user is already authenticated and not on a specific auth page,
-  // redirect to the root page
+  // redirect to the expenses page
   if (user && location.pathname === '/auth/login') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/expenses" replace />;
   }
 
   // For sign-up, email verification, and password reset, allow access regardless of auth status
@@ -33,7 +33,7 @@ const AuthPage = () => {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white">
       <div className="flex-1 flex flex-col justify-center items-center p-4">
         <div className="w-full max-w-md">
-          <div className="text-center mb-4">
+          <div className="text-center mb-2">
             <AppLogo className="h-12 w-12 mx-auto mb-1" />
             <h1 className="text-2xl font-bold text-slate-800">Stack'd</h1>
             <p className="text-slate-500">Don't just track, grow your finances.</p>
@@ -41,6 +41,9 @@ const AuthPage = () => {
           
           <Outlet />
         </div>
+      </div>
+      <div className="text-xs text-center text-slate-500 pb-4">
+        © 2025 Stack'd by Fushure. All rights reserved.
       </div>
     </div>
   );
