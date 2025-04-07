@@ -40,7 +40,7 @@ const LoginPage: React.FC = () => {
       <CardHeader className="space-y-1 pb-4">
         <CardTitle className="text-2xl font-bold text-center">Sign In</CardTitle>
         <CardDescription className="text-center">
-          Enter your credentials to access your account
+          Access your account
         </CardDescription>
       </CardHeader>
       <CardContent>
