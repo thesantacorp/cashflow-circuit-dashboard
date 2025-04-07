@@ -2,8 +2,8 @@
 import { Navigate } from "react-router-dom";
 
 const Index = () => {
-  // Redirect to the overview page
-  return <Navigate to="/" replace />;
+  // Redirect to the expenses page
+  return <Navigate to="/expenses" replace />;
 };
 
 export default Index;

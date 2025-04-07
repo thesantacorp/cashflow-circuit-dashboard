@@ -1,264 +1,122 @@
 
 import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CircleDollarSign, TrendingDown, History, Coffee, ShoppingCart, UtensilsCrossed, Car, Home, Shirt, Heart } from "lucide-react";
 import { useTransactions } from "@/context/transaction";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Lightbulb, TrendingDown, ArrowRight, RefreshCw } from "lucide-react";
-import { format, subDays } from "date-fns";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useCurrency } from "@/context/CurrencyContext";
+
+const SpendingInsights = [
+  {
+    title: "Coffee Budget Tip",
+    description: "Consider making coffee at home a few days a week. You could save up to 15% of your monthly food budget.",
+    icon: Coffee
+  },
+  {
+    title: "Subscription Audit",
+    description: "Review your monthly subscriptions. Cancelling unused ones could free up funds for savings.",
+    icon: CircleDollarSign
+  },
+  {
+    title: "Comparison Shopping",
+    description: "Compare prices before major purchases. This simple habit can save you 10-30% on average.",
+    icon: ShoppingCart
+  },
+  {
+    title: "Meal Planning",
+    description: "Planning meals in advance can reduce food waste and impulse buying at grocery stores.",
+    icon: UtensilsCrossed
+  },
+  {
+    title: "Transportation Savings",
+    description: "Consider carpooling or public transit once a week to reduce transportation costs.",
+    icon: Car
+  },
+  {
+    title: "Energy Efficiency",
+    description: "Lowering your thermostat by 1-2 degrees can save up to 10% on your heating bill.",
+    icon: Home
+  },
+  {
+    title: "Second-hand Shopping",
+    description: "For items you don't need brand new, consider second-hand options to save significantly.",
+    icon: Shirt
+  },
+  {
+    title: "Self-care Budget",
+    description: "Allocate a small monthly budget for self-care. It prevents impulse spending on feel-good purchases.",
+    icon: Heart
+  },
+  {
+    title: "24-Hour Rule",
+    description: "For non-essential purchases, wait 24 hours before buying to avoid impulse spending.",
+    icon: History
+  },
+  {
+    title: "Cashback Benefits",
+    description: "Use credit cards with cashback for regular purchases, but pay them off fully each month.",
+    icon: TrendingDown
+  }
+];
 
 const SpendingRecommendations: React.FC = () => {
-  const { state, getTotalByType } = useTransactions();
-  const [recommendations, setRecommendations] = useState<string[]>([]);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const isMobile = useIsMobile();
+  const { state } = useTransactions();
+  const { currencySymbol } = useCurrency();
+  const [rotatingInsights, setRotatingInsights] = useState<any[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Generate spending recommendations based on transaction history
+  // Select relevant insights based on transaction data
   useEffect(() => {
-    const generateRecommendations = () => {
-      const recommendations: string[] = [];
-      const { transactions, categories } = state;
-      
-      if (transactions.length < 5) {
-        recommendations.push("Add more transactions to receive personalized recommendations.");
-        return recommendations;
-      }
-
-      // Get expense transactions sorted by date (newest first)
-      const expenseTransactions = transactions
-        .filter(t => t.type === "expense")
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-      // Calculate total expenses and income
-      const totalExpenses = getTotalByType("expense");
-      const totalIncome = getTotalByType("income");
-
-      // Group expenses by category
-      const categorySpending: Record<string, { total: number, count: number, name: string }> = {};
-      
-      expenseTransactions.forEach(transaction => {
-        const category = categories.find(c => c.id === transaction.categoryId);
-        if (!category) return;
-        
-        if (!categorySpending[category.id]) {
-          categorySpending[category.id] = { 
-            total: 0, 
-            count: 0, 
-            name: category.name 
-          };
-        }
-        
-        categorySpending[category.id].total += transaction.amount;
-        categorySpending[category.id].count += 1;
-      });
-
-      // Find top spending categories
-      const topCategories = Object.values(categorySpending)
-        .sort((a, b) => b.total - a.total)
-        .slice(0, 3);
-
-      // Last 7 days spending
-      const last7Days = subDays(new Date(), 7);
-      const recentSpending = expenseTransactions
-        .filter(t => new Date(t.date) >= last7Days)
-        .reduce((sum, t) => sum + t.amount, 0);
-
-      // Repeat purchases check - look for frequent small purchases in the same category
-      const frequentSmallPurchases = Object.values(categorySpending)
-        .filter(cat => cat.count >= 3 && cat.total / cat.count < 20)
-        .sort((a, b) => b.count - a.count);
-
-      // Check savings ratio
-      const savingsRatio = totalIncome > 0 ? (totalIncome - totalExpenses) / totalIncome : 0;
-
-      // Emotional spending patterns
-      const emotionalSpending = expenseTransactions
-        .filter(t => ["stressed", "bored", "sad"].includes(t.emotionalState || ""))
-        .reduce((sum, t) => sum + t.amount, 0);
-      
-      const emotionalRatio = totalExpenses > 0 ? emotionalSpending / totalExpenses : 0;
-
-      // More advanced recommendations
-      const advancedRecommendations = [
-        "Try the 50/30/20 rule: Allocate 50% of income to needs, 30% to wants, and 20% to savings and debt repayment.",
-        "Consider using cashback or rewards credit cards for regular purchases to earn points on necessary expenses.",
-        "Review your subscriptions quarterly. The average person wastes $273/year on unused subscriptions.",
-        "Practice the 24-hour rule for non-essential purchases over $50 to prevent impulse buying.",
-        "Set up automatic transfers to a high-yield savings account on payday to build an emergency fund.",
-        "Compare your grocery spending with the USDA food plans to see if you're overspending on food.",
-        "Try meal prepping to reduce food waste and avoid expensive takeout meals during busy workdays.",
-        "Consider negotiating bills annually - many service providers offer loyalty discounts upon request.",
-        "Look into refinancing high-interest loans when your credit score improves significantly.",
-        "Review your tax withholding to ensure you're not giving the government an interest-free loan.",
-        "Track price drops on major planned purchases using price-tracking tools to buy at the optimal time.",
-        "Invest small amounts regularly rather than waiting to have a large sum - compound interest works better over time.",
-        "When getting a raise, increase your retirement contributions before lifestyle inflation kicks in.",
-        "Consider a spending freeze for one week each month to reset consumption habits and boost savings.",
-      ];
-
-      // Add specific recommendations based on analysis
-      if (topCategories.length > 0) {
-        recommendations.push(`Your top spending category is ${topCategories[0].name}. Consider setting a budget for this category to manage expenses better.`);
-      }
-
-      if (frequentSmallPurchases.length > 0) {
-        recommendations.push(`You make frequent small purchases in ${frequentSmallPurchases[0].name}. These small expenses add up to ${frequentSmallPurchases[0].total.toFixed(2)} over time.`);
-      }
-
-      if (savingsRatio < 0.2 && totalIncome > 0) {
-        recommendations.push(`You're currently saving ${(savingsRatio * 100).toFixed(1)}% of your income. Try to aim for at least 20% savings rate.`);
-      }
-
-      if (emotionalRatio > 0.3) {
-        recommendations.push(`${(emotionalRatio * 100).toFixed(1)}% of your spending happens when feeling stressed, bored, or sad. Consider waiting 24 hours before making purchases when in these emotional states.`);
-      }
-
-      if (recentSpending > totalIncome * 0.5 && totalIncome > 0) {
-        recommendations.push(`Your spending has been high in the last 7 days (${recentSpending.toFixed(2)}). Consider slowing down for the rest of the month.`);
-      }
-
-      // Add 2-3 random advanced recommendations
-      const shuffledAdvanced = [...advancedRecommendations].sort(() => 0.5 - Math.random());
-      recommendations.push(...shuffledAdvanced.slice(0, 3));
-
-      // Ensure we have at least one recommendation
-      if (recommendations.length === 0) {
-        recommendations.push("Keep tracking your expenses to receive more personalized recommendations.");
-      }
-
-      return recommendations;
-    };
-
-    // Check if we should update recommendations
-    const storedLastUpdate = localStorage.getItem("recommendationsLastUpdate");
-    const now = new Date();
-    let shouldUpdate = true;
-
-    if (storedLastUpdate) {
-      const lastUpdate = new Date(storedLastUpdate);
-      const daysSinceUpdate = Math.floor((now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24));
-      shouldUpdate = daysSinceUpdate >= 1; // Update if it's been at least 1 day
-    }
-
-    if (shouldUpdate) {
-      const newRecommendations = generateRecommendations();
-      setRecommendations(newRecommendations);
-      setLastUpdated(now);
-      localStorage.setItem("recommendationsLastUpdate", now.toISOString());
-    } else if (storedLastUpdate) {
-      setLastUpdated(new Date(storedLastUpdate));
-    }
-  }, [state, getTotalByType]);
-
-  const handleRefresh = () => {
-    const now = new Date();
-    const newRecommendations = generateRecommendations();
-    setRecommendations(newRecommendations);
-    setLastUpdated(now);
-    localStorage.setItem("recommendationsLastUpdate", now.toISOString());
-  };
-
-  // Function to generate recommendations based on transaction data
-  const generateRecommendations = () => {
-    // This is a simplified version of what's in the useEffect
-    const recommendations: string[] = [];
-    const { transactions, categories } = state;
+    // Get today's date to use as a seed for deterministic but changing insights
+    const today = new Date();
+    const dayOfYear = today.getFullYear() * 1000 + today.getMonth() * 100 + today.getDate();
     
-    if (transactions.length < 5) {
-      recommendations.push("Add more transactions to receive personalized recommendations.");
-      return recommendations;
-    }
-
-    // Category analysis
-    const categorySpending: Record<string, { total: number, name: string }> = {};
-    transactions
-      .filter(t => t.type === "expense")
-      .forEach(transaction => {
-        const category = categories.find(c => c.id === transaction.categoryId);
-        if (!category) return;
-        
-        if (!categorySpending[category.id]) {
-          categorySpending[category.id] = { total: 0, name: category.name };
-        }
-        
-        categorySpending[category.id].total += transaction.amount;
-      });
-
-    const sortedCategories = Object.values(categorySpending)
-      .sort((a, b) => b.total - a.total);
-
-    if (sortedCategories.length > 0) {
-      recommendations.push(`Your highest spending category is ${sortedCategories[0].name}. Consider setting a budget limit for this category.`);
-    }
-
-    // Total expenses vs income
-    const totalExpenses = getTotalByType("expense");
-    const totalIncome = getTotalByType("income");
+    // Use the day of year to select 3 insights from the list
+    const selectedIndices = [];
+    let modifiedDay = dayOfYear;
     
-    if (totalIncome > 0 && totalExpenses > totalIncome * 0.9) {
-      recommendations.push(`You're spending ${(totalExpenses / totalIncome * 100).toFixed(1)}% of your income. Aim to keep this below 90% to build savings.`);
+    for (let i = 0; i < 3; i++) {
+      const selectedIndex = modifiedDay % SpendingInsights.length;
+      selectedIndices.push(selectedIndex);
+      modifiedDay = Math.floor(modifiedDay / 3); // Modify for next selection
     }
-
-    // Emotional spending
-    const emotionalSpending = transactions
-      .filter(t => ["stressed", "bored", "sad"].includes(t.emotionalState || ""))
-      .reduce((sum, t) => sum + t.amount, 0);
     
-    if (emotionalSpending > totalExpenses * 0.25) {
-      recommendations.push(`${(emotionalSpending / totalExpenses * 100).toFixed(1)}% of your spending happens when you're not in a positive emotional state. Try setting a 24-hour waiting period for purchases made during these times.`);
-    }
+    // Get the selected insights and set them
+    const selected = selectedIndices.map(index => SpendingInsights[index]);
+    setRotatingInsights(selected);
 
-    // Ensure we have at least one recommendation
-    if (recommendations.length === 0) {
-      recommendations.push("Keep tracking your expenses consistently to receive more tailored recommendations.");
-    }
-
-    return recommendations;
-  };
-
+    // Reset current index when insights change
+    setCurrentIndex(0);
+  }, []);
+  
   return (
-    <Card className="mt-6 border-green-200">
-      <CardHeader className="border-b border-green-100 pb-3">
-        <div className="flex justify-between items-center">
-          <CardTitle className="flex items-center gap-2 text-green-600">
-            <Lightbulb size={18} />
-            AI Spending Recommendations
-          </CardTitle>
-          <button 
-            onClick={handleRefresh} 
-            className="rounded-full hover:bg-green-50 p-1"
-            aria-label="Refresh recommendations"
-          >
-            <RefreshCw size={16} />
-          </button>
-        </div>
-        <CardDescription>
-          {lastUpdated ? (
-            `Last updated: ${format(lastUpdated, "MMM d, yyyy")}`
-          ) : (
-            "Personalized insights updated daily"
-          )}
-        </CardDescription>
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg flex items-center">
+          <TrendingDown className="h-5 w-5 mr-2 text-emerald-500" />
+          Spending Insights
+        </CardTitle>
       </CardHeader>
-      <CardContent className="pt-4">
-        {recommendations.length > 0 ? (
-          <div className="space-y-3">
-            {recommendations.map((recommendation, index) => (
-              <div 
-                key={index} 
-                className="p-3 border rounded-lg bg-green-50/40 flex items-start gap-2"
-              >
-                <TrendingDown className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                <p className="text-sm">{recommendation}</p>
+      <CardContent>
+        {rotatingInsights.length > 0 ? (
+          <div className="space-y-4">
+            {rotatingInsights.map((insight, index) => (
+              <div key={index} className="flex items-start space-x-3">
+                <div className="bg-slate-100 p-2 rounded-full">
+                  <insight.icon className="h-4 w-4 text-slate-600" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium">{insight.title}</h4>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {insight.description}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
         ) : (
-          <Alert variant="warning" className="bg-yellow-50">
-            <AlertDescription>
-              Add more transactions to receive personalized spending recommendations.
-            </AlertDescription>
-          </Alert>
+          <div className="text-center py-4 text-sm text-slate-500">
+            Loading personalized insights...
+          </div>
         )}
       </CardContent>
     </Card>

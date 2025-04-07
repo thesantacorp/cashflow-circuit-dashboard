@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { TransactionProvider } from "@/context/transaction/provider";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import { BackupProvider } from "@/context/BackupContext";
@@ -77,7 +77,7 @@ function App() {
                               <Navbar />
                               <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
                                 <div className="max-w-7xl mx-auto w-full">
-                                  <OverviewPageEnhanced />
+                                  <Navigate to="/expenses" replace />
                                 </div>
                               </main>
                               <MobileNavbar />
@@ -92,6 +92,20 @@ function App() {
                               <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
                                 <div className="max-w-7xl mx-auto w-full">
                                   <ExpensesPage />
+                                </div>
+                              </main>
+                              <MobileNavbar />
+                              <CommunityLink />
+                            </>
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/overview" element={
+                          <ProtectedRoute>
+                            <>
+                              <Navbar />
+                              <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
+                                <div className="max-w-7xl mx-auto w-full">
+                                  <OverviewPageEnhanced />
                                 </div>
                               </main>
                               <MobileNavbar />

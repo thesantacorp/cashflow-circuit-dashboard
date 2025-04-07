@@ -33,8 +33,8 @@ const AuthPage = () => {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white">
       <div className="flex-1 flex flex-col justify-center items-center p-4">
         <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <AppLogo className="h-12 w-12 mx-auto mb-2" />
+          <div className="text-center mb-4">
+            <AppLogo className="h-12 w-12 mx-auto mb-1" />
             <h1 className="text-2xl font-bold text-slate-800">Stack'd</h1>
             <p className="text-slate-500">Don't just track, grow your finances.</p>
           </div>

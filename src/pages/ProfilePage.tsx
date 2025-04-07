@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,11 +15,21 @@ import {
 import { LoaderIcon, UserIcon, LogOutIcon } from 'lucide-react';
 import SupabaseSync from '@/components/SupabaseSync';
 import DataExportImport from '@/components/DataExportImport';
+import { useSupabaseSync } from '@/hooks/useSupabaseSync';
+import { formatDistanceToNow } from 'date-fns';
 
 const ProfilePage = () => {
   const { user, profile, isLoading, signOut, updateProfile } = useAuth();
+  const { lastSyncDate } = useSupabaseSync();
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [formattedSyncTime, setFormattedSyncTime] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (lastSyncDate) {
+      setFormattedSyncTime(formatDistanceToNow(lastSyncDate, { addSuffix: true }));
+    }
+  }, [lastSyncDate]);
 
   if (isLoading) {
     return (
@@ -63,6 +73,13 @@ const ProfilePage = () => {
                 {user?.email}
               </CardDescription>
             </CardHeader>
+            <CardContent className="px-4 pb-0">
+              {formattedSyncTime && (
+                <div className="text-sm text-center text-muted-foreground pb-3">
+                  Last synced: {formattedSyncTime}
+                </div>
+              )}
+            </CardContent>
             <CardFooter className="p-4 md:p-6">
               <Button 
                 variant="outline" 
