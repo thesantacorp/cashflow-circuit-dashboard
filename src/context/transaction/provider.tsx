@@ -231,7 +231,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           syncCategoryToSupabase(category);
         });
         
-        toast.success("Deduplicated data synced to cloud");
+        // Show a single toast message instead of for each transaction/category
+        toast.success("Data synced to cloud");
       }, 500);
     }
     
