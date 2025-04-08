@@ -38,6 +38,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({
                 value={username} 
                 onChange={(e) => setUsername(e.target.value)} 
                 required 
+                placeholder="Enter admin username"
               />
             </div>
             <div className="space-y-2">
@@ -48,6 +49,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
                 required 
+                placeholder="Enter admin password"
               />
             </div>
             <div className="flex justify-between">

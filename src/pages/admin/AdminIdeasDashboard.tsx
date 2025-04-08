@@ -28,9 +28,24 @@ import { AdminIdeaForm } from '@/components/admin/ideas/AdminIdeaForm';
 import { AdminVotesStatsGrid } from '@/components/admin/ideas/AdminVotesStatsGrid';
 import { AdminIdeasLoading } from '@/components/admin/ideas/AdminIdeasLoading';
 import { useIdeasManagement } from '@/hooks/admin/useIdeasManagement';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 const AdminIdeasDashboard = () => {
   const navigate = useNavigate();
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+
+  // Check for admin authentication
+  useEffect(() => {
+    const adminAuth = sessionStorage.getItem('adminAuthenticated');
+    if (adminAuth !== 'true') {
+      toast.error('Admin authentication required');
+      navigate('/admin/dashboard');
+      return;
+    }
+    setIsAdminAuthenticated(true);
+  }, [navigate]);
+
   const { 
     ideas,
     voteSummary,
@@ -46,8 +61,8 @@ const AdminIdeasDashboard = () => {
     handleNewIdea
   } = useIdeasManagement();
 
-  if (!isAdmin) {
-    return null; // Redirect handled in useIdeasManagement
+  if (!isAdminAuthenticated) {
+    return null;
   }
 
   return (

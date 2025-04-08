@@ -97,6 +97,9 @@ const AdminDashboard: React.FC = () => {
     if (username === "SupErAdmIn" && password === "K9$PzW2e&xL!mG7@sV3#nQ8*tD5^jF6") {
       setIsAuthenticated(true);
       toast.success("Logged in successfully");
+      
+      // Store admin authentication state in sessionStorage
+      sessionStorage.setItem('adminAuthenticated', 'true');
     } else {
       toast.error("Invalid username or password");
     }
@@ -106,6 +109,9 @@ const AdminDashboard: React.FC = () => {
     setIsAuthenticated(false);
     setUsername("");
     setPassword("");
+    
+    // Clear admin authentication state
+    sessionStorage.removeItem('adminAuthenticated');
   };
 
   const handleBackToApp = () => {
@@ -119,6 +125,13 @@ const AdminDashboard: React.FC = () => {
   const handleGoToIdeas = () => {
     navigate("/admin/ideas");
   };
+  
+  useEffect(() => {
+    const adminAuth = sessionStorage.getItem('adminAuthenticated');
+    if (adminAuth === 'true') {
+      setIsAuthenticated(true);
+    }
+  }, []);
   
   const getMonthlyTransactionData = () => {
     const monthlyData: { [key: string]: { expenses: number, income: number } } = {};

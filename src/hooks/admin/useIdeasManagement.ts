@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { customClient, Idea, VoteSummary } from '@/integrations/supabase/customClient';
+import { Idea, VoteSummary } from '@/integrations/supabase/customClient';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -17,16 +17,19 @@ export const useIdeasManagement = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
 
-  // Verify user is an admin - allow all authenticated users for now
+  // Verify user is authenticated and check admin status
   useEffect(() => {
     const checkAdminStatus = async () => {
-      if (!user) {
+      // First check if the user is admin-authenticated
+      const adminAuth = sessionStorage.getItem('adminAuthenticated');
+      
+      if (adminAuth !== 'true') {
         setIsAdmin(false);
-        navigate('/');
+        toast.error('Admin authentication required');
+        navigate('/admin/dashboard');
         return;
       }
       
-      // Grant admin access to all authenticated users
       setIsAdmin(true);
     };
     
