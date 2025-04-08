@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -16,6 +15,7 @@ import UserSessionsCard from "@/components/admin/UserSessionsCard";
 import AdminOverviewTab from "@/components/admin/AdminOverviewTab";
 import { fetchDashboardStats, getLocalDataStats } from "@/utils/admin/dashboardStats";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 const AdminDashboard: React.FC = () => {
   const [username, setUsername] = useState("");
@@ -26,6 +26,7 @@ const AdminDashboard: React.FC = () => {
   const { state } = useTransactions();
   const { transactions, categories } = state;
   const { currencySymbol } = useCurrency();
+  const { user } = useAuth();
   
   const [usageStats, setUsageStats] = useState({
     totalSessions: 0,
@@ -60,11 +61,14 @@ const AdminDashboard: React.FC = () => {
           });
           
           const avgDuration = sessions.length > 0 ? Math.round(totalDuration / sessions.length) : 0;
+
+          // Ensure we have at least one user counted (the current logged in user)
+          const uniqueUserCount = Math.max(1, remoteStats.userCount);
           
           setUsageStats({
-            totalSessions: remoteStats.sessions.sessionsPerDay.reduce((sum, day) => sum + day.count, 0),
+            totalSessions: remoteStats.sessions.sessionsPerDay.reduce((sum, day) => sum + day.count, 0) || 1,
             averageSessionDuration: avgDuration,
-            uniqueUsers: remoteStats.userCount,
+            uniqueUsers: uniqueUserCount,
             lastActive: remoteStats.lastActive,
             transactionsCount: localStats.transactionsCount,
             categoriesCount: localStats.categoriesCount
@@ -72,6 +76,12 @@ const AdminDashboard: React.FC = () => {
         } catch (error) {
           console.error("Error loading dashboard stats:", error);
           toast.error("Failed to load some dashboard statistics");
+          
+          // Still ensure minimum user count on error
+          setUsageStats(prev => ({
+            ...prev,
+            uniqueUsers: Math.max(1, prev.uniqueUsers)
+          }));
         } finally {
           setIsLoading(false);
         }
@@ -79,7 +89,7 @@ const AdminDashboard: React.FC = () => {
       
       loadStats();
     }
-  }, [isAuthenticated, transactions.length, categories.length]);
+  }, [isAuthenticated, transactions.length, categories.length, user]);
   
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();

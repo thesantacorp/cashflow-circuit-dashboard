@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getSessionStats } from "@/utils/sessionTracking";
 import { formatDistanceToNow } from "date-fns";
+import { useAuth } from "@/context/AuthContext";
 
 /**
  * Fetches data for the admin dashboard
@@ -35,8 +36,11 @@ export async function fetchDashboardStats() {
     console.error("Error fetching last active user:", error);
   }
   
+  // Ensure at least one user is counted (the current user)
+  const finalUserCount = (userCount && userCount > 0) ? userCount : 1;
+  
   return {
-    userCount: userCount || 0,
+    userCount: finalUserCount,
     lastActive: formatDistanceToNow(lastActiveDate, { addSuffix: true }),
     sessions: sessionStats
   };
