@@ -25,6 +25,7 @@ interface TransactionContextType {
   replaceAllData: (data: TransactionState) => void;
   lastSyncTime: Date | null;
   refreshData?: () => Promise<boolean>;
+  deduplicate: () => void; // New function to deduplicate data
 }
 
 // Create the context

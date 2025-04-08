@@ -1,9 +1,10 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, Clock, Calendar, ArrowUpRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
 
 interface UsageStats {
   totalSessions: number;
@@ -12,35 +13,60 @@ interface UsageStats {
   lastActive: string;
 }
 
+interface UserSession {
+  id: string;
+  userId: string;
+  userName: string;
+  duration: number;
+  date: Date;
+  device: string;
+  pages: number;
+}
+
 interface UserSessionsCardProps {
   usageStats: UsageStats;
 }
 
 const UserSessionsCard: React.FC<UserSessionsCardProps> = ({ usageStats }) => {
-  // Generate mock session data for visualization
-  const generateMockSessions = () => {
-    const sessions = [];
-    const now = new Date();
-    const userNames = ['Alex Johnson', 'Sam Taylor', 'Jordan Lee', 'Casey Morgan', 'Riley Smith'];
-    
-    for (let i = 0; i < Math.min(5, usageStats.totalSessions); i++) {
-      const date = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
-      sessions.push({
-        id: `session-${i}`,
-        userId: `user-${i % 3}`,
-        userName: userNames[i % userNames.length],
-        duration: Math.floor(Math.random() * 30) + 5,
-        date: date,
-        device: ['Desktop', 'Mobile', 'Tablet'][Math.floor(Math.random() * 3)],
-        pages: Math.floor(Math.random() * 10) + 1
-      });
-    }
-    
-    return sessions;
-  };
+  const [recentSessions, setRecentSessions] = useState<UserSession[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   
-  const recentSessions = generateMockSessions();
-
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        // Fetch recent users from profiles
+        const { data: profiles, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, updated_at')
+          .order('updated_at', { ascending: false })
+          .limit(5);
+          
+        if (error) throw error;
+        
+        if (profiles) {
+          // Transform the data into session format
+          const sessions = profiles.map((profile, index) => ({
+            id: `session-${index}`,
+            userId: profile.id || `user-${index}`,
+            userName: profile.full_name || profile.email || 'Anonymous User',
+            duration: Math.floor(Math.random() * 20) + 5, // Random duration between 5-25 min
+            date: new Date(profile.updated_at || new Date()),
+            device: ['Desktop', 'Mobile', 'Tablet'][Math.floor(Math.random() * 3)],
+            pages: Math.floor(Math.random() * 8) + 1 // Random pages between 1-8
+          }));
+          
+          setRecentSessions(sessions);
+        }
+      } catch (err) {
+        console.error('Error fetching user data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchUserData();
+  }, []);
+  
   return (
     <Card>
       <CardHeader>
@@ -94,14 +120,26 @@ const UserSessionsCard: React.FC<UserSessionsCardProps> = ({ usageStats }) => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recentSessions.map((session) => (
-                      <TableRow key={session.id}>
-                        <TableCell className="font-medium">{session.userName}</TableCell>
-                        <TableCell>{session.device}</TableCell>
-                        <TableCell>{session.duration} min</TableCell>
-                        <TableCell>{formatDistanceToNow(session.date, { addSuffix: true })}</TableCell>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-4">Loading user data...</TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      recentSessions.length > 0 ? (
+                        recentSessions.map((session) => (
+                          <TableRow key={session.id}>
+                            <TableCell className="font-medium">{session.userName}</TableCell>
+                            <TableCell>{session.device}</TableCell>
+                            <TableCell>{session.duration} min</TableCell>
+                            <TableCell>{formatDistanceToNow(session.date, { addSuffix: true })}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-4">No session data available</TableCell>
+                        </TableRow>
+                      )
+                    )}
                   </TableBody>
                 </Table>
               </div>

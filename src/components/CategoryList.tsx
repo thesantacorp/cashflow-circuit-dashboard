@@ -14,15 +14,30 @@ interface CategoryListProps {
 }
 
 const CategoryList: React.FC<CategoryListProps> = ({ type }) => {
-  const { getCategoriesByType, addCategory, deleteCategory } = useTransactions();
+  const { getCategoriesByType, addCategory, deleteCategory, deduplicate } = useTransactions();
   const categories = getCategoriesByType(type);
   const [open, setOpen] = useState(false);
   const [newCategory, setNewCategory] = useState<string>("");
   const [color, setColor] = useState<string>(type === "expense" ? "#e74c3c" : "#27ae60");
 
+  // Run deduplicate on initial load
+  React.useEffect(() => {
+    deduplicate();
+  }, [deduplicate]);
+
   const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (newCategory.trim()) {
+      // Check if category already exists (case-insensitive)
+      const categoryExists = categories.some(
+        cat => cat.name.toLowerCase() === newCategory.trim().toLowerCase()
+      );
+      
+      if (categoryExists) {
+        alert(`A ${type} category named "${newCategory}" already exists.`);
+        return;
+      }
+      
       addCategory({
         name: newCategory.trim(),
         type,

@@ -89,6 +89,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
       case "bored": return "bg-orange-100 text-orange-800 border-orange-300";
       case "excited": return "bg-purple-100 text-purple-800 border-purple-300";
       case "sad": return "bg-blue-100 text-blue-800 border-blue-300";
+      case "neutral": return "bg-gray-100 text-gray-600 border-gray-200";
+      case "hopeful": return "bg-blue-50 text-blue-600 border-blue-200";
       default: return "bg-gray-100 text-gray-800 border-gray-300";
     }
   };
@@ -142,7 +144,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
                         <span className="font-medium break-words max-w-[200px] sm:max-w-full">
                           {category?.name || "Unknown Category"}
                         </span>
-                        {transaction.emotionalState && transaction.emotionalState !== "neutral" && (
+                        {transaction.emotionalState && (
                           <Badge variant="outline" className={getEmotionColor(transaction.emotionalState)}>
                             {transaction.emotionalState}
                           </Badge>

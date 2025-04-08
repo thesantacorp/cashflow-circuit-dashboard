@@ -38,6 +38,17 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           };
           break;
         case "ADD_CATEGORY":
+          // Check if a category with the same name and type already exists
+          const existingCategory = state.categories.find(
+            c => c.name.toLowerCase() === action.payload.name.toLowerCase() && 
+                 c.type === action.payload.type
+          );
+          
+          if (existingCategory) {
+            toast.info(`Category "${action.payload.name}" already exists`);
+            return state;
+          }
+          
           newState = { ...state, categories: [...state.categories, action.payload] };
           break;
         case "DELETE_CATEGORY":
@@ -51,6 +62,25 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           break;
         case "REPLACE_ALL_DATA":
           newState = action.payload;
+          break;
+        case "DEDUPLICATE_DATA":
+          // Deduplicate transactions by id
+          const uniqueTransactions = Array.from(
+            new Map(state.transactions.map(item => [item.id, item])).values()
+          );
+          
+          // Deduplicate categories by name and type
+          const uniqueCategories = Array.from(
+            new Map(
+              state.categories.map(item => [`${item.name}-${item.type}`, item])
+            ).values()
+          );
+          
+          newState = {
+            ...state,
+            transactions: uniqueTransactions,
+            categories: uniqueCategories
+          };
           break;
         default:
           return state;
@@ -122,6 +152,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (isInitialLoad && user) {
       fetchLatestData().then(() => {
         setIsInitialLoad(false);
+        // Deduplicate data after initial load
+        deduplicate();
       });
     }
     
@@ -133,7 +165,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Function to fetch latest data from Supabase
   const fetchLatestData = async () => {
-    if (!user) return;
+    if (!user) return false;
     
     try {
       // Fetch transactions
@@ -179,6 +211,31 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.error('Error fetching latest data:', error);
       return false;
     }
+  };
+
+  // Deduplicate data function
+  const deduplicate = () => {
+    dispatch({ type: "DEDUPLICATE_DATA" });
+    toast.success("Data has been deduplicated");
+    
+    // Also sync the deduplicated data to Supabase if user is logged in
+    if (user) {
+      // First, deduplicate in the state
+      setTimeout(() => {
+        // Then sync all transactions and categories to Supabase
+        state.transactions.forEach(transaction => {
+          syncTransactionToSupabase(transaction);
+        });
+        
+        state.categories.forEach(category => {
+          syncCategoryToSupabase(category);
+        });
+        
+        toast.success("Deduplicated data synced to cloud");
+      }, 500);
+    }
+    
+    return true;
   };
 
   // Basic transaction operations
@@ -232,6 +289,17 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const addCategory = (category) => {
+    // Check for duplicates before adding
+    const existingCategory = state.categories.find(
+      c => c.name.toLowerCase() === category.name.toLowerCase() && 
+           c.type === category.type
+    );
+    
+    if (existingCategory) {
+      toast.info(`Category "${category.name}" already exists`);
+      return false;
+    }
+    
     const newCategory = { ...category, id: crypto.randomUUID() };
     dispatch({
       type: "ADD_CATEGORY",
@@ -439,7 +507,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         importData,
         replaceAllData,
         lastSyncTime,
-        refreshData: fetchLatestData
+        refreshData: fetchLatestData,
+        deduplicate
       }}
     >
       {children}
