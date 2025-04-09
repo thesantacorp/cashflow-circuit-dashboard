@@ -11,20 +11,20 @@ import MobileDrawerFooter from "./mobile/MobileDrawerFooter";
 import AppLogo from "./AppLogo";
 import NetworkStatusIndicator from "./NetworkStatusIndicator";
 
-// Create a navigation items array
+// Create navigation items matching the NavigationItem interface
 const navigationItems = [
-  { id: "overview", label: "Overview", path: "/overview" },
-  { id: "expenses", label: "Expenses", path: "/expenses" },
-  { id: "income", label: "Income", path: "/income" },
-  { id: "ideas", label: "Ideas", path: "/ideas" },
-  { id: "profile", label: "Profile", path: "/profile" }
+  { name: "Overview", path: "/overview", icon: undefined },
+  { name: "Expenses", path: "/expenses", icon: undefined },
+  { name: "Income", path: "/income", icon: undefined },
+  { name: "Ideas", path: "/ideas", icon: undefined },
+  { name: "Profile", path: "/profile", icon: undefined }
 ];
 
-// Create settings items array
+// Create settings items matching the SettingsItem interface
 const settingsItems = [
-  { id: "currency", label: "Currency" },
-  { id: "backup", label: "Backup" },
-  { id: "notifications", label: "Notifications" }
+  { name: "Currency", icon: <span>💱</span>, setting: "currency", description: "Set your preferred currency" },
+  { name: "Backup", icon: <span>💾</span>, setting: "backup", description: "Manage your data backups" },
+  { name: "Notifications", icon: <span>🔔</span>, setting: "notifications", description: "Configure notifications" }
 ];
 
 const MobileNavbar: React.FC = () => {
@@ -46,7 +46,7 @@ const MobileNavbar: React.FC = () => {
     // Navigation logic here
   };
 
-  const handleSettingSelect = (id: string) => {
+  const handleSettingSelect = (setting: string) => {
     // Settings logic here
   };
 
