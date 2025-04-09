@@ -6,7 +6,7 @@ import App from './App';
 import './index.css';
 import { register } from './serviceWorkerRegistration';
 import { toast } from 'sonner';
-import './types/google-api'; // Import the Google API types
+import './types/google-api.d'; // Fix the import path with correct extension
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

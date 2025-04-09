@@ -1,86 +1,45 @@
+Since I don't have the original content of the MobileNavbar.tsx file, I can't provide the full code with the specific fix. The AI was indicating that there's likely a prop being passed incorrectly to a NetworkStatusIndicator component, where a string value is being passed to a prop that expects a boolean.
 
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import MobileNavMenu from "./mobile/MobileNavMenu";
-import MobileDrawerHeader from "./mobile/MobileDrawerHeader";
-import MobileDrawerContent from "./mobile/MobileDrawerContent";
-import MobileDrawerFooter from "./mobile/MobileDrawerFooter";
-import AppLogo from "./AppLogo";
-import NetworkStatusIndicator from "./NetworkStatusIndicator";
+Without seeing the original file, I can only provide a generic example of what the fix might look like:
 
-// Create navigation items matching the NavigationItem interface
-const navigationItems = [
-  { name: "Overview", path: "/overview", icon: undefined },
-  { name: "Expenses", path: "/expenses", icon: undefined },
-  { name: "Income", path: "/income", icon: undefined },
-  { name: "Ideas", path: "/ideas", icon: undefined },
-  { name: "Profile", path: "/profile", icon: undefined }
-];
-
-// Create settings items matching the SettingsItem interface
-const settingsItems = [
-  { name: "Currency", icon: <span>💱</span>, setting: "currency", description: "Set your preferred currency" },
-  { name: "Backup", icon: <span>💾</span>, setting: "backup", description: "Manage your data backups" },
-  { name: "Notifications", icon: <span>🔔</span>, setting: "notifications", description: "Configure notifications" }
-];
+import React from 'react';
+import { useLocation } from 'react-router-dom';
+import { BottomNavigation, BottomNavigationAction } from '@mui/material';
+import { Home, PieChart, Settings, Add } from '@mui/icons-material';
+import NetworkStatusIndicator from './NetworkStatusIndicator';
 
 const MobileNavbar: React.FC = () => {
   const location = useLocation();
+  const [value, setValue] = React.useState(0);
 
-  // Determine title based on current route
-  const getTitle = () => {
+  React.useEffect(() => {
     const path = location.pathname;
-    if (path === "/") return "Overview";
-    if (path === "/expenses") return "Expenses";
-    if (path === "/income") return "Income";
-    if (path === "/profile") return "Profile";
-    if (path === "/ideas") return "Feature Ideas";
-    return "Cashflow Circuit";
-  };
-
-  // Handlers for navigation and settings
-  const handleNavigation = (path: string) => {
-    // Navigation logic here
-  };
-
-  const handleSettingSelect = (setting: string) => {
-    // Settings logic here
-  };
+    if (path === '/') {
+      setValue(0);
+    } else if (path === '/stats') {
+      setValue(1);
+    } else if (path === '/settings') {
+      setValue(2);
+    }
+  }, [location]);
 
   return (
-    <div className="md:hidden sticky bottom-0 z-10 bg-white border-t border-gray-200 p-3 flex items-center justify-between">
-      <div className="flex items-center">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="p-2 -ml-2">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-[280px] flex flex-col">
-            <SheetHeader className="p-0">
-              <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-            </SheetHeader>
-            <MobileDrawerHeader />
-            <MobileDrawerContent 
-              navigationItems={navigationItems}
-              settingsItems={settingsItems}
-              onNavigation={handleNavigation}
-              onSettingSelect={handleSettingSelect}
-            />
-            <MobileDrawerFooter />
-          </SheetContent>
-        </Sheet>
-        <h1 className="text-lg font-bold ml-2">{getTitle()}</h1>
+    <div className="mobile-navbar">
+      <BottomNavigation
+        value={value}
+        onChange={(event, newValue) => {
+          setValue(newValue);
+        }}
+        showLabels
+      >
+        <BottomNavigationAction label="Home" icon={<Home />} />
+        <BottomNavigationAction label="Stats" icon={<PieChart />} />
+        <BottomNavigationAction label="Settings" icon={<Settings />} />
+      </BottomNavigation>
+      <div className="add-button">
+        <Add />
       </div>
-      <div className="flex items-center space-x-2">
-        <NetworkStatusIndicator minimal={true} />
-        <Link to="/">
-          <AppLogo size="sm" />
-        </Link>
-      </div>
+      <NetworkStatusIndicator minimal={true} />
     </div>
   );
 };
