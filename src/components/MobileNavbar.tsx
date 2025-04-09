@@ -11,6 +11,22 @@ import MobileDrawerFooter from "./mobile/MobileDrawerFooter";
 import AppLogo from "./AppLogo";
 import NetworkStatusIndicator from "./NetworkStatusIndicator";
 
+// Create a navigation items array
+const navigationItems = [
+  { id: "overview", label: "Overview", path: "/overview" },
+  { id: "expenses", label: "Expenses", path: "/expenses" },
+  { id: "income", label: "Income", path: "/income" },
+  { id: "ideas", label: "Ideas", path: "/ideas" },
+  { id: "profile", label: "Profile", path: "/profile" }
+];
+
+// Create settings items array
+const settingsItems = [
+  { id: "currency", label: "Currency" },
+  { id: "backup", label: "Backup" },
+  { id: "notifications", label: "Notifications" }
+];
+
 const MobileNavbar: React.FC = () => {
   const location = useLocation();
 
@@ -25,8 +41,17 @@ const MobileNavbar: React.FC = () => {
     return "Cashflow Circuit";
   };
 
+  // Handlers for navigation and settings
+  const handleNavigation = (path: string) => {
+    // Navigation logic here
+  };
+
+  const handleSettingSelect = (id: string) => {
+    // Settings logic here
+  };
+
   return (
-    <div className="sticky top-0 z-10 bg-white border-b border-gray-200 p-3 flex items-center justify-between">
+    <div className="md:hidden sticky bottom-0 z-10 bg-white border-t border-gray-200 p-3 flex items-center justify-between">
       <div className="flex items-center">
         <Sheet>
           <SheetTrigger asChild>
@@ -39,14 +64,19 @@ const MobileNavbar: React.FC = () => {
               <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
             </SheetHeader>
             <MobileDrawerHeader />
-            <MobileDrawerContent />
+            <MobileDrawerContent 
+              navigationItems={navigationItems}
+              settingsItems={settingsItems}
+              onNavigation={handleNavigation}
+              onSettingSelect={handleSettingSelect}
+            />
             <MobileDrawerFooter />
           </SheetContent>
         </Sheet>
         <h1 className="text-lg font-bold ml-2">{getTitle()}</h1>
       </div>
       <div className="flex items-center space-x-2">
-        <NetworkStatusIndicator minimal />
+        <NetworkStatusIndicator minimal={true} />
         <Link to="/">
           <AppLogo size="sm" />
         </Link>
