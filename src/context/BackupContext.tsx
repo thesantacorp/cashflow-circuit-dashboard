@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { BackupFrequency, BackupSettings } from "@/types";
 import { toast } from "sonner";
-import '../types/google-api.d.ts';
+import '../types/google-api';
 
 interface BackupContextProps {
   settings: BackupSettings;

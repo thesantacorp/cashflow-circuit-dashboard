@@ -6,13 +6,14 @@ import App from './App';
 import './index.css';
 import { register } from './serviceWorkerRegistration';
 import { Toaster } from 'sonner';
-// Import the type declaration file
-import './types/google-api.d.ts';
+// Import the type declarations to ensure they're included in the build
+import './types/google-api';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <BrowserRouter>
       <App />
+      <Toaster />
     </BrowserRouter>
   </React.StrictMode>,
 );
