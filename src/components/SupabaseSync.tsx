@@ -2,8 +2,9 @@
 import React, { useEffect, useState } from "react";
 import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 import { useAuth } from "@/context/AuthContext";
+import { useTransactions } from "@/context/transaction";
 import { Button } from "@/components/ui/button";
-import { CloudIcon, DownloadIcon, LoaderIcon, RefreshCw, AlertCircle } from "lucide-react";
+import { CloudIcon, DownloadIcon, LoaderIcon, RefreshCw, AlertCircle, WifiOff, CloudOff } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,21 +19,27 @@ interface SupabaseSyncProps {
 const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
   const { isSyncing, lastSyncDate, syncToSupabase, restoreFromSupabase } = useSupabaseSync();
   const { isLoading, user } = useAuth();
+  const { isOnline, pendingSyncCount } = useTransactions();
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
 
   // Check connection on mount
   useEffect(() => {
-    if (user) {
+    if (user && isOnline) {
       verifyConnection();
     }
-  }, [user]);
+  }, [user, isOnline]);
 
   if (isLoading || !user) {
     return null;
   }
 
   const verifyConnection = async () => {
+    if (!isOnline) {
+      setConnectionError("You are currently offline. Data will sync when you reconnect.");
+      return false;
+    }
+    
     setIsCheckingConnection(true);
     setConnectionError(null);
     
@@ -76,6 +83,15 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
   };
 
   const handleOperation = async (operation: () => Promise<boolean>) => {
+    if (!isOnline) {
+      toast({
+        title: "Offline",
+        description: "You are currently offline. Please connect to the internet to sync your data.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setConnectionError(null);
     
     // First try with the integrated client
@@ -121,19 +137,33 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
             size="sm" 
             variant="outline" 
             onClick={() => handleOperation(syncToSupabase)} 
-            disabled={isSyncing || isCheckingConnection} 
+            disabled={isSyncing || isCheckingConnection || !isOnline} 
             className="flex items-center"
           >
             {isSyncing || isCheckingConnection ? (
               <LoaderIcon className="h-4 w-4 animate-spin" />
+            ) : !isOnline ? (
+              <WifiOff className="h-4 w-4" />
             ) : (
               <CloudIcon className="h-4 w-4" />
             )}
-            <span className="ml-2">Sync Data</span>
+            <span className="ml-2">
+              {!isOnline 
+                ? "Offline" 
+                : pendingSyncCount > 0
+                ? `Sync Data (${pendingSyncCount})` 
+                : "Sync Data"
+              }
+            </span>
           </Button>
-          {lastSyncDate && (
+          {lastSyncDate && isOnline && (
             <span className="text-xs text-gray-500">
               Last synced {formatDistanceToNow(lastSyncDate, { addSuffix: true })}
+            </span>
+          )}
+          {!isOnline && (
+            <span className="text-xs text-amber-500">
+              Will sync when online
             </span>
           )}
         </div>
@@ -152,15 +182,34 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center">
-          <CloudIcon className="mr-2 h-5 w-5 text-orange-500" />
-          Cloud Sync
+          {isOnline ? (
+            <CloudIcon className="mr-2 h-5 w-5 text-orange-500" />
+          ) : (
+            <CloudOff className="mr-2 h-5 w-5 text-amber-500" />
+          )}
+          {isOnline ? "Cloud Sync" : "Offline Mode"}
         </CardTitle>
         <CardDescription>
-          Your data is automatically synced in real-time to your account and available instantly on any device
+          {isOnline 
+            ? "Your data is automatically synced in real-time to your account and available instantly on any device"
+            : "Currently in offline mode. Your data is saved locally and will sync when you reconnect."
+          }
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {connectionError && (
+        {!isOnline && (
+          <Alert variant="warning" className="bg-amber-50 border-amber-200">
+            <WifiOff className="h-4 w-4 text-amber-500" />
+            <AlertDescription className="text-amber-600">
+              You are currently offline. Your changes are saved locally and will sync automatically when you reconnect.
+              {pendingSyncCount > 0 && (
+                <span className="font-medium"> ({pendingSyncCount} changes pending)</span>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {connectionError && isOnline && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{connectionError}</AlertDescription>
@@ -192,25 +241,29 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
                 }
                 return Promise.resolve(false);
               })}
-              disabled={isSyncing || isCheckingConnection}
+              disabled={isSyncing || isCheckingConnection || !isOnline}
               className="flex items-center"
             >
               {isSyncing || isCheckingConnection ? (
                 <LoaderIcon className="mr-2 h-3 w-3 animate-spin" />
+              ) : !isOnline ? (
+                <WifiOff className="mr-2 h-3 w-3" />
               ) : (
                 <CloudIcon className="mr-2 h-3 w-3" />
               )}
-              Sync
+              Sync {pendingSyncCount > 0 && `(${pendingSyncCount})`}
             </Button>
             <Button
               size="sm"
               variant="outline"
               onClick={() => handleOperation(restoreFromSupabase)}
-              disabled={isSyncing || isCheckingConnection}
+              disabled={isSyncing || isCheckingConnection || !isOnline}
               className="flex items-center"
             >
               {isSyncing || isCheckingConnection ? (
                 <LoaderIcon className="mr-2 h-3 w-3 animate-spin" />
+              ) : !isOnline ? (
+                <WifiOff className="mr-2 h-3 w-3" />
               ) : (
                 <DownloadIcon className="mr-2 h-3 w-3" />
               )}
@@ -219,14 +272,14 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
           </div>
         </div>
         
-        {isSyncing && (
+        {isSyncing && isOnline && (
           <div className="flex items-center justify-center py-2 text-sm text-orange-600">
             <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
             Syncing your data...
           </div>
         )}
         
-        {lastSyncDate && !isSyncing && (
+        {lastSyncDate && !isSyncing && isOnline && (
           <div className="text-xs text-slate-500 pt-2">
             Last sync: {lastSyncDate.toLocaleString()}
           </div>

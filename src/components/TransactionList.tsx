@@ -1,9 +1,10 @@
+
 import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Transaction, TransactionType } from "@/types";
 import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, isWithinInterval, endOfDay, endOfWeek, endOfMonth, endOfYear } from "date-fns";
-import { Trash2, Edit, Search } from "lucide-react";
+import { Trash2, Edit, Search, CloudOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +21,7 @@ interface TransactionListProps {
 type TimePeriod = "day" | "week" | "month" | "year" | "all";
 
 const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showViewAll = false }) => {
-  const { getTransactionsByType, deleteTransaction, getCategoryById } = useTransactions();
+  const { getTransactionsByType, deleteTransaction, getCategoryById, isOnline, pendingSyncCount } = useTransactions();
   const { currencySymbol } = useCurrency();
   const transactions = getTransactionsByType(type);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -128,18 +129,26 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
         <CardHeader className="border-b border-orange-100">
           <div className="flex flex-wrap justify-between items-center">
             <CardTitle className="text-orange-600">Recent Transactions</CardTitle>
-            <Select value={timePeriod} onValueChange={(value: TimePeriod) => setTimePeriod(value)}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Time Period" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="day">Today</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-                <SelectItem value="year">This Year</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              {!isOnline && pendingSyncCount > 0 && (
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 flex items-center gap-1">
+                  <CloudOff className="h-3 w-3" />
+                  <span>{pendingSyncCount} pending</span>
+                </Badge>
+              )}
+              <Select value={timePeriod} onValueChange={(value: TimePeriod) => setTimePeriod(value)}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Time Period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="day">Today</SelectItem>
+                  <SelectItem value="week">This Week</SelectItem>
+                  <SelectItem value="month">This Month</SelectItem>
+                  <SelectItem value="year">This Year</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           
           <div className="mt-4 relative">

@@ -15,6 +15,34 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const { user } = useAuth();
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // Track operations that need to be synced
+  const [pendingSync, setPendingSync] = useState<Set<string>>(new Set());
+  
+  // Update online status
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log('Connection restored - online');
+      setIsOnline(true);
+      // When coming back online, sync pending changes
+      if (pendingSync.size > 0) {
+        syncPendingChanges();
+      }
+    };
+    
+    const handleOffline = () => {
+      console.log('Connection lost - offline');
+      setIsOnline(false);
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [pendingSync]);
   
   const [state, dispatch] = useReducer(
     (state, action) => {
@@ -124,8 +152,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }, 
         async (payload) => {
           console.log('Transaction change detected:', payload);
-          await fetchLatestData();
-          setLastSyncTime(new Date());
+          if (isOnline) {
+            await fetchLatestData();
+            setLastSyncTime(new Date());
+          }
         }
       )
       .subscribe();
@@ -142,14 +172,16 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }, 
         async (payload) => {
           console.log('Category change detected:', payload);
-          await fetchLatestData();
-          setLastSyncTime(new Date());
+          if (isOnline) {
+            await fetchLatestData();
+            setLastSyncTime(new Date());
+          }
         }
       )
       .subscribe();
 
     // Fetch initial data
-    if (isInitialLoad && user) {
+    if (isInitialLoad && user && isOnline) {
       fetchLatestData().then(() => {
         setIsInitialLoad(false);
         // Deduplicate data after initial load
@@ -161,11 +193,33 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       supabase.removeChannel(channel);
       supabase.removeChannel(categoryChannel);
     };
-  }, [user, isInitialLoad]);
+  }, [user, isInitialLoad, isOnline]);
+
+  // Sync pending changes when coming back online
+  const syncPendingChanges = async () => {
+    if (!user || pendingSync.size === 0 || !isOnline) return;
+    
+    console.log(`Syncing ${pendingSync.size} pending changes`);
+    
+    // Get transactions that need to be synced
+    const transactionsToSync = state.transactions.filter(t => 
+      pendingSync.has(t.id)
+    );
+    
+    // Sync each transaction
+    for (const transaction of transactionsToSync) {
+      await syncTransactionToSupabase(transaction);
+    }
+    
+    // Clear pending sync after successful sync
+    setPendingSync(new Set());
+    
+    toast.success(`Synced ${transactionsToSync.length} transaction(s) to cloud`);
+  };
 
   // Function to fetch latest data from Supabase
   const fetchLatestData = async () => {
-    if (!user) return false;
+    if (!user || !isOnline) return false;
     
     try {
       // Fetch transactions
@@ -216,10 +270,9 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Deduplicate data function
   const deduplicate = () => {
     dispatch({ type: "DEDUPLICATE_DATA" });
-    toast.success("Data has been deduplicated");
     
     // Also sync the deduplicated data to Supabase if user is logged in
-    if (user) {
+    if (user && isOnline) {
       // First, deduplicate in the state
       setTimeout(() => {
         // Then sync all transactions and categories to Supabase
@@ -231,7 +284,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           syncCategoryToSupabase(category);
         });
         
-        // Show a single toast message instead of for each transaction/category
         toast.success("Data synced to cloud");
       }, 500);
     }
@@ -247,9 +299,12 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       payload: newTransaction,
     });
     
-    // Immediately sync to Supabase
-    if (user) {
+    // Immediately sync to Supabase or mark for future sync
+    if (user && isOnline) {
       syncTransactionToSupabase(newTransaction);
+    } else if (user) {
+      // Store the ID to sync later when online
+      setPendingSync(prev => new Set(prev).add(newTransaction.id));
     }
     
     toast.success("Transaction added successfully");
@@ -262,9 +317,12 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       payload: transaction 
     });
     
-    // Immediately sync to Supabase
-    if (user) {
+    // Immediately sync to Supabase or mark for future sync
+    if (user && isOnline) {
       syncTransactionToSupabase(transaction);
+    } else if (user) {
+      // Store the ID to sync later when online
+      setPendingSync(prev => new Set(prev).add(transaction.id));
     }
     
     toast.success("Transaction updated successfully");
@@ -281,7 +339,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
     
     // Immediately delete from Supabase
-    if (user && transaction) {
+    if (user && transaction && isOnline) {
       deleteTransactionFromSupabase(transaction);
     }
     
@@ -308,7 +366,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
     
     // Immediately sync to Supabase
-    if (user) {
+    if (user && isOnline) {
       syncCategoryToSupabase(newCategory);
     }
     
@@ -335,7 +393,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
     
     // Immediately delete from Supabase
-    if (user && category) {
+    if (user && category && isOnline) {
       deleteCategoryFromSupabase(category);
     }
     
@@ -345,7 +403,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Functions to sync data to Supabase
   const syncTransactionToSupabase = async (transaction) => {
-    if (!user) return false;
+    if (!user || !isOnline) return false;
     
     try {
       // First, delete any existing transaction with this ID (to avoid duplicates)
@@ -381,6 +439,15 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           .eq('id', user.id);
       }
       
+      // Remove from pending sync if it was there
+      if (pendingSync.has(transaction.id)) {
+        setPendingSync(prev => {
+          const updated = new Set(prev);
+          updated.delete(transaction.id);
+          return updated;
+        });
+      }
+      
       setLastSyncTime(new Date());
       return true;
     } catch (error) {
@@ -390,7 +457,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const deleteTransactionFromSupabase = async (transaction) => {
-    if (!user) return false;
+    if (!user || !isOnline) return false;
     
     try {
       const { error } = await supabase
@@ -420,7 +487,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const syncCategoryToSupabase = async (category) => {
-    if (!user) return false;
+    if (!user || !isOnline) return false;
     
     try {
       // First, delete any existing category with this ID (to avoid duplicates)
@@ -462,7 +529,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const deleteCategoryFromSupabase = async (category) => {
-    if (!user) return false;
+    if (!user || !isOnline) return false;
     
     try {
       const { error } = await supabase
@@ -509,7 +576,9 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         replaceAllData,
         lastSyncTime,
         refreshData: fetchLatestData,
-        deduplicate
+        deduplicate,
+        isOnline,
+        pendingSyncCount: pendingSync.size
       }}
     >
       {children}
