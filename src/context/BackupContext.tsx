@@ -1,6 +1,8 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { BackupFrequency, BackupSettings } from "@/types";
 import { toast } from "sonner";
+import '../types/google-api'; // Import the Google API types
 
 interface BackupContextProps {
   settings: BackupSettings;

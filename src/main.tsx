@@ -6,6 +6,7 @@ import App from './App';
 import './index.css';
 import { register } from './serviceWorkerRegistration';
 import { toast } from 'sonner';
+import './types/google-api'; // Import the Google API types
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
