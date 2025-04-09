@@ -32,7 +32,7 @@ interface GapiClient {
   };
 }
 
-interface WindowWithGAPI extends Window {
+interface WindowWithGAPI {
   gapi: {
     load(api: string, callback: () => void): void;
     client: GapiClient;

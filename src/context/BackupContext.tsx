@@ -1,11 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { BackupFrequency, BackupSettings } from "@/types";
 import { toast } from "sonner";
-// Make sure we're properly importing the types
 import '../types/google-api.d';
-
-// Explicitly declare that we're using the WindowWithGAPI interface
-declare const window: Window & typeof globalThis;
 
 interface BackupContextProps {
   settings: BackupSettings;
