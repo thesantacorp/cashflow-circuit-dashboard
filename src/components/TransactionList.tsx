@@ -1,14 +1,14 @@
-
 import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Transaction, TransactionType } from "@/types";
 import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, isWithinInterval, endOfDay, endOfWeek, endOfMonth, endOfYear } from "date-fns";
-import { Trash2, Edit } from "lucide-react";
+import { Trash2, Edit, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import EditTransactionModal from "./EditTransactionModal";
 
 interface TransactionListProps {
@@ -26,6 +26,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   const filterTransactionsByTimePeriod = (transactions: Transaction[], period: TimePeriod): Transaction[] => {
     if (period === "all") return transactions;
@@ -61,15 +62,31 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
     });
   };
 
-  // Filter transactions by time period
-  const filteredTransactions = filterTransactionsByTimePeriod(transactions, timePeriod);
+  const filterTransactionsBySearch = (transactions: Transaction[], query: string): Transaction[] => {
+    if (!query.trim()) return transactions;
+    
+    const lowercaseQuery = query.toLowerCase().trim();
+    
+    return transactions.filter(transaction => {
+      const category = getCategoryById(transaction.categoryId);
+      const categoryName = category?.name || "";
+      const description = transaction.description || "";
+      
+      return (
+        description.toLowerCase().includes(lowercaseQuery) ||
+        categoryName.toLowerCase().includes(lowercaseQuery)
+      );
+    });
+  };
+
+  const filteredByTimePeriod = filterTransactionsByTimePeriod(transactions, timePeriod);
   
-  // Sort transactions by date (newest first)
+  const filteredTransactions = filterTransactionsBySearch(filteredByTimePeriod, searchQuery);
+  
   const sortedTransactions = [...filteredTransactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
   
-  // Apply limit if specified
   const displayTransactions = limit ? sortedTransactions.slice(0, limit) : sortedTransactions;
 
   const handleEdit = (transaction: Transaction) => {
@@ -123,6 +140,16 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
                 <SelectItem value="year">This Year</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          
+          <div className="mt-4 relative">
+            <Input
+              placeholder="Search descriptions or categories..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           </div>
         </CardHeader>
         <CardContent>
@@ -189,7 +216,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
               })
             ) : (
               <p className="text-center text-muted-foreground py-8">
-                No {type} transactions found for {getPeriodLabel().toLowerCase()}.
+                {searchQuery ? 
+                  `No results found for "${searchQuery}"` : 
+                  `No ${type} transactions found for ${getPeriodLabel().toLowerCase()}.`
+                }
               </p>
             )}
           </div>
