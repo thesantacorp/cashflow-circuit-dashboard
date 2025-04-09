@@ -8,8 +8,8 @@ import { register } from './serviceWorkerRegistration';
 import { Toaster } from 'sonner';
 // Import the type declarations to ensure they're included in the build
 import './types/google-api.d';
-// Import service worker type extensions
-import './types/service-worker.d.ts';
+// Import service worker type extensions - comment out problematic import
+// Types are already imported in serviceWorkerRegistration.ts
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

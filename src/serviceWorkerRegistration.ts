@@ -1,8 +1,9 @@
+
 // This is an enhanced version of the service worker registration code
 // that provides better offline support and feedback to the user.
 
-// Import our extended type definitions
-import './types/service-worker.d.ts';
+// Types are defined directly in this file's scope
+// We don't need to import them anymore
 
 type Config = {
   onSuccess?: (registration: ServiceWorkerRegistration) => void;
@@ -10,6 +11,17 @@ type Config = {
   onOffline?: () => void;
   onOnline?: () => void;
 };
+
+// Type declarations for service worker sync
+interface SyncManager {
+  register(tag: string): Promise<void>;
+  getTags(): Promise<string[]>;
+}
+
+// Add sync property to ServiceWorkerRegistration
+interface ServiceWorkerRegistration {
+  sync: SyncManager;
+}
 
 const isLocalhost = Boolean(
   window.location.hostname === 'localhost' ||
