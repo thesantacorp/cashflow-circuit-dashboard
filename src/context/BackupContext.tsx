@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { BackupFrequency, BackupSettings } from "@/types";
 import { toast } from "sonner";
-import '../types/google-api.d'; // Fix the import path with correct extension
+import '../types/google-api.d';
 
 interface BackupContextProps {
   settings: BackupSettings;
@@ -28,6 +28,10 @@ const GOOGLE_API_CLIENT_ID = "485216740467-m6npiprg02h2f8pma8doa4e3c9rp580c.apps
 const SCOPES = "https://www.googleapis.com/auth/drive.file";
 
 const APP_FOLDER_NAME = "StackdBackups";
+
+declare global {
+  interface Window extends WindowWithGAPI {}
+}
 
 export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<BackupSettings>(() => {

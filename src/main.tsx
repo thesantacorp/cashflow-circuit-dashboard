@@ -5,8 +5,9 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import { register } from './serviceWorkerRegistration';
-import { toast } from 'sonner';
-import './types/google-api.d'; // Fix the import path with correct extension
+import { Toaster } from 'sonner';
+// Import without specifying the extension for type declarations
+import './types/google-api.d';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
@@ -20,16 +21,16 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
 register({
   onSuccess: (registration) => {
     console.log('Service worker registration successful');
-    toast.success('App ready for offline use');
+    console.log('App ready for offline use');
   },
   onUpdate: (registration) => {
     console.log('New content is available');
-    toast.info('New version available. Close all tabs to update.');
+    console.log('New version available. Close all tabs to update.');
   },
   onOffline: () => {
-    toast.warning('You are offline. App is running in offline mode.');
+    console.log('You are offline. App is running in offline mode.');
   },
   onOnline: () => {
-    toast.success('You are back online. Your data will sync now.');
+    console.log('You are back online. Your data will sync now.');
   }
 });
