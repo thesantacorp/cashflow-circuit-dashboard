@@ -6,8 +6,8 @@ import App from './App';
 import './index.css';
 import { register } from './serviceWorkerRegistration';
 import { Toaster } from 'sonner';
-// Import without specifying the extension for type declarations
-import './types/google-api.d';
+// Import the type declaration file with correct extension
+import './types/google-api.d.ts';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

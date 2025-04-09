@@ -1,7 +1,9 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { BackupFrequency, BackupSettings } from "@/types";
 import { toast } from "sonner";
-import '../types/google-api.d';
+// Import the type declaration file with correct extension
+import '../types/google-api.d.ts';
 
 interface BackupContextProps {
   settings: BackupSettings;
@@ -29,9 +31,8 @@ const SCOPES = "https://www.googleapis.com/auth/drive.file";
 
 const APP_FOLDER_NAME = "StackdBackups";
 
-declare global {
-  interface Window extends WindowWithGAPI {}
-}
+// The WindowWithGAPI interface is already declared in the google-api.d.ts file
+// No need to redeclare it here
 
 export const BackupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<BackupSettings>(() => {
