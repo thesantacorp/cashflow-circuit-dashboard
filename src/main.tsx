@@ -9,7 +9,7 @@ import { Toaster } from 'sonner';
 // Import the type declarations to ensure they're included in the build
 import './types/google-api.d';
 // Import service worker type extensions
-import './types/service-worker';
+import './types/service-worker.d.ts';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

@@ -2,7 +2,7 @@
 // that provides better offline support and feedback to the user.
 
 // Import our extended type definitions
-import './types/service-worker';
+import './types/service-worker.d.ts';
 
 type Config = {
   onSuccess?: (registration: ServiceWorkerRegistration) => void;
