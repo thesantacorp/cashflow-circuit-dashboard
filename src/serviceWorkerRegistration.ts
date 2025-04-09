@@ -1,6 +1,8 @@
-
 // This is an enhanced version of the service worker registration code
 // that provides better offline support and feedback to the user.
+
+// Import our extended type definitions
+import './types/service-worker';
 
 type Config = {
   onSuccess?: (registration: ServiceWorkerRegistration) => void;
@@ -59,8 +61,13 @@ export function register(config?: Config) {
       if ('serviceWorker' in navigator && 'SyncManager' in window) {
         navigator.serviceWorker.ready
           .then(registration => {
-            registration.sync.register('sync-transactions')
-              .catch(err => console.log('Sync registration failed:', err));
+            // Check if sync is available before trying to use it
+            if ('sync' in registration) {
+              registration.sync.register('sync-transactions')
+                .catch(err => console.log('Sync registration failed:', err));
+            } else {
+              console.log('Background Sync API not supported');
+            }
           });
       }
     });
