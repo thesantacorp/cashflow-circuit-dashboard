@@ -1,45 +1,70 @@
-Since I don't have the original content of the MobileNavbar.tsx file, I can't provide the full code with the specific fix. The AI was indicating that there's likely a prop being passed incorrectly to a NetworkStatusIndicator component, where a string value is being passed to a prop that expects a boolean.
-
-Without seeing the original file, I can only provide a generic example of what the fix might look like:
 
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { BottomNavigation, BottomNavigationAction } from '@mui/material';
-import { Home, PieChart, Settings, Add } from '@mui/icons-material';
+import { Home, PieChart, Settings, Activity } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import NetworkStatusIndicator from './NetworkStatusIndicator';
+import { Link } from 'react-router-dom';
 
 const MobileNavbar: React.FC = () => {
   const location = useLocation();
-  const [value, setValue] = React.useState(0);
-
-  React.useEffect(() => {
-    const path = location.pathname;
-    if (path === '/') {
-      setValue(0);
-    } else if (path === '/stats') {
-      setValue(1);
-    } else if (path === '/settings') {
-      setValue(2);
-    }
-  }, [location]);
+  
+  const isActive = (path: string) => {
+    return location.pathname === path || 
+           (path !== '/' && location.pathname.startsWith(path));
+  };
 
   return (
-    <div className="mobile-navbar">
-      <BottomNavigation
-        value={value}
-        onChange={(event, newValue) => {
-          setValue(newValue);
-        }}
-        showLabels
-      >
-        <BottomNavigationAction label="Home" icon={<Home />} />
-        <BottomNavigationAction label="Stats" icon={<PieChart />} />
-        <BottomNavigationAction label="Settings" icon={<Settings />} />
-      </BottomNavigation>
-      <div className="add-button">
-        <Add />
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 py-2 px-4 md:hidden">
+      <div className="flex items-center justify-around">
+        <Link 
+          to="/expenses" 
+          className={cn(
+            "flex flex-col items-center p-2 rounded-md", 
+            isActive('/expenses') ? "text-primary" : "text-gray-500"
+          )}
+        >
+          <Home size={20} />
+          <span className="text-xs mt-1">Expenses</span>
+        </Link>
+        
+        <Link 
+          to="/income" 
+          className={cn(
+            "flex flex-col items-center p-2 rounded-md", 
+            isActive('/income') ? "text-primary" : "text-gray-500"
+          )}
+        >
+          <Activity size={20} />
+          <span className="text-xs mt-1">Income</span>
+        </Link>
+        
+        <Link 
+          to="/overview" 
+          className={cn(
+            "flex flex-col items-center p-2 rounded-md", 
+            isActive('/overview') ? "text-primary" : "text-gray-500"
+          )}
+        >
+          <PieChart size={20} />
+          <span className="text-xs mt-1">Overview</span>
+        </Link>
+        
+        <Link 
+          to="/profile" 
+          className={cn(
+            "flex flex-col items-center p-2 rounded-md", 
+            isActive('/profile') ? "text-primary" : "text-gray-500"
+          )}
+        >
+          <Settings size={20} />
+          <span className="text-xs mt-1">Settings</span>
+        </Link>
       </div>
-      <NetworkStatusIndicator minimal={true} />
+      
+      <div className="absolute top-0 right-2 transform -translate-y-1/2">
+        <NetworkStatusIndicator minimal={true} />
+      </div>
     </div>
   );
 };
