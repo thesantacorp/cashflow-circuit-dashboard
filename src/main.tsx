@@ -18,11 +18,21 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   </React.StrictMode>,
 );
 
-// Register service worker with offline/online notifications
+// Register service worker with enhanced offline/online notifications
 register({
   onSuccess: (registration) => {
     console.log('Service worker registration successful');
     console.log('App ready for offline use');
+    
+    // Notify user that the app is available offline
+    if ('Notification' in window && Notification.permission === 'granted') {
+      navigator.serviceWorker.ready.then(registration => {
+        registration.showNotification('Cashflow Circuit', {
+          body: 'App is now available offline! You can record expenses anytime.',
+          icon: '/app-icon.png'
+        });
+      });
+    }
   },
   onUpdate: (registration) => {
     console.log('New content is available');

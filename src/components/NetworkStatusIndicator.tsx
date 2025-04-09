@@ -27,7 +27,10 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({ classNa
             </div>
           </TooltipTrigger>
           <TooltipContent>
-            <p>{isOnline ? "Online - Data will sync automatically" : "Offline - Data saved locally"}</p>
+            <p>{isOnline ? 
+              "Online - Data will sync automatically" : 
+              "Offline - You can still record expenses! Data will sync when you reconnect."}
+            </p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -46,7 +49,7 @@ const NetworkStatusIndicator: React.FC<NetworkStatusIndicatorProps> = ({ classNa
       ) : (
         <>
           <WifiOff className="h-4 w-4" />
-          <span className="text-sm">Offline - Data saved locally</span>
+          <span className="text-sm">Offline - You can still record expenses!</span>
         </>
       )}
     </div>

@@ -54,6 +54,15 @@ export function register(config?: Config) {
       console.log('Application is online');
       if (config?.onOnline) config.onOnline();
       notifyServiceWorkerAboutConnectivity(true);
+      
+      // Attempt to sync data when coming back online
+      if ('serviceWorker' in navigator && 'SyncManager' in window) {
+        navigator.serviceWorker.ready
+          .then(registration => {
+            registration.sync.register('sync-transactions')
+              .catch(err => console.log('Sync registration failed:', err));
+          });
+      }
     });
 
     window.addEventListener('offline', () => {
@@ -61,6 +70,19 @@ export function register(config?: Config) {
       if (config?.onOffline) config.onOffline();
       notifyServiceWorkerAboutConnectivity(false);
     });
+    
+    // Listen for messages from the service worker
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'SYNC_NEEDED') {
+          console.log('Received sync request from service worker', event.data);
+          // Trigger any app-specific sync logic here
+          window.dispatchEvent(new CustomEvent('transaction-sync-needed', { 
+            detail: { timestamp: event.data.timestamp }
+          }));
+        }
+      });
+    }
   }
 }
 
