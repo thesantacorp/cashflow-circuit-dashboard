@@ -54,6 +54,7 @@ interface WindowWithGAPI extends Window {
   };
 }
 
+// This is the critical part - extending the global Window interface
 declare global {
   interface Window extends WindowWithGAPI {}
 }
