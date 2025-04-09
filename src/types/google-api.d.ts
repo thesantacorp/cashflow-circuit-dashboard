@@ -54,10 +54,8 @@ interface WindowWithGAPI extends Window {
   };
 }
 
-// Add the global declaration for WindowWithGAPI to extend Window
 declare global {
   interface Window extends WindowWithGAPI {}
 }
 
-// Empty export to make this a module
 export {};

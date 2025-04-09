@@ -6,7 +6,7 @@ import App from './App';
 import './index.css';
 import { register } from './serviceWorkerRegistration';
 import { Toaster } from 'sonner';
-// Import the type declaration file with correct extension
+// Import the type declaration file
 import './types/google-api.d.ts';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
