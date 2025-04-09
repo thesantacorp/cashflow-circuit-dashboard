@@ -1,24 +1,17 @@
-
 /* eslint-disable no-restricted-globals */
 
-// This service worker can be customized!
-// See https://developers.google.com/web/tools/workbox/modules
-// for the list of available Workbox modules, or add any other
-// code you'd like.
-// You can also remove this file if you'd prefer not to use a
-// service worker, and the Workbox build step will be skipped.
-
-// We're using the vanilla service worker for simplicity
-// In a production app, you might want to use workbox instead
-
-const CACHE_NAME = 'cashflow-circuit-v1';
-const urlsToCache = [
+// Improved service worker with better caching strategies
+const CACHE_NAME = 'cashflow-circuit-v2';
+const APP_SHELL_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/favicon.ico',
+  '/app-icon.png',
   '/static/js/main.chunk.js',
   '/static/js/bundle.js',
+  '/static/css/main.chunk.css',
+  // Add more static assets as needed
 ];
 
 // Install a service worker
@@ -27,65 +20,109 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
+        console.log('Service Worker: Caching app shell');
+        return cache.addAll(APP_SHELL_URLS);
       })
+      .then(() => self.skipWaiting()) // Force activation
   );
 });
 
-// Cache and return requests
+// Cache and return requests with network-first strategy for API calls
+// and cache-first for static assets
 self.addEventListener('fetch', (event) => {
+  // Skip cross-origin requests
+  if (!event.request.url.startsWith(self.location.origin) && 
+      !event.request.url.includes('fonts.googleapis.com')) {
+    return;
+  }
+
+  // For navigation requests (HTML pages), use network-first strategy
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => {
+          return caches.match('/index.html');
+        })
+    );
+    return;
+  }
+
+  // For all other requests, try network first, fallback to cache
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Cache hit - return response
-        if (response) {
-          return response;
+    fetch(event.request)
+      .then((networkResponse) => {
+        // Clone the response before using it because it's a stream
+        const clonedResponse = networkResponse.clone();
+        
+        // Only cache successful responses
+        if (networkResponse.ok) {
+          caches.open(CACHE_NAME)
+            .then((cache) => {
+              // Don't cache API calls with dynamic data
+              if (!event.request.url.includes('/api/') && 
+                  !event.request.url.includes('supabase.co')) {
+                cache.put(event.request, clonedResponse);
+              }
+            });
         }
-        return fetch(event.request).then(
-          (response) => {
-            // Check if we received a valid response
-            if(!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
+        
+        return networkResponse;
+      })
+      .catch(() => {
+        // If network fails, try to serve from cache
+        return caches.match(event.request)
+          .then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse;
             }
 
-            // IMPORTANT: Clone the response. A response is a stream
-            // and because we want the browser to consume the response
-            // as well as the cache consuming the response, we need
-            // to clone it so we have two streams.
-            const responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                // Don't cache API calls with dynamic data
-                if (!event.request.url.includes('/api/') && !event.request.url.includes('supabase.co')) {
-                  cache.put(event.request, responseToCache);
-                }
-              });
-
-            return response;
-          }
-        ).catch(() => {
-          // If fetch fails (offline), try to return a cached page
-          return caches.match('/index.html');
-        });
+            // If the request is for an HTML page, serve the cached index.html
+            if (event.request.headers.get('accept').includes('text/html')) {
+              return caches.match('/index.html');
+            }
+            
+            // Otherwise, let the fetch fail
+            return new Response('Network error occurred', {
+              status: 408,
+              headers: { 'Content-Type': 'text/plain' }
+            });
+          });
       })
-    );
+  );
 });
 
 // Update a service worker
 self.addEventListener('activate', (event) => {
   const cacheWhitelist = [CACHE_NAME];
+  
   event.waitUntil(
+    // Clean up old caches
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
+            console.log('Service Worker: Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
           return null;
         })
       );
+    }).then(() => {
+      console.log('Service Worker: Claiming clients');
+      return self.clients.claim(); // Take control of all clients
     })
   );
+});
+
+// Handle connectivity changes
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'CONNECTIVITY_CHANGE') {
+    console.log('Service Worker: Connectivity changed to', 
+      event.data.online ? 'online' : 'offline');
+  }
+});
+
+// Log errors
+self.addEventListener('error', (event) => {
+  console.error('Service Worker error:', event.message);
 });

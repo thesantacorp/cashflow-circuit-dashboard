@@ -1,11 +1,13 @@
-// This optional code is used to register a service worker.
-// register() is not called by default.
 
-// This lets the app load faster on subsequent visits in production, and gives
-// it offline capabilities. However, it also means that developers (and users)
-// will only see deployed updates on subsequent visits to a page, after all the
-// existing tabs open on the page have been closed, since previously cached
-// resources are updated in the background.
+// This is an enhanced version of the service worker registration code
+// that provides better offline support and feedback to the user.
+
+type Config = {
+  onSuccess?: (registration: ServiceWorkerRegistration) => void;
+  onUpdate?: (registration: ServiceWorkerRegistration) => void;
+  onOffline?: () => void;
+  onOnline?: () => void;
+};
 
 const isLocalhost = Boolean(
   window.location.hostname === 'localhost' ||
@@ -14,11 +16,6 @@ const isLocalhost = Boolean(
     // 127.0.0.0/8 are considered localhost for IPv4.
     window.location.hostname.match(/^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/)
 );
-
-type Config = {
-  onSuccess?: (registration: ServiceWorkerRegistration) => void;
-  onUpdate?: (registration: ServiceWorkerRegistration) => void;
-};
 
 export function register(config?: Config) {
   if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
@@ -50,6 +47,29 @@ export function register(config?: Config) {
         // Is not localhost. Just register service worker
         registerValidSW(swUrl, config);
       }
+    });
+
+    // Set up connectivity monitoring
+    window.addEventListener('online', () => {
+      console.log('Application is online');
+      if (config?.onOnline) config.onOnline();
+      notifyServiceWorkerAboutConnectivity(true);
+    });
+
+    window.addEventListener('offline', () => {
+      console.log('Application is offline');
+      if (config?.onOffline) config.onOffline();
+      notifyServiceWorkerAboutConnectivity(false);
+    });
+  }
+}
+
+// Notify the service worker about connectivity changes
+function notifyServiceWorkerAboutConnectivity(online: boolean) {
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'CONNECTIVITY_CHANGE',
+      online
     });
   }
 }
@@ -123,6 +143,7 @@ function checkValidServiceWorker(swUrl: string, config?: Config) {
     })
     .catch(() => {
       console.log('No internet connection found. App is running in offline mode.');
+      if (config?.onOffline) config.onOffline();
     });
 }
 
