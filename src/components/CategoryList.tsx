@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import EditCategoryModal from "./EditCategoryModal";
+import { toast } from "sonner";
 
 interface CategoryListProps {
   type: TransactionType;
@@ -27,25 +28,35 @@ const CategoryList: React.FC<CategoryListProps> = ({ type }) => {
 
   const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newCategory.trim()) {
-      // Check if category already exists (case-insensitive)
-      const categoryExists = categories.some(
-        cat => cat.name.toLowerCase() === newCategory.trim().toLowerCase()
-      );
-      
-      if (categoryExists) {
-        alert(`A ${type} category named "${newCategory}" already exists.`);
-        return;
-      }
-      
-      addCategory({
-        name: newCategory.trim(),
-        type,
-        color,
-      });
+    
+    if (!newCategory.trim()) {
+      toast.error("Category name cannot be empty");
+      return;
+    }
+    
+    // Check if category already exists (case-insensitive)
+    const categoryExists = categories.some(
+      cat => cat.name.toLowerCase() === newCategory.trim().toLowerCase()
+    );
+    
+    if (categoryExists) {
+      toast.error(`A ${type} category named "${newCategory}" already exists.`);
+      return;
+    }
+    
+    const success = addCategory({
+      name: newCategory.trim(),
+      type,
+      color,
+    });
+    
+    if (success) {
       setNewCategory("");
       setColor(type === "expense" ? "#e74c3c" : "#27ae60");
       setOpen(false);
+      toast.success(`${newCategory} category added successfully`);
+    } else {
+      toast.error("Failed to add category. Please try again.");
     }
   };
 

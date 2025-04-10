@@ -34,9 +34,21 @@ export function transactionReducer(
         transactions: state.transactions.filter((transaction) => transaction.id !== action.payload),
       };
     case "ADD_CATEGORY":
+      // Check if a category with the same name and type already exists
+      const existingCategory = state.categories.find(
+        (c) => c.name.toLowerCase() === action.payload.name.toLowerCase() && 
+               c.type === action.payload.type
+      );
+      
+      if (existingCategory) {
+        toast.error(`Category "${action.payload.name}" already exists`);
+        return state;
+      }
+      
       return {
         ...state,
         categories: [...state.categories, action.payload],
+        nextCategoryId: state.nextCategoryId + 1,
       };
     case "UPDATE_CATEGORY":
       return {
