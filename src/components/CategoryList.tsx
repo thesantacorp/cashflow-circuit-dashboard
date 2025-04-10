@@ -15,16 +15,11 @@ interface CategoryListProps {
 }
 
 const CategoryList: React.FC<CategoryListProps> = ({ type }) => {
-  const { getCategoriesByType, addCategory, deleteCategory, deduplicate } = useTransactions();
+  const { state, getCategoriesByType, dispatch } = useTransactions();
   const categories = getCategoriesByType(type);
   const [open, setOpen] = useState(false);
   const [newCategory, setNewCategory] = useState<string>("");
   const [color, setColor] = useState<string>(type === "expense" ? "#e74c3c" : "#27ae60");
-
-  // Run deduplicate on initial load
-  React.useEffect(() => {
-    deduplicate();
-  }, [deduplicate]);
 
   const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,20 +39,43 @@ const CategoryList: React.FC<CategoryListProps> = ({ type }) => {
       return;
     }
     
-    const success = addCategory({
-      name: newCategory.trim(),
-      type,
-      color,
+    // Generate a unique ID
+    const categoryId = crypto.randomUUID();
+    
+    // Add the new category
+    dispatch({
+      type: "ADD_CATEGORY",
+      payload: {
+        id: categoryId,
+        name: newCategory.trim(),
+        type,
+        color
+      }
     });
     
-    if (success) {
-      setNewCategory("");
-      setColor(type === "expense" ? "#e74c3c" : "#27ae60");
-      setOpen(false);
-      toast.success(`${newCategory} category added successfully`);
-    } else {
-      toast.error("Failed to add category. Please try again.");
+    setNewCategory("");
+    setColor(type === "expense" ? "#e74c3c" : "#27ae60");
+    setOpen(false);
+    toast.success(`${newCategory} category added successfully`);
+  };
+
+  const handleDeleteCategory = (id: string) => {
+    // Check if any transactions use this category
+    const hasTransactions = state.transactions.some(
+      (transaction) => transaction.categoryId === id
+    );
+    
+    if (hasTransactions) {
+      toast.error("Cannot delete a category that has transactions");
+      return;
     }
+    
+    dispatch({ 
+      type: "DELETE_CATEGORY", 
+      payload: id
+    });
+    
+    toast.success("Category deleted successfully");
   };
 
   return (
@@ -114,7 +132,11 @@ const CategoryList: React.FC<CategoryListProps> = ({ type }) => {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {categories.map((category) => (
-          <CategoryCard key={category.id} category={category} onDelete={deleteCategory} />
+          <CategoryCard 
+            key={category.id} 
+            category={category} 
+            onDelete={handleDeleteCategory} 
+          />
         ))}
       </div>
     </div>

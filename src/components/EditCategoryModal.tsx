@@ -21,11 +21,24 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
 }) => {
   const [name, setName] = useState(category.name);
   const [color, setColor] = useState(category.color || "#cccccc");
-  const { state, dispatch } = useTransactions();
+  const { getCategoriesByType, dispatch } = useTransactions();
+  
+  // Get all categories of the same type for duplicate checking
+  const categoriesOfSameType = getCategoriesByType(category.type);
 
   const handleSave = () => {
     if (!name.trim()) {
       toast.error("Category name cannot be empty");
+      return;
+    }
+
+    // Check if another category with this name already exists (excluding the current one)
+    const nameExists = categoriesOfSameType.some(
+      cat => cat.id !== category.id && cat.name.toLowerCase() === name.trim().toLowerCase()
+    );
+    
+    if (nameExists) {
+      toast.error(`A ${category.type} category named "${name}" already exists.`);
       return;
     }
 

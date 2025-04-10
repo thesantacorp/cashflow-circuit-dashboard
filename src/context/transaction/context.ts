@@ -6,6 +6,8 @@ import { Transaction, Category, TransactionType } from "@/types";
 interface TransactionState {
   transactions: Transaction[];
   categories: Category[];
+  nextTransactionId?: number;
+  nextCategoryId?: number;
 }
 
 // Define the context shape
