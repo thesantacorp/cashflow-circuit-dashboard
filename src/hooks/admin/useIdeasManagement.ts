@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Idea, VoteSummary } from '@/integrations/supabase/customClient';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { ensureStorageBucketExists } from '@/utils/supabase/client';
 
 export const useIdeasManagement = () => {
   const navigate = useNavigate();
@@ -136,43 +137,48 @@ export const useIdeasManagement = () => {
       // If a new image file is selected, upload it
       if (imageFile) {
         try {
-          const fileExt = imageFile.name.split('.').pop();
-          const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-          const filePath = `ideas/${fileName}`;
+          const bucketName = 'ideas';
           
-          // Create storage bucket if it doesn't exist
-          const { data: bucketData, error: bucketError } = await supabase
-            .storage
-            .getBucket('ideas');
-            
-          if (!bucketData || bucketError) {
-            console.log('Creating ideas bucket');
-            await supabase.storage.createBucket('ideas', {
-              public: true
-            });
+          // Ensure bucket exists before uploading
+          const bucketExists = await ensureStorageBucketExists(bucketName);
+          if (!bucketExists) {
+            throw new Error('Failed to ensure storage bucket exists');
           }
           
-          // Upload file directly
+          // Prepare file path with unique name
+          const fileExt = imageFile.name.split('.').pop();
+          const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+          const filePath = `${fileName}`;
+          
+          console.log(`Uploading file to ${bucketName}/${filePath}`);
+          
+          // Upload file
           const { data, error: uploadError } = await supabase
             .storage
-            .from('ideas')
-            .upload(filePath, imageFile);
+            .from(bucketName)
+            .upload(filePath, imageFile, {
+              cacheControl: '3600',
+              upsert: false
+            });
             
           if (uploadError) {
             console.error('Error uploading image:', uploadError);
             throw uploadError;
           }
           
+          console.log('File uploaded successfully:', data);
+          
           // Get public URL of uploaded image
           const { data: { publicUrl } } = supabase
             .storage
-            .from('ideas')
+            .from(bucketName)
             .getPublicUrl(filePath);
             
+          console.log('Public URL:', publicUrl);
           finalImageUrl = publicUrl;
-        } catch (uploadErr) {
+        } catch (uploadErr: any) {
           console.error('Error during image upload:', uploadErr);
-          toast.error('Failed to upload image');
+          toast.error('Failed to upload image: ' + (uploadErr.message || 'Unknown error'));
           // Continue with idea creation even if image upload fails
         }
       }

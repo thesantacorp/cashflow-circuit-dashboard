@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 
@@ -137,6 +138,48 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
       }
     }
     
+    return false;
+  }
+};
+
+// Create a helper function to initialize storage buckets if needed
+export const ensureStorageBucketExists = async (bucketName: string): Promise<boolean> => {
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+  
+  try {
+    console.log(`Checking if bucket '${bucketName}' exists...`);
+    
+    // Check if bucket exists
+    const { data: bucketData, error: bucketError } = await supabase
+      .storage
+      .getBucket(bucketName);
+      
+    // If bucket doesn't exist, create it
+    if (!bucketData || bucketError) {
+      console.log(`Creating bucket '${bucketName}'...`);
+      const { data, error } = await supabase.storage.createBucket(bucketName, {
+        public: true,
+        fileSizeLimit: 10485760, // 10MB
+      });
+      
+      if (error) {
+        console.error(`Error creating bucket '${bucketName}':`, error);
+        toast.error(`Failed to create storage bucket: ${error.message}`);
+        return false;
+      }
+      
+      console.log(`Successfully created bucket '${bucketName}'`);
+      return true;
+    }
+    
+    console.log(`Bucket '${bucketName}' already exists`);
+    return true;
+  } catch (error) {
+    console.error(`Error ensuring bucket '${bucketName}' exists:`, error);
+    toast.error('Storage setup failed', {
+      description: error instanceof Error ? error.message : 'Unknown error'
+    });
     return false;
   }
 };

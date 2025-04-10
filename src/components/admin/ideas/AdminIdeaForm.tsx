@@ -1,16 +1,17 @@
-
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import {
   Calendar,
   Upload,
   Info,
   ExternalLink,
-  Loader2
+  Loader2,
+  ImageIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Idea } from '@/integrations/supabase/customClient';
+import { toast } from 'sonner';
 
 interface AdminIdeaFormProps {
   idea: Idea | null;
@@ -36,14 +37,25 @@ export const AdminIdeaForm = ({ idea, onSubmit, isUploading }: AdminIdeaFormProp
   );
   const [liveProjectLink, setLiveProjectLink] = useState(idea?.live_project_link || '');
   const [learnMoreLink, setLearnMoreLink] = useState(idea?.learn_more_link || '');
+  const [imageName, setImageName] = useState<string>('');
+  const [imageError, setImageError] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   
+  useEffect(() => {
+    setImageError(null);
+    if (idea?.image_url) {
+      setImageName('Current image');
+    }
+  }, [idea]);
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setImageError(null);
     
     if (!name || !description || !countdownTimer) {
-      return; // Form validation handled by parent
+      toast.error('Please fill in all required fields');
+      return;
     }
     
     await onSubmit({
@@ -59,15 +71,31 @@ export const AdminIdeaForm = ({ idea, onSubmit, isUploading }: AdminIdeaFormProp
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      // Create a preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    setImageError(null);
+    
+    if (!file) return;
+    
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError('Image size exceeds 5MB limit');
+      return;
     }
+    
+    if (!file.type.match('image.*')) {
+      setImageError('Please select an image file');
+      return;
+    }
+    
+    setImageFile(file);
+    setImageName(file.name);
+    
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImageUrl(reader.result as string);
+    };
+    reader.onerror = () => {
+      setImageError('Failed to read image file');
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -113,21 +141,38 @@ export const AdminIdeaForm = ({ idea, onSubmit, isUploading }: AdminIdeaFormProp
               className="hidden"
               accept="image/*"
             />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              {imageUrl ? 'Change Image' : 'Upload Image'}
-            </Button>
-            {imageUrl && (
-              <div className="aspect-video w-full overflow-hidden rounded-md border border-gray-200">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {imageUrl ? 'Change Image' : 'Upload Image'}
+              </Button>
+              {imageName && (
+                <span className="text-sm text-gray-500 truncate max-w-[200px]">
+                  {imageName}
+                </span>
+              )}
+            </div>
+            {imageError && (
+              <p className="text-sm text-red-500">{imageError}</p>
+            )}
+            {imageUrl ? (
+              <div className="relative aspect-video w-full overflow-hidden rounded-md border border-gray-200">
                 <img
                   src={imageUrl}
                   alt="Preview"
                   className="h-full w-full object-cover"
+                  onError={() => {
+                    setImageError('Failed to load image preview');
+                  }}
                 />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center aspect-video w-full overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+                <ImageIcon className="h-12 w-12 text-gray-300" />
               </div>
             )}
           </div>
