@@ -11,6 +11,7 @@ const Index = () => {
   useEffect(() => {
     // This helps ensure user data is properly tracked for admin stats
     if (user) {
+      console.log('User authenticated on index page, tracking session');
       // Record that we have an active user for stats purposes
       try {
         const activeSessions = JSON.parse(localStorage.getItem('active_sessions') || '[]');
@@ -27,11 +28,13 @@ const Index = () => {
       } catch (error) {
         console.error("Error recording session:", error);
       }
+    } else {
+      console.log('No user on index page, will redirect to auth');
     }
   }, [user]);
   
   // Redirect to the expenses page if authenticated, otherwise to auth page
-  return <Navigate to={user ? "/expenses" : "/auth"} replace />;
+  return user ? <Navigate to="/expenses" replace /> : <Navigate to="/auth/login" replace />;
 };
 
 export default Index;

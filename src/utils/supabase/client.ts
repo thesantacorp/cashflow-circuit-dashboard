@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 
@@ -20,6 +19,7 @@ export const getSupabaseClient = () => {
         auth: {
           persistSession: true,
           autoRefreshToken: true,
+          storage: localStorage
         },
         global: {
           fetch: (...args: Parameters<typeof fetch>) => {

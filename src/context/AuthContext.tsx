@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { checkDatabaseConnection } from '@/utils/supabase/client';
 
 // Define the structure of a user profile
 interface UserProfile {
@@ -40,10 +41,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Check connection to Supabase on initial load
+  useEffect(() => {
+    const checkConnection = async () => {
+      const isConnected = await checkDatabaseConnection();
+      if (!isConnected) {
+        console.error('Failed to connect to Supabase');
+        toast.error('Failed to connect to the database. Please check your internet connection.');
+      }
+    };
+    
+    checkConnection();
+  }, []);
+
   // Listen for auth state changes
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
+        console.log('Auth state changed:', event, currentSession?.user?.email);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
@@ -52,6 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (event === 'SIGNED_IN') {
             // Store the current session ID
             localStorage.setItem(SESSION_KEY, currentSession.access_token);
+            console.log('User signed in:', currentSession.user.email);
             
             // Track the session client-side instead of database
             try {
@@ -75,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
           
+          // Use setTimeout to avoid potential auth deadlock
           setTimeout(() => {
             fetchUserProfile(currentSession.user.id);
           }, 0);
@@ -92,6 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Check for existing session
     supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
+      console.log('Got existing session:', currentSession?.user?.email);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       
@@ -115,7 +133,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(null);
         } else {
           // This is the current active session, fetch profile
-          fetchUserProfile(currentSession.user.id);
+          setTimeout(() => {
+            fetchUserProfile(currentSession.user.id);
+          }, 0);
         }
       }
       
@@ -174,12 +194,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('Attempting to sign in with:', email);
       const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Sign in error:', error);
+        throw error;
+      }
+      
+      console.log('Sign in successful for:', data.user?.email);
       
       // Deactivate any previous sessions in localStorage
       if (data.user) {
@@ -214,6 +240,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       toast.success('Signed in successfully');
+      navigate('/expenses');
     } catch (error: any) {
       toast.error('Sign in failed', {
         description: error.message
