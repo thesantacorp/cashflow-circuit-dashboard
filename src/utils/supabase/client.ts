@@ -183,3 +183,32 @@ export const ensureStorageBucketExists = async (bucketName: string): Promise<boo
     return false;
   }
 };
+
+// Helper function to make a file public
+export const makeFilePublic = async (bucketName: string, filePath: string): Promise<boolean> => {
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+  
+  try {
+    console.log(`Making file '${filePath}' in bucket '${bucketName}' public...`);
+    const { data, error } = await supabase
+      .storage
+      .from(bucketName)
+      .update(filePath, undefined, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: 'auto'
+      });
+    
+    if (error) {
+      console.error(`Error making file public:`, error);
+      return false;
+    }
+    
+    console.log(`File is now public:`, data);
+    return true;
+  } catch (error) {
+    console.error(`Error making file public:`, error);
+    return false;
+  }
+};

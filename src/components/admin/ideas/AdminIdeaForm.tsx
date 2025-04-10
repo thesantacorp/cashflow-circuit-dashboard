@@ -1,3 +1,4 @@
+
 import { useRef, useState, useEffect } from 'react';
 import {
   Calendar,
@@ -5,13 +6,15 @@ import {
   Info,
   ExternalLink,
   Loader2,
-  ImageIcon
+  ImageIcon,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Idea } from '@/integrations/supabase/customClient';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AdminIdeaFormProps {
   idea: Idea | null;
@@ -39,11 +42,13 @@ export const AdminIdeaForm = ({ idea, onSubmit, isUploading }: AdminIdeaFormProp
   const [learnMoreLink, setLearnMoreLink] = useState(idea?.learn_more_link || '');
   const [imageName, setImageName] = useState<string>('');
   const [imageError, setImageError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   
   useEffect(() => {
     setImageError(null);
+    setSubmitError(null);
     if (idea?.image_url) {
       setImageName('Current image');
     }
@@ -52,21 +57,28 @@ export const AdminIdeaForm = ({ idea, onSubmit, isUploading }: AdminIdeaFormProp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setImageError(null);
+    setSubmitError(null);
     
     if (!name || !description || !countdownTimer) {
+      setSubmitError('Please fill in all required fields');
       toast.error('Please fill in all required fields');
       return;
     }
     
-    await onSubmit({
-      name,
-      description,
-      imageFile,
-      imageUrl,
-      countdownTimer,
-      liveProjectLink,
-      learnMoreLink
-    });
+    try {
+      await onSubmit({
+        name,
+        description,
+        imageFile,
+        imageUrl,
+        countdownTimer,
+        liveProjectLink,
+        learnMoreLink
+      });
+    } catch (error) {
+      console.error('Form submission error:', error);
+      setSubmitError('Failed to submit the form. Please try again.');
+    }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,6 +112,13 @@ export const AdminIdeaForm = ({ idea, onSubmit, isUploading }: AdminIdeaFormProp
 
   return (
     <form onSubmit={handleSubmit}>
+      {submitError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{submitError}</AlertDescription>
+        </Alert>
+      )}
+      
       <div className="grid gap-4 py-4">
         <div className="grid grid-cols-1 gap-2">
           <label htmlFor="name" className="font-medium">
