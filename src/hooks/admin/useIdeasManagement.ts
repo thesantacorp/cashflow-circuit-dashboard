@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -112,12 +111,10 @@ export const useIdeasManagement = () => {
     try {
       console.log('Attempting to create ideas bucket directly via RPC...');
       
-      // Fix: Call the RPC without any parameters - the function doesn't accept any args
       const { error: rpcError } = await supabase.rpc('create_ideas_bucket_if_not_exists');
       
       if (rpcError) {
         console.error('RPC call failed:', rpcError);
-        
         console.error('Direct SQL approach not available in client');
         return false;
       }
