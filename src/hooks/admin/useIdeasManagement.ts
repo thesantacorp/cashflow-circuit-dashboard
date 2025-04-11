@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -133,11 +134,26 @@ export const useIdeasManagement = () => {
           const bucketName = 'ideas';
           
           console.log('About to ensure bucket exists...');
+          // Create bucket directly using SQL first for better reliability
+          try {
+            const { error: createBucketError } = await supabase.rpc('create_ideas_bucket_if_not_exists');
+            if (createBucketError) {
+              console.log('RPC method failed or not available, falling back to client-side bucket creation');
+            } else {
+              console.log('Successfully created bucket using RPC function');
+            }
+          } catch (rpcError) {
+            console.log('RPC method error, falling back to client-side bucket creation:', rpcError);
+          }
+          
+          // Attempt client-side bucket creation as fallback
           const bucketExists = await ensureStorageBucketExists(bucketName);
           
           if (!bucketExists) {
             console.error('Failed to ensure bucket exists - aborting upload');
-            throw new Error('Failed to ensure storage bucket exists');
+            toast.error('Failed to save idea. Storage setup issue. Please try again or contact support.');
+            setIsUploading(false);
+            return;
           }
           
           console.log('Bucket exists or was created successfully, proceeding with upload...');
@@ -158,11 +174,7 @@ export const useIdeasManagement = () => {
             
           if (uploadError) {
             console.error('Error uploading image:', uploadError);
-            if (uploadError.message.includes('permission denied')) {
-              throw new Error('Permission denied when uploading image. Check bucket permissions.');
-            } else {
-              throw uploadError;
-            }
+            throw uploadError;
           }
           
           console.log('File uploaded successfully:', data);

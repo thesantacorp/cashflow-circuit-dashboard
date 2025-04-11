@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 
@@ -252,6 +251,55 @@ export const makeFilePublic = async (bucketName: string, filePath: string): Prom
     return true;
   } catch (error) {
     console.error(`Error making file public:`, error);
+    return false;
+  }
+};
+
+// Create a stored procedure to create the ideas bucket if it doesn't exist
+export const createIdeasBucketRpc = async () => {
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+  
+  try {
+    // Create RPC function if it doesn't exist yet
+    const { error: createFunctionError } = await supabase.rpc('create_ideas_bucket_if_not_exists_setup');
+    
+    if (createFunctionError) {
+      // Function doesn't exist, create it
+      const { error } = await supabase.query(`
+        CREATE OR REPLACE FUNCTION create_ideas_bucket_if_not_exists()
+        RETURNS boolean
+        LANGUAGE plpgsql
+        SECURITY DEFINER
+        AS $$
+        DECLARE
+          bucket_exists boolean;
+        BEGIN
+          SELECT EXISTS(SELECT 1 FROM storage.buckets WHERE id = 'ideas') INTO bucket_exists;
+          
+          IF NOT bucket_exists THEN
+            INSERT INTO storage.buckets (id, name, public)
+            VALUES ('ideas', 'ideas', true);
+            RETURN true;
+          END IF;
+          
+          RETURN true;
+        EXCEPTION
+          WHEN OTHERS THEN
+            RETURN false;
+        END;
+        $$;
+      `);
+      
+      if (error) {
+        console.error('Error creating RPC function:', error);
+        return false;
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error setting up bucket RPC:', error);
     return false;
   }
 };
