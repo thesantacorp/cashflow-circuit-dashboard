@@ -150,30 +150,43 @@ export const ensureStorageBucketExists = async (bucketName: string): Promise<boo
   try {
     console.log(`Checking if bucket '${bucketName}' exists...`);
     
-    // Check if bucket exists
-    const { data: bucketData, error: bucketError } = await supabase
-      .storage
-      .getBucket(bucketName);
-      
-    // If bucket doesn't exist, create it
-    if (!bucketData || bucketError) {
-      console.log(`Creating bucket '${bucketName}'...`);
-      const { data, error } = await supabase.storage.createBucket(bucketName, {
-        public: true,
-        fileSizeLimit: 10485760, // 10MB
-      });
-      
-      if (error) {
-        console.error(`Error creating bucket '${bucketName}':`, error);
-        toast.error(`Failed to create storage bucket: ${error.message}`);
-        return false;
+    // First check if bucket exists (getBucket method is used in newer Supabase versions)
+    try {
+      const { data: bucketData, error: bucketError } = await supabase
+        .storage
+        .getBucket(bucketName);
+        
+      // If bucket exists, we're good
+      if (bucketData && !bucketError) {
+        console.log(`Bucket '${bucketName}' already exists`);
+        return true;
       }
-      
-      console.log(`Successfully created bucket '${bucketName}'`);
-      return true;
+    } catch (checkError) {
+      // This might happen with older Supabase versions, we'll try to create the bucket
+      console.log('Error checking bucket, will try to create it:', checkError);
     }
     
-    console.log(`Bucket '${bucketName}' already exists`);
+    // If we get here, either the bucket doesn't exist or we couldn't check it
+    // Try to create the bucket
+    console.log(`Creating bucket '${bucketName}'...`);
+    const { data, error } = await supabase.storage.createBucket(bucketName, {
+      public: true,
+      fileSizeLimit: 10485760, // 10MB
+    });
+    
+    if (error) {
+      // If the error is that the bucket already exists, that's fine
+      if (error.message && error.message.includes('already exists')) {
+        console.log(`Bucket '${bucketName}' already exists (caught from error)`);
+        return true;
+      }
+      
+      console.error(`Error creating bucket '${bucketName}':`, error);
+      toast.error(`Failed to create storage bucket: ${error.message}`);
+      return false;
+    }
+    
+    console.log(`Successfully created bucket '${bucketName}'`);
     return true;
   } catch (error) {
     console.error(`Error ensuring bucket '${bucketName}' exists:`, error);
