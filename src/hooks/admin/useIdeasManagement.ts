@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,10 +17,8 @@ export const useIdeasManagement = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
 
-  // Verify user is authenticated and check admin status
   useEffect(() => {
     const checkAdminStatus = async () => {
-      // First check if the user is admin-authenticated
       const adminAuth = sessionStorage.getItem('adminAuthenticated');
       
       if (adminAuth !== 'true') {
@@ -37,7 +34,6 @@ export const useIdeasManagement = () => {
     checkAdminStatus();
   }, [user, navigate]);
 
-  // Fetch ideas and vote summaries
   const fetchIdeas = async () => {
     if (!isAdmin) return;
     
@@ -58,7 +54,6 @@ export const useIdeasManagement = () => {
       
       setIdeas(data || []);
       
-      // Fetch vote summaries for each idea
       if (data && data.length > 0) {
         const voteStats: Record<string, VoteSummary> = {};
         
@@ -112,7 +107,6 @@ export const useIdeasManagement = () => {
     }
   }, [isAdmin]);
 
-  // Handle form submission
   const handleFormSubmit = async (formData: {
     name: string;
     description: string;
@@ -134,44 +128,47 @@ export const useIdeasManagement = () => {
       
       let finalImageUrl = imageUrl;
       
-      // If a new image file is selected, upload it
       if (imageFile) {
         try {
           const bucketName = 'ideas';
           
-          // Ensure bucket exists before uploading
+          console.log('About to ensure bucket exists...');
           const bucketExists = await ensureStorageBucketExists(bucketName);
+          
           if (!bucketExists) {
+            console.error('Failed to ensure bucket exists - aborting upload');
             throw new Error('Failed to ensure storage bucket exists');
           }
           
-          // Prepare file path with unique name
+          console.log('Bucket exists or was created successfully, proceeding with upload...');
+          
           const fileExt = imageFile.name.split('.').pop();
           const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
           const filePath = `${fileName}`;
           
           console.log(`Uploading file to ${bucketName}/${filePath}`);
           
-          // Upload file
           const { data, error: uploadError } = await supabase
             .storage
             .from(bucketName)
             .upload(filePath, imageFile, {
               cacheControl: '3600',
-              upsert: false
+              upsert: true
             });
             
           if (uploadError) {
             console.error('Error uploading image:', uploadError);
-            throw uploadError;
+            if (uploadError.message.includes('permission denied')) {
+              throw new Error('Permission denied when uploading image. Check bucket permissions.');
+            } else {
+              throw uploadError;
+            }
           }
           
           console.log('File uploaded successfully:', data);
           
-          // Ensure file is public
           await makeFilePublic(bucketName, filePath);
           
-          // Get public URL of uploaded image
           const { data: { publicUrl } } = supabase
             .storage
             .from(bucketName)
@@ -186,11 +183,9 @@ export const useIdeasManagement = () => {
         }
       }
       
-      // Format the date
       const formattedDate = new Date(countdownTimer).toISOString();
       
       if (editingIdea) {
-        // Update existing idea
         const { data, error } = await supabase
           .from('ideas')
           .update({
@@ -211,7 +206,6 @@ export const useIdeasManagement = () => {
         
         toast.success('Idea updated successfully');
       } else {
-        // Create new idea
         const { data, error } = await supabase
           .from('ideas')
           .insert({
@@ -233,7 +227,6 @@ export const useIdeasManagement = () => {
         toast.success('Idea created successfully');
       }
       
-      // Reset form and fetch updated ideas
       setEditingIdea(null);
       setDialogOpen(false);
       fetchIdeas();
