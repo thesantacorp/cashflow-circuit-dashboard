@@ -153,6 +153,20 @@ export const ensureStorageBucketExists = async (bucketName: string): Promise<boo
   try {
     console.log(`Checking if bucket '${bucketName}' exists...`);
     
+    // Try first calling the RPC function if available
+    try {
+      console.log(`Trying RPC method for bucket '${bucketName}'...`);
+      const { error: rpcError } = await supabase.rpc('create_ideas_bucket_if_not_exists');
+      if (!rpcError) {
+        console.log(`Successfully created/verified bucket '${bucketName}' via RPC`);
+        return true;
+      } else {
+        console.log('RPC method failed, falling back to client API:', rpcError);
+      }
+    } catch (rpcErr) {
+      console.log('RPC method exception, falling back to client API:', rpcErr);
+    }
+    
     // Try a different approach to verify bucket existence - list buckets first
     const { data: buckets, error: listError } = await supabase.storage.listBuckets();
     
@@ -255,46 +269,37 @@ export const makeFilePublic = async (bucketName: string, filePath: string): Prom
   }
 };
 
-// Create a stored procedure to create the ideas bucket if it doesn't exist
+// Create or update the stored procedure to create the ideas bucket if it doesn't exist
 export const createIdeasBucketRpc = async () => {
   const supabase = getSupabaseClient();
   if (!supabase) return false;
   
   try {
     // Create RPC function if it doesn't exist yet
-    const { error: createFunctionError } = await supabase.rpc('create_ideas_bucket_if_not_exists_setup');
+    const { error: sqlError } = await supabase.query(`
+      CREATE OR REPLACE FUNCTION public.create_ideas_bucket_if_not_exists()
+      RETURNS boolean
+      LANGUAGE plpgsql
+      SECURITY DEFINER
+      SET search_path = public, storage
+      AS $$
+      BEGIN
+        -- Insert into storage.buckets if not exists
+        INSERT INTO storage.buckets (id, name, public)
+        VALUES ('ideas', 'ideas', true)
+        ON CONFLICT (id) DO NOTHING;
+        RETURN true;
+      EXCEPTION
+        WHEN OTHERS THEN
+          RAISE NOTICE 'Error creating bucket: %', SQLERRM;
+          RETURN false;
+      END;
+      $$;
+    `);
     
-    if (createFunctionError) {
-      // Function doesn't exist, create it
-      const { error } = await supabase.query(`
-        CREATE OR REPLACE FUNCTION create_ideas_bucket_if_not_exists()
-        RETURNS boolean
-        LANGUAGE plpgsql
-        SECURITY DEFINER
-        AS $$
-        DECLARE
-          bucket_exists boolean;
-        BEGIN
-          SELECT EXISTS(SELECT 1 FROM storage.buckets WHERE id = 'ideas') INTO bucket_exists;
-          
-          IF NOT bucket_exists THEN
-            INSERT INTO storage.buckets (id, name, public)
-            VALUES ('ideas', 'ideas', true);
-            RETURN true;
-          END IF;
-          
-          RETURN true;
-        EXCEPTION
-          WHEN OTHERS THEN
-            RETURN false;
-        END;
-        $$;
-      `);
-      
-      if (error) {
-        console.error('Error creating RPC function:', error);
-        return false;
-      }
+    if (sqlError) {
+      console.error('Error creating RPC function:', sqlError);
+      return false;
     }
     
     return true;
@@ -303,3 +308,9 @@ export const createIdeasBucketRpc = async () => {
     return false;
   }
 };
+
+// Add this call to automatically create the RPC function
+// This will be executed when the client module loads
+createIdeasBucketRpc().then(result => {
+  console.log('RPC function creation result:', result);
+});

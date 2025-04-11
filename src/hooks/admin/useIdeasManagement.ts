@@ -108,6 +108,40 @@ export const useIdeasManagement = () => {
     }
   }, [isAdmin]);
 
+  const createBucketDirectly = async () => {
+    try {
+      // Create bucket directly using SQL or RPC
+      console.log('Attempting to create ideas bucket directly via RPC...');
+      
+      // First try the RPC method
+      const { error: rpcError } = await supabase.rpc('create_ideas_bucket_if_not_exists');
+      
+      if (rpcError) {
+        console.error('RPC call failed:', rpcError);
+        
+        // Try direct SQL approach as fallback
+        const { error: sqlError } = await supabase.query(`
+          INSERT INTO storage.buckets (id, name, public)
+          VALUES ('ideas', 'ideas', true)
+          ON CONFLICT (id) DO NOTHING;
+        `);
+        
+        if (sqlError) {
+          console.error('Direct SQL approach failed:', sqlError);
+          return false;
+        }
+        console.log('Direct SQL approach succeeded');
+        return true;
+      }
+      
+      console.log('RPC approach succeeded');
+      return true;
+    } catch (error) {
+      console.error('Failed to create bucket directly:', error);
+      return false;
+    }
+  };
+
   const handleFormSubmit = async (formData: {
     name: string;
     description: string;
@@ -134,29 +168,25 @@ export const useIdeasManagement = () => {
           const bucketName = 'ideas';
           
           console.log('About to ensure bucket exists...');
-          // Create bucket directly using SQL first for better reliability
-          try {
-            const { error: createBucketError } = await supabase.rpc('create_ideas_bucket_if_not_exists');
-            if (createBucketError) {
-              console.log('RPC method failed or not available, falling back to client-side bucket creation');
-            } else {
-              console.log('Successfully created bucket using RPC function');
+          
+          // First attempt: Create bucket directly via RPC/SQL
+          const bucketCreatedDirectly = await createBucketDirectly();
+          console.log('Direct bucket creation result:', bucketCreatedDirectly);
+          
+          // Second attempt: Use client-side approach as fallback
+          if (!bucketCreatedDirectly) {
+            console.log('Falling back to client-side bucket creation...');
+            const bucketExists = await ensureStorageBucketExists(bucketName);
+            
+            if (!bucketExists) {
+              console.error('Failed to ensure bucket exists - aborting upload');
+              toast.error('Failed to save idea. Storage setup issue. Please try again or contact support.');
+              setIsUploading(false);
+              return;
             }
-          } catch (rpcError) {
-            console.log('RPC method error, falling back to client-side bucket creation:', rpcError);
           }
           
-          // Attempt client-side bucket creation as fallback
-          const bucketExists = await ensureStorageBucketExists(bucketName);
-          
-          if (!bucketExists) {
-            console.error('Failed to ensure bucket exists - aborting upload');
-            toast.error('Failed to save idea. Storage setup issue. Please try again or contact support.');
-            setIsUploading(false);
-            return;
-          }
-          
-          console.log('Bucket exists or was created successfully, proceeding with upload...');
+          console.log('Bucket should exist now, proceeding with upload...');
           
           const fileExt = imageFile.name.split('.').pop();
           const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;

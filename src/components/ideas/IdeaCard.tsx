@@ -5,12 +5,16 @@ import {
   ThumbsDown, 
   Clock, 
   ExternalLink, 
-  Info
+  Info,
+  ChevronDown,
+  ChevronUp 
 } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Toggle } from '@/components/ui/toggle';
 import { Idea, Vote } from '@/integrations/supabase/customClient';
+import { useState } from 'react';
 
 interface IdeaCardProps {
   idea: Idea;
@@ -27,6 +31,8 @@ export const IdeaCard = ({
   downvotes, 
   onVote 
 }: IdeaCardProps) => {
+  const [showFullDescription, setShowFullDescription] = useState(false);
+  
   const getTimeRemaining = (dateString: string) => {
     const targetDate = new Date(dateString);
     const now = new Date();
@@ -54,6 +60,10 @@ export const IdeaCard = ({
     }
   };
 
+  const toggleDescription = () => {
+    setShowFullDescription(!showFullDescription);
+  };
+
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
       <div className="aspect-video w-full overflow-hidden bg-gray-100">
@@ -76,7 +86,29 @@ export const IdeaCard = ({
           {getStatusBadge(idea.countdown_timer)}
         </div>
         
-        <p className="text-gray-600 mb-4 line-clamp-3">{idea.description}</p>
+        <div className="relative">
+          <p className={`text-gray-600 mb-4 ${showFullDescription ? '' : 'line-clamp-3'}`}>
+            {idea.description}
+          </p>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="p-0 h-6 text-sm flex items-center text-gray-500 hover:text-gray-700"
+            onClick={toggleDescription}
+          >
+            {showFullDescription ? (
+              <>
+                <ChevronUp className="h-4 w-4 mr-1" />
+                Show less
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-4 w-4 mr-1" />
+                Show more
+              </>
+            )}
+          </Button>
+        </div>
         
         <div className="flex items-center text-sm text-gray-500 mb-4">
           <Clock className="h-4 w-4 mr-1" />
