@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -110,16 +109,13 @@ export const useIdeasManagement = () => {
 
   const createBucketDirectly = async () => {
     try {
-      // Create bucket directly using RPC call
       console.log('Attempting to create ideas bucket directly via RPC...');
       
-      // Fix: Call the RPC function with an empty object instead of a string
-      const { error: rpcError } = await supabase.rpc('create_ideas_bucket_if_not_exists', {});
+      const { error: rpcError } = await supabase.rpc('create_ideas_bucket_if_not_exists');
       
       if (rpcError) {
         console.error('RPC call failed:', rpcError);
         
-        // Try direct SQL approach as fallback - but removing direct query since it's not available
         console.error('Direct SQL approach not available in client');
         return false;
       }
@@ -159,11 +155,9 @@ export const useIdeasManagement = () => {
           
           console.log('About to ensure bucket exists...');
           
-          // First attempt: Create bucket directly via RPC/SQL
           const bucketCreatedDirectly = await createBucketDirectly();
           console.log('Direct bucket creation result:', bucketCreatedDirectly);
           
-          // Second attempt: Use client-side approach as fallback
           if (!bucketCreatedDirectly) {
             console.log('Falling back to client-side bucket creation...');
             const bucketExists = await ensureStorageBucketExists(bucketName);
@@ -211,7 +205,8 @@ export const useIdeasManagement = () => {
         } catch (uploadErr: any) {
           console.error('Error during image upload:', uploadErr);
           toast.error('Failed to upload image: ' + (uploadErr.message || 'Unknown error'));
-          // Continue with idea creation even if image upload fails
+          setIsUploading(false);
+          return;
         }
       }
       
