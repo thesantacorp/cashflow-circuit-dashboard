@@ -110,7 +110,7 @@ export const useIdeasManagement = () => {
 
   const createBucketDirectly = async () => {
     try {
-      // Create bucket directly using SQL or RPC
+      // Create bucket directly using RPC call
       console.log('Attempting to create ideas bucket directly via RPC...');
       
       // First try the RPC method
@@ -119,19 +119,9 @@ export const useIdeasManagement = () => {
       if (rpcError) {
         console.error('RPC call failed:', rpcError);
         
-        // Try direct SQL approach as fallback
-        const { error: sqlError } = await supabase.query(`
-          INSERT INTO storage.buckets (id, name, public)
-          VALUES ('ideas', 'ideas', true)
-          ON CONFLICT (id) DO NOTHING;
-        `);
-        
-        if (sqlError) {
-          console.error('Direct SQL approach failed:', sqlError);
-          return false;
-        }
-        console.log('Direct SQL approach succeeded');
-        return true;
+        // Try direct SQL approach as fallback - but removing direct query since it's not available
+        console.error('Direct SQL approach not available in client');
+        return false;
       }
       
       console.log('RPC approach succeeded');
