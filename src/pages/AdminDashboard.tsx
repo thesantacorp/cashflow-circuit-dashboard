@@ -17,6 +17,7 @@ import { fetchDashboardStats, getLocalDataStats } from "@/utils/admin/dashboardS
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { Transaction } from "@/types";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 const AdminDashboard: React.FC = () => {
   const [username, setUsername] = useState("");
@@ -46,13 +47,10 @@ const AdminDashboard: React.FC = () => {
       
       const loadStats = async () => {
         try {
-          // Get local stats
           const localStats = getLocalDataStats(transactions, categories);
           
-          // Get remote stats
           const remoteStats = await fetchDashboardStats();
           
-          // Combine stats
           const sessions = localStorage.getItem('sessions') ? JSON.parse(localStorage.getItem('sessions')!) : [];
           const users = new Set(sessions.map((s: any) => s.userId));
           
@@ -64,8 +62,7 @@ const AdminDashboard: React.FC = () => {
           });
           
           const avgDuration = sessions.length > 0 ? Math.round(totalDuration / sessions.length) : 0;
-
-          // Ensure we have at least one user counted (the current logged in user)
+          
           const uniqueUserCount = Math.max(1, remoteStats.userCount);
           
           setUsageStats({
@@ -80,7 +77,6 @@ const AdminDashboard: React.FC = () => {
           console.error("Error loading dashboard stats:", error);
           toast.error("Failed to load some dashboard statistics");
           
-          // Still ensure minimum user count on error
           setUsageStats(prev => ({
             ...prev,
             uniqueUsers: Math.max(1, prev.uniqueUsers)
@@ -116,7 +112,6 @@ const AdminDashboard: React.FC = () => {
       setIsAuthenticated(true);
       toast.success("Logged in successfully");
       
-      // Store admin authentication state in sessionStorage
       sessionStorage.setItem('adminAuthenticated', 'true');
     } else {
       toast.error("Invalid username or password");
@@ -128,7 +123,6 @@ const AdminDashboard: React.FC = () => {
     setUsername("");
     setPassword("");
     
-    // Clear admin authentication state
     sessionStorage.removeItem('adminAuthenticated');
   };
 

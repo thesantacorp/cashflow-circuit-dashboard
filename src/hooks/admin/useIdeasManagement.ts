@@ -112,7 +112,7 @@ export const useIdeasManagement = () => {
     try {
       console.log('Attempting to create ideas bucket directly via RPC...');
       
-      // FIX: Remove parameters from the RPC call since the function doesn't accept any
+      // Fix: Remove parameters from the RPC call since the function doesn't accept any
       const { error: rpcError } = await supabase.rpc('create_ideas_bucket_if_not_exists');
       
       if (rpcError) {
