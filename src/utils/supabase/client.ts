@@ -156,7 +156,7 @@ export const ensureStorageBucketExists = async (bucketName: string): Promise<boo
     // Try first calling the RPC function if available
     try {
       console.log(`Trying RPC method for bucket '${bucketName}'...`);
-      const { error: rpcError } = await supabase.rpc('create_ideas_bucket_if_not_exists');
+      const { error: rpcError } = await (supabase.rpc as any)('create_ideas_bucket_if_not_exists');
       if (!rpcError) {
         console.log(`Successfully created/verified bucket '${bucketName}' via RPC`);
         return true;
@@ -276,7 +276,7 @@ export const createIdeasBucketRpc = async () => {
   
   try {
     // Create RPC function if it doesn't exist yet
-    const { error: sqlError } = await supabase.query(`
+    const { error: sqlError } = await (supabase.query as any)(`
       CREATE OR REPLACE FUNCTION public.create_ideas_bucket_if_not_exists()
       RETURNS boolean
       LANGUAGE plpgsql

@@ -61,3 +61,74 @@ SELECT cron.schedule(
   );
   $$
 );
+
+-- Create RLS policies for the ideas table if they don't exist
+DO $$
+BEGIN
+  -- Enable RLS for the ideas table
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ideas') THEN
+    ALTER TABLE public.ideas ENABLE ROW LEVEL SECURITY;
+    
+    -- Drop existing policies if they exist to avoid conflicts
+    DROP POLICY IF EXISTS "Public can view ideas" ON public.ideas;
+    DROP POLICY IF EXISTS "Authenticated users can create ideas" ON public.ideas;
+    DROP POLICY IF EXISTS "Users can update their own ideas" ON public.ideas;
+    DROP POLICY IF EXISTS "Admins can delete ideas" ON public.ideas;
+    
+    -- Create new policies
+    CREATE POLICY "Public can view ideas" 
+      ON public.ideas FOR SELECT 
+      USING (true);
+      
+    CREATE POLICY "Authenticated users can create ideas" 
+      ON public.ideas FOR INSERT 
+      WITH CHECK (auth.uid() IS NOT NULL);
+      
+    CREATE POLICY "Users can update their own ideas" 
+      ON public.ideas FOR UPDATE 
+      USING (auth.uid() = created_by);
+      
+    CREATE POLICY "Admins can delete ideas" 
+      ON public.ideas FOR DELETE 
+      USING (
+        (SELECT session_data->>'adminAuthenticated' FROM auth.sessions WHERE user_id = auth.uid()) = 'true'
+        OR
+        auth.uid() = created_by
+      );
+  END IF;
+END
+$$;
+
+-- Create function to create the ideas bucket
+CREATE OR REPLACE FUNCTION public.create_ideas_bucket_if_not_exists()
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, storage
+AS $$
+BEGIN
+  -- Insert into storage.buckets if not exists
+  INSERT INTO storage.buckets (id, name, public)
+  VALUES ('ideas', 'ideas', true)
+  ON CONFLICT (id) DO NOTHING;
+  
+  -- Set up default policies for the bucket
+  -- These will be no-ops if the policies already exist
+  BEGIN
+    INSERT INTO storage.policies (name, definition, bucket_id)
+    VALUES 
+      ('Public Read Access', '{"name":"Public Read Access for ideas","owner":"authenticated","deployment_id":"1","bucket_id":"ideas","allow_access":"true","permission":"select","definition":{"name":"Public Read Access for ideas","allow_access":true,"permission":"select","definition":{"id":"ideas"}}}', 'ideas'),
+      ('Authenticated Insert', '{"name":"Authenticated Insert for ideas","owner":"authenticated","deployment_id":"1","bucket_id":"ideas","allow_access":"(auth.uid() IS NOT NULL)","permission":"insert","definition":{"name":"Authenticated Insert for ideas","allow_access":"(auth.uid() IS NOT NULL)","permission":"insert","definition":{"id":"ideas"}}}', 'ideas')
+    ON CONFLICT DO NOTHING;
+  EXCEPTION
+    WHEN OTHERS THEN
+      RAISE NOTICE 'Error setting up bucket policies: %', SQLERRM;
+  END;
+  
+  RETURN true;
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE NOTICE 'Error creating bucket: %', SQLERRM;
+    RETURN false;
+END;
+$$;
