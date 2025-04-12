@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -111,19 +112,23 @@ export const useIdeasManagement = () => {
     try {
       console.log('Attempting to create ideas bucket directly via RPC...');
       
-      const { error: rpcError } = await (supabase.rpc as any)('create_ideas_bucket_if_not_exists');
+      // Use type assertion to fix the TypeScript error
+      const { data, error: rpcError } = await supabase.rpc('create_ideas_bucket_if_not_exists', {}) as {
+        data: any;
+        error: any;
+      };
       
       if (rpcError) {
         console.error('RPC call failed:', rpcError);
-        console.error('Direct SQL approach not available in client');
-        return false;
+        console.log('Falling back to client-side bucket creation...');
+        return await ensureStorageBucketExists('ideas');
       }
       
       console.log('RPC approach succeeded');
       return true;
     } catch (error) {
       console.error('Failed to create bucket directly:', error);
-      return false;
+      return await ensureStorageBucketExists('ideas');
     }
   };
 
@@ -154,19 +159,14 @@ export const useIdeasManagement = () => {
           
           console.log('About to ensure bucket exists...');
           
-          const bucketCreatedDirectly = await createBucketDirectly();
-          console.log('Direct bucket creation result:', bucketCreatedDirectly);
+          // First try to create the bucket via RPC or direct method
+          const bucketCreated = await createBucketDirectly();
+          console.log('Bucket creation result:', bucketCreated);
           
-          if (!bucketCreatedDirectly) {
-            console.log('Falling back to client-side bucket creation...');
-            const bucketExists = await ensureStorageBucketExists(bucketName);
-            
-            if (!bucketExists) {
-              console.error('Failed to ensure bucket exists - aborting upload');
-              toast.error('Failed to save idea. Storage setup issue. Please try again or contact support.');
-              setIsUploading(false);
-              return;
-            }
+          if (!bucketCreated) {
+            toast.error('Failed to save idea. Storage setup issue. Please try again or contact support.');
+            setIsUploading(false);
+            return;
           }
           
           console.log('Bucket should exist now, proceeding with upload...');
@@ -192,6 +192,7 @@ export const useIdeasManagement = () => {
           
           console.log('File uploaded successfully:', data);
           
+          // Make the file public
           await makeFilePublic(bucketName, filePath);
           
           const { data: { publicUrl } } = supabase

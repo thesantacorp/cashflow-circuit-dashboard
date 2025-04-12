@@ -141,7 +141,64 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
   }
 };
 
-// Create a helper function to initialize storage buckets if needed
+// Helper function to make a file public
+export const makeFilePublic = async (bucketName: string, filePath: string): Promise<boolean> => {
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+  
+  try {
+    console.log(`Making file '${filePath}' in bucket '${bucketName}' public...`);
+    const { data, error } = await supabase
+      .storage
+      .from(bucketName)
+      .update(filePath, undefined, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: 'auto'
+      });
+    
+    if (error) {
+      console.error(`Error making file public:`, error);
+      return false;
+    }
+    
+    console.log(`File is now public:`, data);
+    return true;
+  } catch (error) {
+    console.error(`Error making file public:`, error);
+    return false;
+  }
+};
+
+// Create or update the stored procedure to create the ideas bucket if it doesn't exist
+export const createIdeasBucketRpc = async () => {
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+  
+  try {
+    // Try to execute the stored function directly
+    console.log('Attempting to call create_ideas_bucket_if_not_exists RPC...');
+    const { data, error } = await supabase.rpc('create_ideas_bucket_if_not_exists', {});
+    
+    if (error) {
+      console.error('Error calling create_ideas_bucket_if_not_exists RPC:', error);
+      
+      // If the RPC function doesn't exist, we'll try to create the bucket directly
+      console.log('Falling back to direct bucket creation method...');
+      return await ensureStorageBucketExists('ideas');
+    }
+    
+    console.log('RPC function executed successfully:', data);
+    return true;
+  } catch (error) {
+    console.error('Exception calling RPC function:', error);
+    // Fall back to direct bucket creation
+    console.log('Falling back to direct bucket creation method after exception...');
+    return await ensureStorageBucketExists('ideas');
+  }
+};
+
+// Helper function to initialize storage buckets if needed
 export const ensureStorageBucketExists = async (bucketName: string): Promise<boolean> => {
   const supabase = getSupabaseClient();
   if (!supabase) {
@@ -152,20 +209,6 @@ export const ensureStorageBucketExists = async (bucketName: string): Promise<boo
   
   try {
     console.log(`Checking if bucket '${bucketName}' exists...`);
-    
-    // Try first calling the RPC function if available
-    try {
-      console.log(`Trying RPC method for bucket '${bucketName}'...`);
-      const { error: rpcError } = await (supabase.rpc as any)('create_ideas_bucket_if_not_exists');
-      if (!rpcError) {
-        console.log(`Successfully created/verified bucket '${bucketName}' via RPC`);
-        return true;
-      } else {
-        console.log('RPC method failed, falling back to client API:', rpcError);
-      }
-    } catch (rpcErr) {
-      console.log('RPC method exception, falling back to client API:', rpcErr);
-    }
     
     // Try a different approach to verify bucket existence - list buckets first
     const { data: buckets, error: listError } = await supabase.storage.listBuckets();
@@ -236,75 +279,6 @@ export const ensureStorageBucketExists = async (bucketName: string): Promise<boo
     toast.error('Storage setup failed', {
       description: error instanceof Error ? error.message : 'Unknown error'
     });
-    return false;
-  }
-};
-
-// Helper function to make a file public
-export const makeFilePublic = async (bucketName: string, filePath: string): Promise<boolean> => {
-  const supabase = getSupabaseClient();
-  if (!supabase) return false;
-  
-  try {
-    console.log(`Making file '${filePath}' in bucket '${bucketName}' public...`);
-    const { data, error } = await supabase
-      .storage
-      .from(bucketName)
-      .update(filePath, undefined, {
-        cacheControl: '3600',
-        upsert: true,
-        contentType: 'auto'
-      });
-    
-    if (error) {
-      console.error(`Error making file public:`, error);
-      return false;
-    }
-    
-    console.log(`File is now public:`, data);
-    return true;
-  } catch (error) {
-    console.error(`Error making file public:`, error);
-    return false;
-  }
-};
-
-// Create or update the stored procedure to create the ideas bucket if it doesn't exist
-export const createIdeasBucketRpc = async () => {
-  const supabase = getSupabaseClient();
-  if (!supabase) return false;
-  
-  try {
-    // Create RPC function if it doesn't exist yet
-    const { error: sqlError } = await (supabase.query as any)(`
-      CREATE OR REPLACE FUNCTION public.create_ideas_bucket_if_not_exists()
-      RETURNS boolean
-      LANGUAGE plpgsql
-      SECURITY DEFINER
-      SET search_path = public, storage
-      AS $$
-      BEGIN
-        -- Insert into storage.buckets if not exists
-        INSERT INTO storage.buckets (id, name, public)
-        VALUES ('ideas', 'ideas', true)
-        ON CONFLICT (id) DO NOTHING;
-        RETURN true;
-      EXCEPTION
-        WHEN OTHERS THEN
-          RAISE NOTICE 'Error creating bucket: %', SQLERRM;
-          RETURN false;
-      END;
-      $$;
-    `);
-    
-    if (sqlError) {
-      console.error('Error creating RPC function:', sqlError);
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error setting up bucket RPC:', error);
     return false;
   }
 };

@@ -9,6 +9,7 @@ import { useIdeaVotes } from '@/hooks/useIdeaVotes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Idea } from '@/integrations/supabase/customClient';
+import { initializeStorage } from '@/utils/initializeStorage';
 
 const IdeasPage = () => {
   const { user } = useAuth();
@@ -16,6 +17,25 @@ const IdeasPage = () => {
   const [loading, setLoading] = useState(true);
   const { userVotes, voteStats, handleVote, updateIdeas } = useIdeaVotes();
   const { isSyncing } = useSupabaseSync();
+  const [storageInitialized, setStorageInitialized] = useState(false);
+
+  // Initialize storage when the component mounts
+  useEffect(() => {
+    const initStorage = async () => {
+      try {
+        const result = await initializeStorage();
+        setStorageInitialized(result);
+        
+        if (!result) {
+          console.warn('Storage initialization failed, but continuing...');
+        }
+      } catch (err) {
+        console.error('Error initializing storage:', err);
+      }
+    };
+    
+    initStorage();
+  }, []);
 
   // Fetch ideas on page load
   useEffect(() => {
