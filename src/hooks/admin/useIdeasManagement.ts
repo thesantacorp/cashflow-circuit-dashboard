@@ -112,11 +112,11 @@ export const useIdeasManagement = () => {
     try {
       console.log('Attempting to create ideas bucket directly via RPC...');
       
-      // Fix the TypeScript error by correctly typing the RPC function call
-      // We need to provide both return type and parameter type as generics
-      type CreateBucketRpcParams = Record<string, never>;
+      // Fix the TypeScript error by using the correct typing approach
+      type CreateBucketRpcParams = Record<string, never>; 
       
-      const { data, error: rpcError } = await supabase.rpc<unknown, CreateBucketRpcParams>(
+      // Use PostgrestSingleResponse<T> as the return type
+      const { data, error: rpcError } = await supabase.rpc(
         'create_ideas_bucket_if_not_exists', 
         {} as CreateBucketRpcParams
       );
