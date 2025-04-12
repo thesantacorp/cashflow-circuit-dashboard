@@ -112,11 +112,13 @@ export const useIdeasManagement = () => {
     try {
       console.log('Attempting to create ideas bucket directly via RPC...');
       
-      // Define a type for the RPC function parameters (even though it takes no parameters)
-      // We're using Record<string, never> to represent an empty object type
-      const { data, error: rpcError } = await supabase.rpc(
+      // Fix the TypeScript error by properly typing the RPC function call
+      // The issue was that TypeScript couldn't infer the parameter type
+      type CreateBucketRpcParams = Record<string, never>;
+      
+      const { data, error: rpcError } = await supabase.rpc<any, CreateBucketRpcParams>(
         'create_ideas_bucket_if_not_exists', 
-        {} as Record<string, never>
+        {} as CreateBucketRpcParams
       );
       
       if (rpcError) {
