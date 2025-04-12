@@ -6,7 +6,7 @@ import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DatabaseIcon, DatabaseBackupIcon, UsersIcon, BarChartIcon, Loader2 } from "lucide-react";
+import { DatabaseIcon, DatabaseBackupIcon, UsersIcon, BarChartIcon, Loader2, FilterIcon } from "lucide-react";
 import AdminLogin from "@/components/admin/AdminLogin";
 import StatCards from "@/components/admin/StatCards";
 import DashboardCharts from "@/components/admin/DashboardCharts";
@@ -16,12 +16,15 @@ import AdminOverviewTab from "@/components/admin/AdminOverviewTab";
 import { fetchDashboardStats, getLocalDataStats } from "@/utils/admin/dashboardStats";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { Transaction } from "@/types";
 
 const AdminDashboard: React.FC = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const navigate = useNavigate();
   const { state } = useTransactions();
   const { transactions, categories } = state;
@@ -90,6 +93,21 @@ const AdminDashboard: React.FC = () => {
       loadStats();
     }
   }, [isAuthenticated, transactions.length, categories.length, user]);
+
+  useEffect(() => {
+    if (selectedCategory) {
+      const categoryId = categories.find(c => c.name === selectedCategory)?.id;
+      
+      if (categoryId) {
+        const filtered = transactions.filter(t => 
+          t.categoryId === categoryId && t.type === "expense"
+        );
+        setFilteredTransactions(filtered);
+      }
+    } else {
+      setFilteredTransactions([]);
+    }
+  }, [selectedCategory, transactions, categories]);
   
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,14 +161,18 @@ const AdminDashboard: React.FC = () => {
       monthlyData[monthKey] = { expenses: 0, income: 0 };
     }
     
-    transactions.forEach(transaction => {
+    const transactionsToProcess = selectedCategory && filteredTransactions.length > 0 
+      ? filteredTransactions 
+      : transactions;
+    
+    transactionsToProcess.forEach(transaction => {
       const date = new Date(transaction.date);
       if (date >= new Date(now.getFullYear(), now.getMonth() - 5, 1)) {
         const monthKey = format(date, "MMM yyyy");
         if (monthlyData[monthKey]) {
           if (transaction.type === "expense") {
             monthlyData[monthKey].expenses += transaction.amount;
-          } else {
+          } else if (!selectedCategory) {
             monthlyData[monthKey].income += transaction.amount;
           }
         }
@@ -183,7 +205,21 @@ const AdminDashboard: React.FC = () => {
       .slice(0, 5);
   };
 
+  const handleCategorySelect = (category: string | null) => {
+    setSelectedCategory(category);
+    
+    if (category) {
+      toast.success(`Filtered to show ${category} expenses`);
+    } else {
+      toast.info("Showing all transactions");
+    }
+  };
+
   const getTotalByType = (type: string) => {
+    if (selectedCategory && type === "expense") {
+      return filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
+    }
+    
     return transactions
       .filter((t) => t.type === type)
       .reduce((sum, t) => sum + t.amount, 0);
@@ -214,6 +250,12 @@ const AdminDashboard: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         <div className="flex flex-wrap gap-2">
+          {selectedCategory && (
+            <Button variant="outline" onClick={() => setSelectedCategory(null)} className="flex items-center">
+              <FilterIcon className="mr-2 h-4 w-4" />
+              Clear Filter: {selectedCategory}
+            </Button>
+          )}
           <Button variant="outline" onClick={handleGoToIdeas} className="flex items-center">
             <BarChartIcon className="mr-2 h-4 w-4" />
             Manage Ideas
@@ -245,7 +287,7 @@ const AdminDashboard: React.FC = () => {
             <TabsList className="mb-4">
               <TabsTrigger value="overview">
                 <BarChartIcon className="mr-2 h-4 w-4 inline" />
-                Overview
+                Overview {selectedCategory ? `(${selectedCategory})` : ''}
               </TabsTrigger>
               <TabsTrigger value="insights">
                 <DatabaseIcon className="mr-2 h-4 w-4 inline" />
@@ -266,7 +308,40 @@ const AdminDashboard: React.FC = () => {
                 monthlyData={getMonthlyTransactionData()}
                 categoryData={getCategoryDistribution()}
                 currencySymbol={currencySymbol}
+                onCategorySelect={handleCategorySelect}
+                selectedCategory={selectedCategory}
               />
+              
+              {selectedCategory && filteredTransactions.length > 0 && (
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle>Filtered Transactions: {selectedCategory}</CardTitle>
+                    <CardDescription>
+                      Showing {filteredTransactions.length} transactions in the {selectedCategory} category
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="divide-y">
+                      {filteredTransactions.slice(0, 10).map(transaction => (
+                        <li key={transaction.id} className="py-3 flex justify-between">
+                          <div>
+                            <p className="font-medium">{transaction.description || "No description"}</p>
+                            <p className="text-sm text-muted-foreground">{transaction.date}</p>
+                          </div>
+                          <div className="font-mono font-medium text-right">
+                            {currencySymbol}{transaction.amount.toFixed(2)}
+                          </div>
+                        </li>
+                      ))}
+                      {filteredTransactions.length > 10 && (
+                        <li className="py-3 text-center text-sm text-muted-foreground">
+                          +{filteredTransactions.length - 10} more transactions not shown
+                        </li>
+                      )}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
             
             <TabsContent value="insights">
