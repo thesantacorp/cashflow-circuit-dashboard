@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -112,13 +111,9 @@ export const useIdeasManagement = () => {
     try {
       console.log('Attempting to create ideas bucket directly via RPC...');
       
-      // Fix the TypeScript error by using the correct typing approach
-      type CreateBucketRpcParams = Record<string, never>; 
-      
-      // Use PostgrestSingleResponse<T> as the return type
       const { data, error: rpcError } = await supabase.rpc(
-        'create_ideas_bucket_if_not_exists', 
-        {} as CreateBucketRpcParams
+        'create_ideas_bucket_if_not_exists',
+        {} // empty parameters object
       );
       
       if (rpcError) {
@@ -162,7 +157,6 @@ export const useIdeasManagement = () => {
           
           console.log('About to ensure bucket exists...');
           
-          // First try to create the bucket via RPC or direct method
           const bucketCreated = await createBucketDirectly();
           console.log('Bucket creation result:', bucketCreated);
           
@@ -195,7 +189,6 @@ export const useIdeasManagement = () => {
           
           console.log('File uploaded successfully:', data);
           
-          // Make the file public
           await makeFilePublic(bucketName, filePath);
           
           const { data: { publicUrl } } = supabase
