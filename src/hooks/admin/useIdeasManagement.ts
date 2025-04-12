@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -112,7 +111,6 @@ export const useIdeasManagement = () => {
     try {
       console.log('Attempting to create ideas bucket directly via RPC...');
       
-      // Type the rpc call appropriately
       const { data, error: rpcError } = await supabase.functions.invoke(
         'create_ideas_bucket_if_not_exists',
         {
