@@ -112,11 +112,11 @@ export const useIdeasManagement = () => {
     try {
       console.log('Attempting to create ideas bucket directly via RPC...');
       
-      // Fix the TypeScript error by properly typing the RPC function call
-      // The issue was that TypeScript couldn't infer the parameter type
+      // Fix the TypeScript error by correctly typing the RPC function call
+      // We'll use the correct generic parameters order for supabase.rpc
       type CreateBucketRpcParams = Record<string, never>;
       
-      const { data, error: rpcError } = await supabase.rpc<any, CreateBucketRpcParams>(
+      const { data, error: rpcError } = await supabase.rpc<CreateBucketRpcParams>(
         'create_ideas_bucket_if_not_exists', 
         {} as CreateBucketRpcParams
       );
