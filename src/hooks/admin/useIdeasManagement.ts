@@ -112,11 +112,12 @@ export const useIdeasManagement = () => {
     try {
       console.log('Attempting to create ideas bucket directly via RPC...');
       
-      // Use type assertion to fix the TypeScript error
-      const { data, error: rpcError } = await supabase.rpc('create_ideas_bucket_if_not_exists', {}) as {
-        data: any;
-        error: any;
-      };
+      // Define a type for the RPC function parameters (even though it takes no parameters)
+      // We're using Record<string, never> to represent an empty object type
+      const { data, error: rpcError } = await supabase.rpc(
+        'create_ideas_bucket_if_not_exists', 
+        {} as Record<string, never>
+      );
       
       if (rpcError) {
         console.error('RPC call failed:', rpcError);
