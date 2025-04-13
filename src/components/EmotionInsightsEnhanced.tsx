@@ -22,7 +22,7 @@ import {
   Legend,
 } from 'chart.js';
 import { Doughnut, Line } from 'react-chartjs-2';
-import { Tabs, TabsContent, TabsItem, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Register ChartJS components
 ChartJS.register(
@@ -102,7 +102,10 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = ({
     const emotions = ["happy", "stressed", "bored", "excited", "sad", "neutral", "hopeful"];
     
     const datasets = emotions
-      .filter(emotion => timelineTrends.some(trend => trend[emotion] !== undefined && trend[emotion] > 0))
+      .filter(emotion => timelineTrends.some(trend => {
+        const value = trend[emotion];
+        return value !== undefined && typeof value === 'number' && value > 0;
+      }))
       .map(emotion => {
         const color = getEmotionColor(emotion);
         return {

@@ -1,7 +1,7 @@
 
 import React from "react";
 import { useTransactions } from "@/context/transaction";
-import { TransactionType } from "@/types";
+import { Transaction, TransactionType } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrency } from "@/context/CurrencyContext";
 import EmotionInsights from "./EmotionInsights";
@@ -9,13 +9,20 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 interface DashboardProps {
   type: TransactionType;
+  filteredTransactions?: Transaction[];
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ type }) => {
-  const { getTotalByType } = useTransactions();
+const Dashboard: React.FC<DashboardProps> = ({ type, filteredTransactions }) => {
+  const { getTotalByType, state } = useTransactions();
   const { currencySymbol } = useCurrency();
   const isMobile = useIsMobile();
-  const total = getTotalByType(type);
+  
+  // Calculate total based on filtered transactions if provided
+  const total = filteredTransactions 
+    ? filteredTransactions
+        .filter(t => t.type === type)
+        .reduce((sum, t) => sum + t.amount, 0)
+    : getTotalByType(type);
 
   return (
     <div className="grid gap-6 w-full overflow-x-visible pb-6">
@@ -30,7 +37,7 @@ const Dashboard: React.FC<DashboardProps> = ({ type }) => {
         </CardContent>
       </Card>
 
-      {type === "expense" && <EmotionInsights />}
+      {type === "expense" && <EmotionInsights filteredTransactions={filteredTransactions} />}
     </div>
   );
 };
