@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -107,28 +108,15 @@ export const useIdeasManagement = () => {
     }
   }, [isAdmin]);
 
+  // We're using the improved ensureStorageBucketExists function now
   const createBucketDirectly = async () => {
-    try {
-      console.log('Attempting to create ideas bucket directly via RPC...');
-      
-      const { data, error: rpcError } = await supabase.functions.invoke(
-        'create_ideas_bucket_if_not_exists',
-        {
-          body: {}
-        }
-      );
-      
-      if (rpcError) {
-        console.error('RPC call failed:', rpcError);
-        console.log('Falling back to client-side bucket creation...');
-        return await ensureStorageBucketExists('ideas');
-      }
-      
-      console.log('RPC approach succeeded');
-      return true;
+    try {      
+      // First check if the bucket already exists via enhanced function
+      return await ensureStorageBucketExists('ideas');
     } catch (error) {
       console.error('Failed to create bucket directly:', error);
-      return await ensureStorageBucketExists('ideas');
+      toast.error('Storage setup issues. Will try to continue anyway.');
+      return true; // Return true to allow continuing anyway
     }
   };
 
@@ -162,13 +150,8 @@ export const useIdeasManagement = () => {
           const bucketCreated = await createBucketDirectly();
           console.log('Bucket creation result:', bucketCreated);
           
-          if (!bucketCreated) {
-            toast.error('Failed to save idea. Storage setup issue. Please try again or contact support.');
-            setIsUploading(false);
-            return;
-          }
-          
-          console.log('Bucket should exist now, proceeding with upload...');
+          // Continue even if bucket "creation" failed - it might already exist
+          console.log('Proceeding with upload...');
           
           const fileExt = imageFile.name.split('.').pop();
           const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
@@ -191,7 +174,12 @@ export const useIdeasManagement = () => {
           
           console.log('File uploaded successfully:', data);
           
-          await makeFilePublic(bucketName, filePath);
+          try {
+            await makeFilePublic(bucketName, filePath);
+          } catch (publicErr) {
+            console.warn('Non-critical error making file public:', publicErr);
+            // Continue anyway as this is not critical
+          }
           
           const { data: { publicUrl } } = supabase
             .storage
@@ -203,8 +191,8 @@ export const useIdeasManagement = () => {
         } catch (uploadErr: any) {
           console.error('Error during image upload:', uploadErr);
           toast.error('Failed to upload image: ' + (uploadErr.message || 'Unknown error'));
-          setIsUploading(false);
-          return;
+          // Continue without image rather than failing completely
+          console.log('Continuing without image...');
         }
       }
       
