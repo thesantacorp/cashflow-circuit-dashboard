@@ -53,12 +53,18 @@ export const useIdeasManagement = () => {
         return;
       }
       
-      setIdeas(data || []);
+      // Add "?v=" to the image URLs to prevent caching
+      const processedData = data?.map(idea => ({
+        ...idea,
+        image_url: idea.image_url ? `${idea.image_url}?v=${Date.now()}` : null
+      })) || [];
       
-      if (data && data.length > 0) {
+      setIdeas(processedData);
+      
+      if (processedData.length > 0) {
         const voteStats: Record<string, VoteSummary> = {};
         
-        for (const idea of data) {
+        for (const idea of processedData) {
           try {
             const { data: upvotes, error: upvotesError } = await supabase
               .from('votes')
@@ -139,8 +145,9 @@ export const useIdeasManagement = () => {
     try {
       setIsUploading(true);
       
-      let finalImageUrl = imageUrl;
+      let finalImageUrl = null;
       
+      // Handle image URL
       if (imageFile) {
         try {
           const bucketName = 'ideas';
@@ -194,6 +201,9 @@ export const useIdeasManagement = () => {
           // Continue without image rather than failing completely
           console.log('Continuing without image...');
         }
+      } else if (imageUrl && !imageUrl.includes('?v=')) {
+        // Use the existing image URL but add cache-busting parameter if it doesn't have one
+        finalImageUrl = imageUrl;
       }
       
       const formattedDate = new Date(countdownTimer).toISOString();
@@ -273,7 +283,11 @@ export const useIdeasManagement = () => {
   };
   
   const handleEditIdea = (idea: Idea) => {
-    setEditingIdea(idea);
+    // Add a timestamp to the image URL to prevent caching
+    setEditingIdea({
+      ...idea,
+      image_url: idea.image_url ? `${idea.image_url}?v=${Date.now()}` : null
+    });
     setDialogOpen(true);
   };
   

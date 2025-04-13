@@ -1,3 +1,4 @@
+
 import { format, formatDistanceToNow } from 'date-fns';
 import { 
   ThumbsUp, 
@@ -39,7 +40,19 @@ export const IdeaCard = ({
   useEffect(() => {
     setImageLoaded(false);
     setImageError(false);
-  }, [idea.id]);
+    
+    // Preload the image if URL exists
+    if (idea.image_url) {
+      const img = new Image();
+      img.onload = () => setImageLoaded(true);
+      img.onerror = () => {
+        console.error(`Failed to load image for idea: ${idea.id}, URL: ${idea.image_url}`);
+        setImageError(true);
+      };
+      // Add a cache-busting parameter to prevent issues with browser caching
+      img.src = `${idea.image_url}${idea.image_url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+    }
+  }, [idea.id, idea.image_url]);
   
   const getTimeRemaining = (dateString: string) => {
     const targetDate = new Date(dateString);
@@ -93,7 +106,7 @@ export const IdeaCard = ({
               </div>
             )}
             <img 
-              src={idea.image_url} 
+              src={`${idea.image_url}${idea.image_url.includes('?') ? '&' : '?'}t=${Date.now()}`}
               alt={idea.name || 'Idea image'} 
               className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
               onLoad={handleImageLoad}
