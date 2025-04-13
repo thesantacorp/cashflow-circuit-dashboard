@@ -83,8 +83,19 @@ declare module "@/components/TransactionList" {
   interface TransactionListProps {
     type: "income" | "expense";
     filteredTransactions?: Transaction[];
+    limit?: number;
+    showViewAll?: boolean;
   }
   
   const TransactionList: React.FC<TransactionListProps>;
   export default TransactionList;
+}
+
+declare module "@/components/EmotionInsights" {
+  interface EmotionInsightsProps {
+    filteredTransactions?: Transaction[];
+  }
+  
+  const EmotionInsights: React.FC<EmotionInsightsProps>;
+  export default EmotionInsights;
 }

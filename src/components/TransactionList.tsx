@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -16,14 +15,16 @@ interface TransactionListProps {
   type: TransactionType;
   limit?: number;
   showViewAll?: boolean;
+  filteredTransactions?: Transaction[];
 }
 
 type TimePeriod = "day" | "week" | "month" | "year" | "all";
 
-const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showViewAll = false }) => {
+const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showViewAll = false, filteredTransactions }) => {
   const { getTransactionsByType, deleteTransaction, getCategoryById, isOnline, pendingSyncCount } = useTransactions();
   const { currencySymbol } = useCurrency();
-  const transactions = getTransactionsByType(type);
+  const allTransactions = getTransactionsByType(type);
+  const transactions = filteredTransactions || allTransactions;
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
@@ -82,9 +83,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
 
   const filteredByTimePeriod = filterTransactionsByTimePeriod(transactions, timePeriod);
   
-  const filteredTransactions = filterTransactionsBySearch(filteredByTimePeriod, searchQuery);
+  const filteredBySearch = filterTransactionsBySearch(filteredByTimePeriod, searchQuery);
   
-  const sortedTransactions = [...filteredTransactions].sort(
+  const sortedTransactions = [...filteredBySearch].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
   

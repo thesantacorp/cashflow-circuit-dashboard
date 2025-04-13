@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
-import { Category, TransactionType } from "@/types";
+import { Category, Transaction, TransactionType } from "@/types";
 import { Plus, Trash2, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -12,9 +12,10 @@ import { toast } from "sonner";
 
 interface CategoryListProps {
   type: TransactionType;
+  filteredTransactions?: Transaction[];
 }
 
-const CategoryList: React.FC<CategoryListProps> = ({ type }) => {
+const CategoryList: React.FC<CategoryListProps> = ({ type, filteredTransactions }) => {
   const { state, getCategoriesByType, dispatch } = useTransactions();
   const categories = getCategoriesByType(type);
   const [open, setOpen] = useState(false);
