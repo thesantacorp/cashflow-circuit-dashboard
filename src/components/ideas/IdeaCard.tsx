@@ -1,4 +1,3 @@
-
 import { format, formatDistanceToNow } from 'date-fns';
 import { 
   ThumbsUp, 
@@ -15,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Idea, Vote } from '@/integrations/supabase/customClient';
 import { useState, useEffect } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface IdeaCardProps {
   idea: Idea;
@@ -39,7 +39,7 @@ export const IdeaCard = ({
   useEffect(() => {
     setImageLoaded(false);
     setImageError(false);
-  }, [idea.id, idea.image_url]);
+  }, [idea.id]);
   
   const getTimeRemaining = (dateString: string) => {
     const targetDate = new Date(dateString);
@@ -67,20 +67,18 @@ export const IdeaCard = ({
       return <Badge className="bg-green-500 hover:bg-green-600">Active</Badge>;
     }
   };
-
+  
   const toggleDescription = () => {
     setShowFullDescription(!showFullDescription);
   };
 
   const handleImageLoad = () => {
     setImageLoaded(true);
-    setImageError(false);
   };
 
   const handleImageError = () => {
     console.error(`Failed to load image for idea: ${idea.id}, URL: ${idea.image_url}`);
     setImageError(true);
-    setImageLoaded(false);
   };
 
   return (
@@ -89,13 +87,14 @@ export const IdeaCard = ({
         {idea.image_url && !imageError ? (
           <>
             {!imageLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                <ImageIcon className="h-10 w-10 text-gray-300 animate-pulse" />
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+                <Skeleton className="h-full w-full absolute" />
+                <ImageIcon className="h-10 w-10 text-gray-300 z-20" />
               </div>
             )}
             <img 
               src={idea.image_url} 
-              alt={idea.name} 
+              alt={idea.name || 'Idea image'} 
               className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
               onLoad={handleImageLoad}
               onError={handleImageError}
@@ -174,25 +173,25 @@ export const IdeaCard = ({
             </Button>
           </div>
         
-          <div className="flex gap-2">
-            {idea.learn_more_link && (
-              <Button variant="ghost" size="sm" asChild>
-                <a href={idea.learn_more_link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
-                  <Info className="h-4 w-4" />
-                  <span className="sr-only md:not-sr-only md:inline-block">Details</span>
-                </a>
-              </Button>
-            )}
-          
-            {idea.live_project_link && (
-              <Button variant="default" size="sm" className="bg-orange-500 hover:bg-orange-600" asChild>
-                <a href={idea.live_project_link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
-                  <ExternalLink className="h-4 w-4" />
-                  <span className="sr-only md:not-sr-only md:inline-block">View</span>
-                </a>
-              </Button>
-            )}
-          </div>
+        <div className="flex gap-2">
+          {idea.learn_more_link && (
+            <Button variant="ghost" size="sm" asChild>
+              <a href={idea.learn_more_link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
+                <Info className="h-4 w-4" />
+                <span className="sr-only md:not-sr-only md:inline-block">Details</span>
+              </a>
+            </Button>
+          )}
+        
+          {idea.live_project_link && (
+            <Button variant="default" size="sm" className="bg-orange-500 hover:bg-orange-600" asChild>
+              <a href={idea.live_project_link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
+                <ExternalLink className="h-4 w-4" />
+                <span className="sr-only md:not-sr-only md:inline-block">View</span>
+              </a>
+            </Button>
+          )}
+        </div>
         </div>
       </CardFooter>
     </Card>
