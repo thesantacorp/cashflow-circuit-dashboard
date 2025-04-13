@@ -36,21 +36,36 @@ export const IdeaCard = ({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   
-  // Reset image states when idea changes
+  // Reset image states and preload when idea changes
   useEffect(() => {
     setImageLoaded(false);
     setImageError(false);
     
-    // Preload the image if URL exists
+    // Only try to preload if there's an image URL
     if (idea.image_url) {
+      // Create a fresh URL with timestamp to avoid caching issues
+      let imageUrlWithTimestamp;
+      try {
+        const url = new URL(idea.image_url);
+        url.searchParams.set('t', Date.now().toString());
+        imageUrlWithTimestamp = url.toString();
+      } catch (e) {
+        // If URL parsing fails, append a timestamp manually
+        const separator = idea.image_url.includes('?') ? '&' : '?';
+        imageUrlWithTimestamp = `${idea.image_url}${separator}t=${Date.now()}`;
+      }
+      
       const img = new Image();
-      img.onload = () => setImageLoaded(true);
-      img.onerror = () => {
-        console.error(`Failed to load image for idea: ${idea.id}, URL: ${idea.image_url}`);
-        setImageError(true);
+      img.onload = () => {
+        setImageLoaded(true);
+        setImageError(false);
       };
-      // Add a cache-busting parameter to prevent issues with browser caching
-      img.src = `${idea.image_url}${idea.image_url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+      img.onerror = () => {
+        console.error(`Failed to load image for idea: ${idea.id}, URL: ${imageUrlWithTimestamp}`);
+        setImageError(true);
+        setImageLoaded(false);
+      };
+      img.src = imageUrlWithTimestamp;
     }
   }, [idea.id, idea.image_url]);
   
@@ -85,13 +100,16 @@ export const IdeaCard = ({
     setShowFullDescription(!showFullDescription);
   };
 
-  const handleImageLoad = () => {
-    setImageLoaded(true);
-  };
-
-  const handleImageError = () => {
-    console.error(`Failed to load image for idea: ${idea.id}, URL: ${idea.image_url}`);
-    setImageError(true);
+  // Function to get a properly formatted image URL with timestamp
+  const getImageUrlWithTimestamp = (url: string) => {
+    try {
+      const urlObj = new URL(url);
+      urlObj.searchParams.set('t', Date.now().toString());
+      return urlObj.toString();
+    } catch (e) {
+      const separator = url.includes('?') ? '&' : '?';
+      return `${url}${separator}t=${Date.now()}`;
+    }
   };
 
   return (
@@ -106,11 +124,14 @@ export const IdeaCard = ({
               </div>
             )}
             <img 
-              src={`${idea.image_url}${idea.image_url.includes('?') ? '&' : '?'}t=${Date.now()}`}
+              src={idea.image_url ? getImageUrlWithTimestamp(idea.image_url) : ''}
               alt={idea.name || 'Idea image'} 
               className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
-              onLoad={handleImageLoad}
-              onError={handleImageError}
+              onLoad={() => setImageLoaded(true)}
+              onError={() => {
+                console.error(`Failed to load image for idea: ${idea.id}, URL: ${idea.image_url}`);
+                setImageError(true);
+              }}
             />
           </>
         ) : (

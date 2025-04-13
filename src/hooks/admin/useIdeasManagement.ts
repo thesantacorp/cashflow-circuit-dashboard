@@ -35,6 +35,7 @@ export const useIdeasManagement = () => {
     checkAdminStatus();
   }, [user, navigate]);
 
+  // Enhanced function to fetch ideas and properly process image URLs
   const fetchIdeas = async () => {
     if (!isAdmin) return;
     
@@ -53,11 +54,23 @@ export const useIdeasManagement = () => {
         return;
       }
       
-      // Add "?v=" to the image URLs to prevent caching
-      const processedData = data?.map(idea => ({
-        ...idea,
-        image_url: idea.image_url ? `${idea.image_url}?v=${Date.now()}` : null
-      })) || [];
+      // Process the image URLs to ensure they're properly formatted
+      const processedData = data?.map(idea => {
+        // Only add the timestamp if it doesn't already have one
+        if (!idea.image_url) return idea;
+        
+        // Parse the URL to see if it already has a timestamp or other query params
+        try {
+          const url = new URL(idea.image_url);
+          // Add or update the timestamp parameter to force refresh
+          url.searchParams.set('t', Date.now().toString());
+          return { ...idea, image_url: url.toString() };
+        } catch (e) {
+          // If the URL is invalid, just append a timestamp
+          const separator = idea.image_url.includes('?') ? '&' : '?';
+          return { ...idea, image_url: `${idea.image_url}${separator}t=${Date.now()}` };
+        }
+      }) || [];
       
       setIdeas(processedData);
       
@@ -114,15 +127,37 @@ export const useIdeasManagement = () => {
     }
   }, [isAdmin]);
 
-  // We're using the improved ensureStorageBucketExists function now
+  // Improved function to create the storage bucket and ensure it's public
   const createBucketDirectly = async () => {
     try {      
-      // First check if the bucket already exists via enhanced function
-      return await ensureStorageBucketExists('ideas');
+      console.log('Ensuring storage bucket exists...');
+      // Create the bucket and make it public
+      const bucketCreated = await ensureStorageBucketExists('ideas', true);
+      console.log('Bucket setup result:', bucketCreated);
+      return bucketCreated;
     } catch (error) {
       console.error('Failed to create bucket directly:', error);
-      toast.error('Storage setup issues. Will try to continue anyway.');
-      return true; // Return true to allow continuing anyway
+      // Try an alternative approach - direct SQL
+      try {
+        // Try to insert the bucket directly if the function failed
+        const { error: bucketError } = await supabase.rpc('create_storage_bucket', {
+          bucket_id: 'ideas',
+          bucket_public: true
+        });
+        
+        if (bucketError) {
+          console.error('Failed direct bucket creation too:', bucketError);
+          toast.error('Storage setup issues. Will try to continue anyway.');
+        } else {
+          console.log('Created bucket via direct SQL');
+          return true;
+        }
+      } catch (sqlError) {
+        console.error('SQL bucket creation failed:', sqlError);
+      }
+      
+      // Return true to allow continuing anyway
+      return true;
     }
   };
 
@@ -194,16 +229,29 @@ export const useIdeasManagement = () => {
             .getPublicUrl(filePath);
             
           console.log('Public URL:', publicUrl);
-          finalImageUrl = publicUrl;
+          
+          // Ensure the URL has a timestamp to prevent caching
+          const urlWithTimestamp = new URL(publicUrl);
+          urlWithTimestamp.searchParams.set('t', Date.now().toString());
+          finalImageUrl = urlWithTimestamp.toString();
         } catch (uploadErr: any) {
           console.error('Error during image upload:', uploadErr);
           toast.error('Failed to upload image: ' + (uploadErr.message || 'Unknown error'));
           // Continue without image rather than failing completely
           console.log('Continuing without image...');
         }
-      } else if (imageUrl && !imageUrl.includes('?v=')) {
-        // Use the existing image URL but add cache-busting parameter if it doesn't have one
-        finalImageUrl = imageUrl;
+      } else if (imageUrl) {
+        // Process existing URL to ensure it has a timestamp
+        try {
+          const url = new URL(imageUrl);
+          // Update the timestamp or add it if it doesn't exist
+          url.searchParams.set('t', Date.now().toString());
+          finalImageUrl = url.toString();
+        } catch (e) {
+          // If the URL is invalid, just use it as is with a timestamp appended
+          const separator = imageUrl.includes('?') ? '&' : '?';
+          finalImageUrl = `${imageUrl}${separator}t=${Date.now()}`;
+        }
       }
       
       const formattedDate = new Date(countdownTimer).toISOString();
@@ -283,10 +331,22 @@ export const useIdeasManagement = () => {
   };
   
   const handleEditIdea = (idea: Idea) => {
-    // Add a timestamp to the image URL to prevent caching
+    // Process the image URL to ensure it has a fresh timestamp
+    let updatedImageUrl = idea.image_url;
+    if (updatedImageUrl) {
+      try {
+        const url = new URL(updatedImageUrl);
+        url.searchParams.set('t', Date.now().toString());
+        updatedImageUrl = url.toString();
+      } catch (e) {
+        const separator = updatedImageUrl.includes('?') ? '&' : '?';
+        updatedImageUrl = `${updatedImageUrl}${separator}t=${Date.now()}`;
+      }
+    }
+    
     setEditingIdea({
       ...idea,
-      image_url: idea.image_url ? `${idea.image_url}?v=${Date.now()}` : null
+      image_url: updatedImageUrl
     });
     setDialogOpen(true);
   };
