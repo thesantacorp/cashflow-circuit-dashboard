@@ -1,4 +1,3 @@
-
 import { getSupabaseClient, isRlsPolicyError, typeSafeFrom, dynamicFrom } from './supabase/client';
 import { toast } from 'sonner';
 
@@ -284,3 +283,4 @@ GRANT ALL ON public.user_uuids TO anon, authenticated;
 GRANT USAGE ON SEQUENCE user_uuids_id_seq TO anon, authenticated;
   `.trim();
 }
+
