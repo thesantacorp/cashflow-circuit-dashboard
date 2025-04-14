@@ -1,3 +1,4 @@
+
 import { getSupabaseClient, isRlsPolicyError, typeSafeFrom, dynamicFrom } from './supabase/client';
 import { toast } from 'sonner';
 
@@ -130,8 +131,7 @@ async function verifySupabaseSetupInternal(): Promise<{
       const testUuid = `test-${Math.random().toString(36).substring(2, 10)}`;
       const testEmail = `test-${Math.random().toString(36).substring(2, 10)}@example.com`;
       
-      const { error: writeError } = await supabase
-        .from('user_uuids')
+      const { error: writeError } = await dynamicFrom('user_uuids')
         .upsert({ 
           email: testEmail, 
           uuid: testUuid 
@@ -142,8 +142,7 @@ async function verifySupabaseSetupInternal(): Promise<{
         result.details += 'Write access OK. ';
         console.log('Write access verified');
         
-        await supabase
-          .from('user_uuids')
+        await dynamicFrom('user_uuids')
           .delete()
           .eq('email', testEmail);
       } else {
