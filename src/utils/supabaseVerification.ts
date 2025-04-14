@@ -24,14 +24,17 @@ export async function verifySupabaseSetup(): Promise<{
     });
     
     try {
-      // Use Promise.race with proper typing to avoid infinite recursion
-      const verificationPromise: Promise<typeof result> = verifySupabaseSetupInternal();
+      // Define the verification result type to avoid infinite recursion
+      type VerificationResult = typeof result;
       
-      // Type assertion to avoid infinite recursion in type checking
+      // Make the promise with explicit type to avoid TS2589 error
+      const verificationPromise = verifySupabaseSetupInternal() as Promise<VerificationResult>;
+      
+      // Race against timeout with explicit typing
       const verificationResult = await Promise.race([
         verificationPromise,
         timeoutPromise
-      ]) as (typeof result | null);
+      ]) as (VerificationResult | null);
       
       // If the result is not null, it's from verifySupabaseSetupInternal
       return verificationResult || result;

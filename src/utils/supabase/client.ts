@@ -147,9 +147,9 @@ export const typeSafeFrom = <T extends KnownTableNames>(table: T) => {
  * @param tableName Dynamic table name as string
  */
 export const dynamicFrom = (tableName: string) => {
-  // Type assertion to allow dynamic table names
-  // This bypasses type safety but is necessary for dynamic table name usage
-  return supabase.from(tableName as KnownTableNames);
+  // Use a more explicit type assertion to avoid TypeScript issues
+  // This bypasses type safety but is necessary for dynamic table names
+  return supabase.from(tableName as any);
 };
 
 /**
