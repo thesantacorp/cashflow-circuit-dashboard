@@ -19,12 +19,10 @@ export async function verifySupabaseSetup(): Promise<{
   };
   
   try {
-    // Set up a timeout for the verification process
     const timeoutPromise = new Promise<null>((_, reject) => {
-      setTimeout(() => reject(new Error('Verification timeout')), 8000); // 8 seconds timeout
+      setTimeout(() => reject(new Error('Verification timeout')), 8000);
     });
     
-    // Run verification with timeout
     try {
       return await Promise.race([
         verifySupabaseSetupInternal(),
@@ -60,15 +58,12 @@ async function verifySupabaseSetupInternal(): Promise<{
   };
 
   try {
-    // Step 1: Verify basic connection
     console.log('Testing basic Supabase connection...');
     try {
       const { data, error: connectionError } = await supabase.from('user_uuids')
         .select('count')
         .limit(1);
       
-      // If we get data or a specific error about the table not existing,
-      // or an RLS policy error, then the connection works
       if (data || 
           (connectionError && connectionError.message?.includes('does not exist')) ||
           isRlsPolicyError(connectionError)
@@ -86,7 +81,6 @@ async function verifySupabaseSetupInternal(): Promise<{
       return result;
     }
     
-    // Step 2: Check if user_uuids table exists
     console.log('Checking if user_uuids table exists...');
     try {
       const { data, error: tableError } = await supabase
@@ -94,13 +88,11 @@ async function verifySupabaseSetupInternal(): Promise<{
         .select('count')
         .limit(1);
       
-      // If error is about RLS policies, the table exists but access is restricted
       if (!tableError || isRlsPolicyError(tableError)) {
         result.tableExists = true;
         result.details += 'Table exists. ';
         console.log('user_uuids table exists');
         
-        // If we have RLS policy issues, note that in the details
         if (isRlsPolicyError(tableError)) {
           result.details += 'RLS policies restricting access. ';
         }
@@ -116,7 +108,6 @@ async function verifySupabaseSetupInternal(): Promise<{
       console.error('Table check exception:', tableCheckError);
     }
     
-    // Step 3: Test read access
     if (result.tableExists) {
       console.log('Testing read access...');
       const { data: readData, error: readError } = await supabase
@@ -125,7 +116,7 @@ async function verifySupabaseSetupInternal(): Promise<{
         .limit(5);
       
       if (!readError || (readError && isRlsPolicyError(readError))) {
-        result.hasReadAccess = !readError; // Only true if no error at all
+        result.hasReadAccess = !readError;
         result.details += `Read access ${!readError ? 'OK' : 'restricted by RLS'} (${readData?.length || 0} records). `;
         console.log('Read access verified, retrieved:', readData?.length || 0, 'records');
       } else {
@@ -134,7 +125,6 @@ async function verifySupabaseSetupInternal(): Promise<{
       }
     }
     
-    // Step 4: Test write access with a temporary record
     if (result.tableExists) {
       console.log('Testing write access...');
       const testUuid = `test-${Math.random().toString(36).substring(2, 10)}`;
@@ -147,19 +137,16 @@ async function verifySupabaseSetupInternal(): Promise<{
           uuid: testUuid 
         });
       
-      // Check if write succeeded or if it's just an RLS policy restriction
       if (!writeError) {
         result.hasWriteAccess = true;
         result.details += 'Write access OK. ';
         console.log('Write access verified');
         
-        // Clean up test record
         await supabase
           .from('user_uuids')
           .delete()
           .eq('email', testEmail);
       } else {
-        // If we have RLS policy errors, the table exists but we don't have write access
         if (isRlsPolicyError(writeError)) {
           result.details += 'Write access restricted by RLS policies. ';
           console.warn('Write access restricted by RLS policies:', writeError);
@@ -186,7 +173,6 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
     console.log('Attempting to fix Supabase setup...');
     toast.loading('Attempting to fix Supabase setup...', { id: 'fixing-supabase' });
     
-    // Try to create the user_uuids table if it doesn't exist
     const createTableSQL = `
       CREATE TABLE IF NOT EXISTS user_uuids (
         id SERIAL PRIMARY KEY,
@@ -196,7 +182,6 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
       );
     `;
     
-    // First try using RPC if available
     let tableCreated = false;
     
     try {
@@ -210,10 +195,8 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
       console.warn('RPC exception:', rpcError);
     }
     
-    // If RPC failed, try direct SQL (if permissions allow)
     if (!tableCreated) {
       try {
-        // Using dynamicFrom for user_uuids table with string parameter
         const { error: sqlError } = await dynamicFrom('user_uuids')
           .insert({ 
             email: 'system_test@example.com',
@@ -230,10 +213,8 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
       }
     }
     
-    // Try to fix RLS policies if we detect they're the issue
     let rlsFixed = false;
     try {
-      // Try to disable RLS for testing (this likely won't work due to permissions)
       const disableRlsSql = `
         ALTER TABLE public.user_uuids DISABLE ROW LEVEL SECURITY;
         GRANT ALL ON public.user_uuids TO anon;
@@ -251,37 +232,26 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
       console.warn('RLS policy fix exception:', rlsError);
     }
     
-    // Verify if fixes worked
-    try {
-      // Set timeout for verification to avoid getting stuck
-      const timeoutPromise = new Promise<null>((_, reject) => {
-        setTimeout(() => reject(new Error('Fix verification timeout')), 5000);
+    const timeoutPromise = new Promise<null>((_, reject) => {
+      setTimeout(() => reject(new Error('Fix verification timeout')), 5000);
+    });
+    
+    const verification = await Promise.race([verifySupabaseSetup(), timeoutPromise]) as any;
+    
+    if (verification.tableExists && (verification.hasWriteAccess || rlsFixed)) {
+      toast.success('Successfully fixed Supabase setup!', { id: 'fixing-supabase' });
+      return true;
+    } else if (verification.tableExists && !verification.hasWriteAccess && verification.details.includes('RLS')) {
+      toast.warning('Table exists but has RLS policy restrictions', { 
+        id: 'fixing-supabase',
+        description: 'Please use the RLS configuration guide to fix permissions'
       });
-      
-      const verification = await Promise.race([verifySupabaseSetup(), timeoutPromise]) as any;
-      
-      // Consider the fix successful if:
-      // 1. The table exists AND either we have write access or we fixed RLS issues
-      // 2. If we have RLS policy issues but the table exists, that's a partial success
-      if (verification.tableExists && (verification.hasWriteAccess || rlsFixed)) {
-        toast.success('Successfully fixed Supabase setup!', { id: 'fixing-supabase' });
-        return true;
-      } else if (verification.tableExists && !verification.hasWriteAccess && verification.details.includes('RLS')) {
-        toast.warning('Table exists but has RLS policy restrictions', { 
-          id: 'fixing-supabase',
-          description: 'Please use the RLS configuration guide to fix permissions'
-        });
-        return false;
-      } else {
-        toast.error('Could not completely fix Supabase setup', { 
-          id: 'fixing-supabase',
-          description: 'Please check the RLS configuration guide'
-        });
-        return false;
-      }
-    } catch (timeoutError) {
-      console.error('Fix verification timed out:', timeoutError);
-      toast.error('Verification timed out', { id: 'fixing-supabase' });
+      return false;
+    } else {
+      toast.error('Could not completely fix Supabase setup', { 
+        id: 'fixing-supabase',
+        description: 'Please check the RLS configuration guide'
+      });
       return false;
     }
   } catch (error) {

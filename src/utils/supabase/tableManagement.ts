@@ -75,8 +75,7 @@ export async function ensureUuidTableExists(): Promise<boolean> {
     } catch (rpcError) {
       console.warn('RPC method failed, trying alternative approach:', rpcError);
       
-      // Try creating the table via REST API but with type-safe approach
-      // Use the known table with explicit typing
+      // Try creating the table via REST API with dynamicFrom
       const { error: restError } = await dynamicFrom('user_uuids')
         .insert({ 
           email: 'system_test@example.com',
