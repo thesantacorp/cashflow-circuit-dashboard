@@ -130,6 +130,14 @@ export const getSupabaseClient = () => {
 };
 
 /**
+ * Type-safe from operation to improve type checking with Supabase
+ * Use for table operations to get proper typing
+ */
+export const typeSafeFrom = <T extends KnownTableNames>(table: T) => {
+  return supabase.from(table);
+};
+
+/**
  * Checks if the database connection is working
  * @returns Promise<boolean> indicating if the connection is successful
  */

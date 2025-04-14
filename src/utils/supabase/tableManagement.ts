@@ -1,5 +1,5 @@
 
-import { getSupabaseClient } from './client';
+import { getSupabaseClient, typeSafeFrom } from './client';
 import { toast } from 'sonner';
 
 // Helper to check if a table exists in Supabase
@@ -12,8 +12,7 @@ export async function checkTableExists(tableName: string): Promise<boolean> {
     // Type-safe approach: use a dynamic query that works with string table names
     if (tableName === 'user_uuids') {
       // Try to select a single row from the specific table
-      const { data, error } = await supabase
-        .from('user_uuids')
+      const { data, error } = await typeSafeFrom('user_uuids')
         .select('id')
         .limit(1);
         
@@ -74,8 +73,7 @@ export async function ensureUuidTableExists(): Promise<boolean> {
       
       // Try creating the table via REST API but with type-safe approach
       // Use the known table with explicit typing
-      const { error: restError } = await supabase
-        .from('user_uuids')
+      const { error: restError } = await typeSafeFrom('user_uuids')
         .insert({ 
           email: 'system_test@example.com',
           uuid: 'test-uuid-for-table-creation'

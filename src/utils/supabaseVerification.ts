@@ -1,5 +1,5 @@
 
-import { getSupabaseClient, isRlsPolicyError } from './supabase/client';
+import { getSupabaseClient, isRlsPolicyError, typeSafeFrom } from './supabase/client';
 import { toast } from 'sonner';
 
 // Complete verification of Supabase connection and table setup
@@ -215,7 +215,7 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
     if (!tableCreated) {
       try {
         // Type-safe approach for user_uuids table
-        const { error: sqlError } = await supabase.from('user_uuids')
+        const { error: sqlError } = await typeSafeFrom('user_uuids')
           .insert({ 
             email: 'system_test@example.com',
             uuid: 'test-uuid-for-table-creation'
