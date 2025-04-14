@@ -147,8 +147,9 @@ export const typeSafeFrom = <T extends KnownTableNames>(table: T) => {
  * @param tableName Dynamic table name as string
  */
 export const dynamicFrom = (tableName: string) => {
-  // We need to type this properly to avoid the 'never' type errors
-  return supabase.from(tableName as string);
+  // We need to cast to any to bypass TypeScript's type checking
+  // This allows using string table names dynamically
+  return supabase.from(tableName as any);
 };
 
 /**

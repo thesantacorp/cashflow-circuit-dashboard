@@ -1,4 +1,3 @@
-
 import { getSupabaseClient, isRlsPolicyError, typeSafeFrom, dynamicFrom } from './supabase/client';
 import { toast } from 'sonner';
 
@@ -214,7 +213,7 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
     // If RPC failed, try direct SQL (if permissions allow)
     if (!tableCreated) {
       try {
-        // Type-safe approach for user_uuids table
+        // Using dynamicFrom for user_uuids table with string parameter
         const { error: sqlError } = await dynamicFrom('user_uuids')
           .insert({ 
             email: 'system_test@example.com',
