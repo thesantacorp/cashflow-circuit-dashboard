@@ -1,4 +1,3 @@
-
 import { getSupabaseClient, isRlsPolicyError, typeSafeFrom, dynamicFrom } from './supabase/client';
 import { toast } from 'sonner';
 
@@ -29,7 +28,9 @@ export async function verifySupabaseSetup(): Promise<{
       type VerificationResult = typeof result;
       
       // Make the promise with explicit type to avoid TS2589 error
-      const verificationPromise = verifySupabaseSetupInternal() as Promise<VerificationResult>;
+      const verificationPromise = new Promise<VerificationResult>(async (resolve) => {
+        resolve(await verifySupabaseSetupInternal());
+      });
       
       // Race against timeout with explicit typing
       const verificationResult = await Promise.race([
