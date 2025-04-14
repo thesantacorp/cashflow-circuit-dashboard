@@ -1,3 +1,4 @@
+
 import { getSupabaseClient, isRlsPolicyError, typeSafeFrom, dynamicFrom } from './supabase/client';
 import { toast } from 'sonner';
 
@@ -130,8 +131,9 @@ async function verifySupabaseSetupInternal(): Promise<{
       const testUuid = `test-${Math.random().toString(36).substring(2, 10)}`;
       const testEmail = `test-${Math.random().toString(36).substring(2, 10)}@example.com`;
       
-      const { error: writeError } = await dynamicFrom('user_uuids')
-        .upsert({ 
+      const { error: writeError } = await supabase
+        .from('user_uuids')
+        .insert({ 
           email: testEmail, 
           uuid: testUuid 
         });
@@ -141,7 +143,8 @@ async function verifySupabaseSetupInternal(): Promise<{
         result.details += 'Write access OK. ';
         console.log('Write access verified');
         
-        await dynamicFrom('user_uuids')
+        await supabase
+          .from('user_uuids')
           .delete()
           .eq('email', testEmail);
       } else {
@@ -195,7 +198,8 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
     
     if (!tableCreated) {
       try {
-        const { error: sqlError } = await dynamicFrom('user_uuids')
+        const { error: sqlError } = await supabase
+          .from('user_uuids')
           .insert({ 
             email: 'system_test@example.com',
             uuid: 'test-uuid-for-table-creation'
@@ -234,7 +238,7 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
       setTimeout(() => reject(new Error('Fix verification timeout')), 5000);
     });
     
-    const verification = await Promise.race([verifySupabaseSetup(), timeoutPromise]) as any;
+    const verification = await Promise.race([verifySupabaseSetup(), timeoutPromise as any]);
     
     if (verification.tableExists && (verification.hasWriteAccess || rlsFixed)) {
       toast.success('Successfully fixed Supabase setup!', { id: 'fixing-supabase' });
@@ -283,4 +287,3 @@ GRANT ALL ON public.user_uuids TO anon, authenticated;
 GRANT USAGE ON SEQUENCE user_uuids_id_seq TO anon, authenticated;
   `.trim();
 }
-
