@@ -2,6 +2,10 @@
 // This file contains functions for Supabase storage bucket management and client utilities
 
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
+
+// Type for allowed table names based on the Database type
+type KnownTableNames = keyof Database['public']['Tables'];
 
 /**
  * Ensures a storage bucket exists and is properly configured
@@ -131,7 +135,7 @@ export const getSupabaseClient = () => {
  */
 export const checkDatabaseConnection = async (): Promise<boolean> => {
   try {
-    // Attempt a simple query to verify connection
+    // Attempt a simple query to verify connection - use known table name to be type-safe
     const { data, error } = await supabase
       .from('user_uuids')
       .select('count', { count: 'exact', head: true })

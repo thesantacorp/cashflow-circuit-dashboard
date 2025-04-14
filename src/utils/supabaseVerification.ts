@@ -214,7 +214,7 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
     // If RPC failed, try direct SQL (if permissions allow)
     if (!tableCreated) {
       try {
-        // This will only work if the user has SQL execution permissions
+        // Type-safe approach for user_uuids table
         const { error: sqlError } = await supabase.from('user_uuids')
           .insert({ 
             email: 'system_test@example.com',

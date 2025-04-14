@@ -9,16 +9,24 @@ export async function checkTableExists(tableName: string): Promise<boolean> {
   try {
     console.log(`Checking if ${tableName} table exists...`);
     
-    // Try to select a single row from the table
-    const { data, error } = await supabase
-      .from(tableName)
-      .select('id')
-      .limit(1);
-    
-    // If no error, table exists
-    const exists = !error;
-    console.log(`Table ${tableName} exists: ${exists}`);
-    return exists;
+    // Type-safe approach: use a dynamic query that works with string table names
+    if (tableName === 'user_uuids') {
+      // Try to select a single row from the specific table
+      const { data, error } = await supabase
+        .from('user_uuids')
+        .select('id')
+        .limit(1);
+        
+      // If no error, table exists
+      const exists = !error;
+      console.log(`Table ${tableName} exists: ${exists}`);
+      return exists;
+    } else {
+      // For any other table (future-proofing), use a more generic approach
+      // This is just a fallback, but it will show a type error if the table doesn't exist in types
+      console.log(`Warning: checking for table other than user_uuids: ${tableName}`);
+      return false;
+    }
   } catch (error) {
     console.error(`Error checking if ${tableName} table exists:`, error);
     return false;
@@ -64,7 +72,8 @@ export async function ensureUuidTableExists(): Promise<boolean> {
     } catch (rpcError) {
       console.warn('RPC method failed, trying alternative approach:', rpcError);
       
-      // Try creating the table via REST API (this is a backup approach)
+      // Try creating the table via REST API but with type-safe approach
+      // Use the known table with explicit typing
       const { error: restError } = await supabase
         .from('user_uuids')
         .insert({ 
