@@ -25,10 +25,13 @@ export async function verifySupabaseSetup(): Promise<{
     
     try {
       // Use Promise.race with proper typing to avoid infinite recursion
+      const verificationPromise: Promise<typeof result> = verifySupabaseSetupInternal();
+      
+      // Type assertion to avoid infinite recursion in type checking
       const verificationResult = await Promise.race([
-        verifySupabaseSetupInternal(),
+        verificationPromise,
         timeoutPromise
-      ]);
+      ]) as (typeof result | null);
       
       // If the result is not null, it's from verifySupabaseSetupInternal
       return verificationResult || result;
@@ -132,7 +135,7 @@ async function verifySupabaseSetupInternal(): Promise<{
       const testUuid = `test-${Math.random().toString(36).substring(2, 10)}`;
       const testEmail = `test-${Math.random().toString(36).substring(2, 10)}@example.com`;
       
-      const { error: writeError } = await supabase.from('user_uuids')
+      const { error: writeError } = await dynamicFrom('user_uuids')
         .insert({ 
           email: testEmail, 
           uuid: testUuid 
@@ -143,7 +146,7 @@ async function verifySupabaseSetupInternal(): Promise<{
         result.details += 'Write access OK. ';
         console.log('Write access verified');
         
-        await supabase.from('user_uuids')
+        await dynamicFrom('user_uuids')
           .delete()
           .eq('email', testEmail);
       } else {
@@ -197,7 +200,7 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
     
     if (!tableCreated) {
       try {
-        const { error: sqlError } = await supabase.from('user_uuids')
+        const { error: sqlError } = await dynamicFrom('user_uuids')
           .insert({ 
             email: 'system_test@example.com',
             uuid: 'test-uuid-for-table-creation'
@@ -274,11 +277,11 @@ DROP POLICY IF EXISTS "Allow anonymous selects" ON public.user_uuids;
 
 -- Create a policy to allow all operations for both anon and authenticated users
 CREATE POLICY "Enable all access" 
-ON public.user_uuids 
-FOR ALL 
-TO anon, authenticated
-USING (true)
-WITH CHECK (true);
+  ON public.user_uuids 
+  FOR ALL 
+  TO anon, authenticated
+  USING (true)
+  WITH CHECK (true);
 
 -- Grant full permissions
 GRANT ALL ON public.user_uuids TO anon, authenticated;
