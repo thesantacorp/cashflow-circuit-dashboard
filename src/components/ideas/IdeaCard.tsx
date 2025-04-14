@@ -1,25 +1,17 @@
 
-import { format, formatDistanceToNow } from 'date-fns';
-import { 
-  ThumbsUp, 
-  ThumbsDown, 
-  Clock, 
-  ExternalLink, 
-  Info,
-  ChevronDown,
-  ChevronUp,
-  ImageIcon
-} from 'lucide-react';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 import { Idea, Vote } from '@/integrations/supabase/customClient';
-import { useState, useEffect } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ThumbsUp, ThumbsDown, ExternalLink, Info, Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface IdeaCardProps {
   idea: Idea;
-  userVote?: Vote;
+  userVote: Vote | undefined;
   upvotes: number;
   downvotes: number;
   onVote: (ideaId: string, voteType: 'upvote' | 'downvote') => void;
@@ -29,203 +21,147 @@ export const IdeaCard = ({
   idea, 
   userVote, 
   upvotes, 
-  downvotes, 
+  downvotes,
   onVote 
 }: IdeaCardProps) => {
-  const [showFullDescription, setShowFullDescription] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [isImageError, setIsImageError] = useState(false);
   
-  // Reset image states and preload when idea changes
-  useEffect(() => {
-    setImageLoaded(false);
-    setImageError(false);
+  // Format the date for countdown display
+  const formatCountdown = () => {
+    if (!idea.countdown_timer) return 'TBA';
     
-    // Only try to preload if there's an image URL
-    if (idea.image_url) {
-      // Create a fresh URL with timestamp to avoid caching issues
-      let imageUrlWithTimestamp;
-      try {
-        const url = new URL(idea.image_url);
-        url.searchParams.set('t', Date.now().toString());
-        imageUrlWithTimestamp = url.toString();
-      } catch (e) {
-        // If URL parsing fails, append a timestamp manually
-        const separator = idea.image_url.includes('?') ? '&' : '?';
-        imageUrlWithTimestamp = `${idea.image_url}${separator}t=${Date.now()}`;
-      }
-      
-      const img = new Image();
-      img.onload = () => {
-        setImageLoaded(true);
-        setImageError(false);
-      };
-      img.onerror = () => {
-        console.error(`Failed to load image for idea: ${idea.id}, URL: ${imageUrlWithTimestamp}`);
-        setImageError(true);
-        setImageLoaded(false);
-      };
-      img.src = imageUrlWithTimestamp;
-    }
-  }, [idea.id, idea.image_url]);
-  
-  const getTimeRemaining = (dateString: string) => {
-    const targetDate = new Date(dateString);
+    const countdownDate = new Date(idea.countdown_timer);
     const now = new Date();
     
-    if (targetDate <= now) {
-      return "Expired";
+    // If date is in the past
+    if (countdownDate < now) {
+      return 'Released';
     }
     
-    return formatDistanceToNow(targetDate, { addSuffix: true });
-  };
-  
-  const getStatusBadge = (dateString: string) => {
-    const targetDate = new Date(dateString);
-    const now = new Date();
-    const remainingDays = Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 3600 * 24));
+    // Calculate remaining time
+    const diffTime = Math.abs(countdownDate.getTime() - now.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (remainingDays <= 0) {
-      return <Badge variant="destructive">Expired</Badge>;
-    } else if (remainingDays <= 3) {
-      return <Badge variant="destructive">Ending Soon</Badge>;
-    } else if (remainingDays <= 7) {
-      return <Badge className="bg-amber-500 hover:bg-amber-600">Closing Soon</Badge>;
+    if (diffDays === 1) {
+      return 'Tomorrow';
+    } else if (diffDays < 30) {
+      return `${diffDays} days`;
     } else {
-      return <Badge className="bg-green-500 hover:bg-green-600">Active</Badge>;
+      // Format as Month Day
+      return countdownDate.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric' 
+      });
     }
   };
   
-  const toggleDescription = () => {
-    setShowFullDescription(!showFullDescription);
-  };
-
-  // Function to get a properly formatted image URL with timestamp
-  const getImageUrlWithTimestamp = (url: string) => {
-    try {
-      const urlObj = new URL(url);
-      urlObj.searchParams.set('t', Date.now().toString());
-      return urlObj.toString();
-    } catch (e) {
-      const separator = url.includes('?') ? '&' : '?';
-      return `${url}${separator}t=${Date.now()}`;
+  const handleVote = (voteType: 'upvote' | 'downvote') => {
+    if (!user) {
+      toast.error('Please sign in to vote');
+      navigate('/auth/login', { state: { from: '/ideas' } });
+      return;
     }
+    
+    onVote(idea.id, voteType);
   };
-
+  
+  // Determine if user has voted for this idea
+  const hasUpvoted = userVote?.vote_type === 'upvote';
+  const hasDownvoted = userVote?.vote_type === 'downvote';
+  
+  // Calculate vote ratio for the progress bar (0-100)
+  const totalVotes = upvotes + downvotes;
+  const upvoteRatio = totalVotes > 0 ? Math.round((upvotes / totalVotes) * 100) : 50;
+  
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
-      <div className="aspect-video w-full overflow-hidden bg-gray-100 relative">
-        {idea.image_url && !imageError ? (
-          <>
-            {!imageLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
-                <Skeleton className="h-full w-full absolute" />
-                <ImageIcon className="h-10 w-10 text-gray-300 z-20" />
-              </div>
-            )}
-            <img 
-              src={idea.image_url ? getImageUrlWithTimestamp(idea.image_url) : ''}
-              alt={idea.name || 'Idea image'} 
-              className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
-              onLoad={() => setImageLoaded(true)}
-              onError={() => {
-                console.error(`Failed to load image for idea: ${idea.id}, URL: ${idea.image_url}`);
-                setImageError(true);
-              }}
-            />
-          </>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-orange-100">
-            <Info className="h-10 w-10 text-orange-300" />
+    <Card className="overflow-hidden flex flex-col h-full transition-all hover:shadow-md">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <div className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-medium">
+              <Clock className="inline-block mr-1 h-3 w-3" />
+              {formatCountdown()}
+            </div>
           </div>
-        )}
-      </div>
-      
-      <CardContent className="pt-6">
-        <div className="flex justify-between items-start mb-2">
-          <h2 className="text-xl font-bold text-gray-800">{idea.name}</h2>
-          {getStatusBadge(idea.countdown_timer)}
+        </div>
+        <CardTitle className="text-xl mt-2">{idea.name}</CardTitle>
+      </CardHeader>
+      <CardContent className="pb-2 flex-grow">
+        <div className="min-h-[80px] bg-gradient-to-r from-orange-50 to-blue-50 rounded-lg p-4 mb-4">
+          <p className="text-gray-700">{idea.description}</p>
         </div>
         
-        <div className="relative">
-          <p className={`text-gray-600 mb-4 ${showFullDescription ? '' : 'line-clamp-3'}`}>
-            {idea.description}
-          </p>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="p-0 h-6 text-sm flex items-center text-gray-500 hover:text-gray-700"
-            onClick={toggleDescription}
-          >
-            {showFullDescription ? (
-              <>
-                <ChevronUp className="h-4 w-4 mr-1" />
-                Show less
-              </>
-            ) : (
-              <>
-                <ChevronDown className="h-4 w-4 mr-1" />
-                Show more
-              </>
-            )}
-          </Button>
-        </div>
-        
-        <div className="flex items-center text-sm text-gray-500 mb-4">
-          <Clock className="h-4 w-4 mr-1" />
-          <span>
-            {getTimeRemaining(idea.countdown_timer)} · {format(new Date(idea.countdown_timer), 'MMM d, yyyy')}
-          </span>
+        <div className="flex flex-wrap gap-2 mt-3">
+          {idea.live_project_link && (
+            <a 
+              href={idea.live_project_link} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs"
+            >
+              <ExternalLink className="h-3 w-3 mr-1" />
+              View Live
+            </a>
+          )}
+          {idea.learn_more_link && (
+            <a 
+              href={idea.learn_more_link} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs"
+            >
+              <Info className="h-3 w-3 mr-1" />
+              Learn More
+            </a>
+          )}
         </div>
       </CardContent>
-      
-      <CardFooter className="border-t pt-4 flex flex-col gap-4">
-        <div className="flex items-center justify-between w-full">
-          <div className="flex gap-4">
+      <CardFooter className="pt-2 pb-4 border-t">
+        <div className="w-full">
+          <div className="flex justify-between items-center mb-2">
+            <div className="text-sm text-gray-500">
+              {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
+            </div>
+            <div className="text-sm font-medium">
+              {upvoteRatio}% positive
+            </div>
+          </div>
+          
+          <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3">
+            <div 
+              className="bg-green-500 h-1.5 rounded-full" 
+              style={{ width: `${upvoteRatio}%` }}
+            ></div>
+          </div>
+          
+          <div className="flex justify-between gap-2">
             <Button
               variant="outline"
               size="sm"
-              className={userVote?.vote_type === 'upvote' 
-                ? 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100'
-                : ''}
-              onClick={() => onVote(idea.id, 'upvote')}
+              className={cn(
+                "flex-1",
+                hasUpvoted && "bg-green-100 border-green-300 text-green-800"
+              )}
+              onClick={() => handleVote('upvote')}
             >
-              <ThumbsUp className="h-4 w-4 mr-1" />
-              <span>{upvotes || 0}</span>
+              <ThumbsUp className={cn("h-4 w-4 mr-1", hasUpvoted && "fill-green-600")} />
+              {upvotes}
             </Button>
-            
             <Button
               variant="outline"
               size="sm"
-              className={userVote?.vote_type === 'downvote' 
-                ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' 
-                : ''}
-              onClick={() => onVote(idea.id, 'downvote')}
+              className={cn(
+                "flex-1",
+                hasDownvoted && "bg-red-100 border-red-300 text-red-800"
+              )}
+              onClick={() => handleVote('downvote')}
             >
-              <ThumbsDown className="h-4 w-4 mr-1" />
-              <span>{downvotes || 0}</span>
+              <ThumbsDown className={cn("h-4 w-4 mr-1", hasDownvoted && "fill-red-600")} />
+              {downvotes}
             </Button>
           </div>
-        
-        <div className="flex gap-2">
-          {idea.learn_more_link && (
-            <Button variant="ghost" size="sm" asChild>
-              <a href={idea.learn_more_link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
-                <Info className="h-4 w-4" />
-                <span className="sr-only md:not-sr-only md:inline-block">Details</span>
-              </a>
-            </Button>
-          )}
-        
-          {idea.live_project_link && (
-            <Button variant="default" size="sm" className="bg-orange-500 hover:bg-orange-600" asChild>
-              <a href={idea.live_project_link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
-                <ExternalLink className="h-4 w-4" />
-                <span className="sr-only md:not-sr-only md:inline-block">View</span>
-              </a>
-            </Button>
-          )}
-        </div>
         </div>
       </CardFooter>
     </Card>

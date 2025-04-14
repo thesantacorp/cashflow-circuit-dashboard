@@ -1,4 +1,5 @@
-import { getSupabaseClient, isRlsPolicyError, typeSafeFrom, dynamicFrom } from './supabase/client';
+
+import { getSupabaseClient, isRlsPolicyError, typeSafeFrom } from './supabase/client';
 import { toast } from 'sonner';
 
 // Complete verification of Supabase connection and table setup
@@ -27,7 +28,7 @@ export async function verifySupabaseSetup(): Promise<{
       // Define the verification result type to avoid infinite recursion
       type VerificationResult = typeof result;
       
-      // Make the promise with explicit type to avoid TS2589 error
+      // Make a proper promise with explicit resolve to avoid type issues
       const verificationPromise = new Promise<VerificationResult>(async (resolve) => {
         resolve(await verifySupabaseSetupInternal());
       });
@@ -140,8 +141,8 @@ async function verifySupabaseSetupInternal(): Promise<{
       const testUuid = `test-${Math.random().toString(36).substring(2, 10)}`;
       const testEmail = `test-${Math.random().toString(36).substring(2, 10)}@example.com`;
       
-      // Use dynamicFrom to bypass TypeScript's type checking for dynamic table names
-      const { error: writeError } = await dynamicFrom('user_uuids')
+      // Use 'as any' to bypass TypeScript type checking for dynamic tables
+      const { error: writeError } = await supabase.from('user_uuids' as any)
         .insert({ 
           email: testEmail, 
           uuid: testUuid 
@@ -153,7 +154,7 @@ async function verifySupabaseSetupInternal(): Promise<{
         console.log('Write access verified');
         
         // Clean up the test data
-        await dynamicFrom('user_uuids')
+        await supabase.from('user_uuids' as any)
           .delete()
           .eq('email', testEmail);
       } else {
@@ -207,8 +208,8 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
     
     if (!tableCreated) {
       try {
-        // Use dynamicFrom to bypass TypeScript's type checking for dynamic table names
-        const { error: sqlError } = await dynamicFrom('user_uuids')
+        // Use 'as any' type assertion to bypass TypeScript type checking
+        const { error: sqlError } = await supabase.from('user_uuids' as any)
           .insert({ 
             email: 'system_test@example.com',
             uuid: 'test-uuid-for-table-creation'

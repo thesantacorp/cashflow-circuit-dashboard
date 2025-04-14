@@ -9,8 +9,6 @@ import { useIdeaVotes } from '@/hooks/useIdeaVotes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Idea } from '@/integrations/supabase/customClient';
-import { initializeStorage } from '@/utils/initializeStorage';
-import { ensureStorageBucketExists } from '@/utils/supabase/client';
 
 const IdeasPage = () => {
   const { user } = useAuth();
@@ -18,28 +16,6 @@ const IdeasPage = () => {
   const [loading, setLoading] = useState(true);
   const { userVotes, voteStats, handleVote, updateIdeas } = useIdeaVotes();
   const { isSyncing } = useSupabaseSync();
-  const [storageInitialized, setStorageInitialized] = useState(false);
-
-  // Initialize storage when the component mounts
-  useEffect(() => {
-    const initStorage = async () => {
-      try {
-        // Try both initialization methods for better chances of success
-        const result = await initializeStorage();
-        const bucketResult = await ensureStorageBucketExists('ideas', true);
-        
-        setStorageInitialized(result || bucketResult);
-        
-        if (!result && !bucketResult) {
-          console.warn('Storage initialization failed, but continuing...');
-        }
-      } catch (err) {
-        console.error('Error initializing storage:', err);
-      }
-    };
-    
-    initStorage();
-  }, []);
 
   // Fetch ideas on page load
   useEffect(() => {
@@ -58,24 +34,10 @@ const IdeasPage = () => {
           return;
         }
         
-        // Process the data to ensure image URLs have timestamps for cache-busting
-        const processedData = data?.map(idea => {
-          if (!idea.image_url) return idea;
-          
-          try {
-            const url = new URL(idea.image_url);
-            url.searchParams.set('t', Date.now().toString());
-            return { ...idea, image_url: url.toString() };
-          } catch (e) {
-            const separator = idea.image_url.includes('?') ? '&' : '?';
-            return { ...idea, image_url: `${idea.image_url}${separator}t=${Date.now()}` };
-          }
-        }) || [];
-        
         // Make sure both operations happen before setting loading to false
-        if (processedData.length > 0) {
-          updateIdeas(processedData as Idea[]);
-          setIdeas(processedData as Idea[]);
+        if (data && data.length > 0) {
+          updateIdeas(data as Idea[]);
+          setIdeas(data as Idea[]);
           
           // Delay setting loading to false to ensure votes are fetched
           setTimeout(() => {
