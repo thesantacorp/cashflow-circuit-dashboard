@@ -1,5 +1,7 @@
 
-// Functions for Supabase storage bucket management
+// This file contains functions for Supabase storage bucket management and client utilities
+
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Ensures a storage bucket exists and is properly configured
@@ -11,8 +13,6 @@ export const ensureStorageBucketExists = async (
   bucketName: string,
   makePublic = true
 ): Promise<boolean> => {
-  const { supabase } = await import('@/integrations/supabase/client');
-  
   try {
     // First check if the bucket already exists
     const { data: buckets, error: listError } = await supabase.storage.listBuckets();
@@ -73,8 +73,6 @@ export const makeFilePublic = async (
   bucketName: string,
   filePath: string
 ): Promise<boolean> => {
-  const { supabase } = await import('@/integrations/supabase/client');
-  
   try {
     // First try to make the bucket public (if it's not already)
     await ensureStorageBucketExists(bucketName, true);
@@ -102,8 +100,6 @@ export const verifyFileIsPublic = async (
   bucketName: string, 
   filePath: string
 ): Promise<boolean> => {
-  const { supabase } = await import('@/integrations/supabase/client');
-  
   try {
     // Get the public URL first
     const { data: { publicUrl } } = supabase.storage.from(bucketName).getPublicUrl(filePath);
@@ -119,4 +115,54 @@ export const verifyFileIsPublic = async (
     console.error(`Error verifying file ${filePath} is public:`, error);
     return false;
   }
+};
+
+/**
+ * Get the Supabase client instance - utility function used across the app
+ * @returns Supabase client instance
+ */
+export const getSupabaseClient = () => {
+  return supabase;
+};
+
+/**
+ * Checks if the database connection is working
+ * @returns Promise<boolean> indicating if the connection is successful
+ */
+export const checkDatabaseConnection = async (): Promise<boolean> => {
+  try {
+    // Attempt a simple query to verify connection
+    const { data, error } = await supabase
+      .from('user_uuids')
+      .select('count', { count: 'exact', head: true })
+      .limit(1);
+    
+    if (error) {
+      console.error('Database connection check failed:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Database connection check exception:', error);
+    return false;
+  }
+};
+
+/**
+ * Helper to check if an error is related to Row Level Security policies
+ * @param error The error to check
+ * @returns boolean indicating if it's an RLS policy error
+ */
+export const isRlsPolicyError = (error: any): boolean => {
+  if (!error) return false;
+  
+  // Check for common RLS error patterns
+  const errorMessage = error.message || '';
+  return (
+    errorMessage.includes('policy') ||
+    errorMessage.includes('permission denied') ||
+    errorMessage.includes('new row violates row-level security') ||
+    error.code === 'PGRST301'
+  );
 };

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,7 +34,6 @@ export const useIdeasManagement = () => {
     checkAdminStatus();
   }, [user, navigate]);
 
-  // Enhanced function to fetch ideas and properly process image URLs
   const fetchIdeas = async () => {
     if (!isAdmin) return;
     
@@ -54,19 +52,14 @@ export const useIdeasManagement = () => {
         return;
       }
       
-      // Process the image URLs to ensure they're properly formatted
       const processedData = data?.map(idea => {
-        // Only add the timestamp if it doesn't already have one
         if (!idea.image_url) return idea;
         
-        // Parse the URL to see if it already has a timestamp or other query params
         try {
           const url = new URL(idea.image_url);
-          // Add or update the timestamp parameter to force refresh
           url.searchParams.set('t', Date.now().toString());
           return { ...idea, image_url: url.toString() };
         } catch (e) {
-          // If the URL is invalid, just append a timestamp
           const separator = idea.image_url.includes('?') ? '&' : '?';
           return { ...idea, image_url: `${idea.image_url}${separator}t=${Date.now()}` };
         }
@@ -127,19 +120,15 @@ export const useIdeasManagement = () => {
     }
   }, [isAdmin]);
 
-  // Improved function to create the storage bucket and ensure it's public
   const createBucketDirectly = async () => {
     try {      
       console.log('Ensuring storage bucket exists...');
-      // Create the bucket and make it public
       const bucketCreated = await ensureStorageBucketExists('ideas', true);
       console.log('Bucket setup result:', bucketCreated);
       return bucketCreated;
     } catch (error) {
       console.error('Failed to create bucket directly:', error);
-      // Try an alternative approach - direct SQL
       try {
-        // Try to insert the bucket directly if the function failed
         const { error: bucketError } = await supabase.rpc('create_storage_bucket', {
           bucket_id: 'ideas',
           bucket_public: true
@@ -156,7 +145,6 @@ export const useIdeasManagement = () => {
         console.error('SQL bucket creation failed:', sqlError);
       }
       
-      // Return true to allow continuing anyway
       return true;
     }
   };
@@ -182,7 +170,6 @@ export const useIdeasManagement = () => {
       
       let finalImageUrl = null;
       
-      // Handle image URL
       if (imageFile) {
         try {
           const bucketName = 'ideas';
@@ -192,7 +179,6 @@ export const useIdeasManagement = () => {
           const bucketCreated = await createBucketDirectly();
           console.log('Bucket creation result:', bucketCreated);
           
-          // Continue even if bucket "creation" failed - it might already exist
           console.log('Proceeding with upload...');
           
           const fileExt = imageFile.name.split('.').pop();
@@ -220,7 +206,6 @@ export const useIdeasManagement = () => {
             await makeFilePublic(bucketName, filePath);
           } catch (publicErr) {
             console.warn('Non-critical error making file public:', publicErr);
-            // Continue anyway as this is not critical
           }
           
           const { data: { publicUrl } } = supabase
@@ -230,25 +215,20 @@ export const useIdeasManagement = () => {
             
           console.log('Public URL:', publicUrl);
           
-          // Ensure the URL has a timestamp to prevent caching
           const urlWithTimestamp = new URL(publicUrl);
           urlWithTimestamp.searchParams.set('t', Date.now().toString());
           finalImageUrl = urlWithTimestamp.toString();
         } catch (uploadErr: any) {
           console.error('Error during image upload:', uploadErr);
           toast.error('Failed to upload image: ' + (uploadErr.message || 'Unknown error'));
-          // Continue without image rather than failing completely
           console.log('Continuing without image...');
         }
       } else if (imageUrl) {
-        // Process existing URL to ensure it has a timestamp
         try {
           const url = new URL(imageUrl);
-          // Update the timestamp or add it if it doesn't exist
           url.searchParams.set('t', Date.now().toString());
           finalImageUrl = url.toString();
         } catch (e) {
-          // If the URL is invalid, just use it as is with a timestamp appended
           const separator = imageUrl.includes('?') ? '&' : '?';
           finalImageUrl = `${imageUrl}${separator}t=${Date.now()}`;
         }
@@ -331,7 +311,6 @@ export const useIdeasManagement = () => {
   };
   
   const handleEditIdea = (idea: Idea) => {
-    // Process the image URL to ensure it has a fresh timestamp
     let updatedImageUrl = idea.image_url;
     if (updatedImageUrl) {
       try {
