@@ -147,9 +147,9 @@ export const typeSafeFrom = <T extends KnownTableNames>(table: T) => {
  * @param tableName Dynamic table name as string
  */
 export const dynamicFrom = (tableName: string) => {
-  // Use explicit type assertion to bypass TypeScript's strict type checking
-  // This is necessary for runtime-determined table names
-  return supabase.from(tableName as any);
+  // Use explicit type assertion with the PostgrestQueryBuilder return type
+  // This bypasses TypeScript's type checking for dynamic table names
+  return supabase.from(tableName as unknown as KnownTableNames);
 };
 
 /**
