@@ -191,7 +191,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
                         {transaction.description || "No description"}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {format(new Date(transaction.date), "MMM d, yyyy")}
+                        {format(new Date(transaction.date), "EEE. MMM d, yyyy")}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 ml-auto">
