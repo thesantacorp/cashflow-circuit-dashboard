@@ -1,3 +1,4 @@
+
 import { getSupabaseClient, isRlsPolicyError, typeSafeFrom, dynamicFrom } from './supabase/client';
 import { toast } from 'sonner';
 
@@ -138,6 +139,7 @@ async function verifySupabaseSetupInternal(): Promise<{
       const testUuid = `test-${Math.random().toString(36).substring(2, 10)}`;
       const testEmail = `test-${Math.random().toString(36).substring(2, 10)}@example.com`;
       
+      // Use dynamicFrom to bypass TypeScript's type checking for dynamic table names
       const { error: writeError } = await dynamicFrom('user_uuids')
         .insert({ 
           email: testEmail, 
@@ -149,6 +151,7 @@ async function verifySupabaseSetupInternal(): Promise<{
         result.details += 'Write access OK. ';
         console.log('Write access verified');
         
+        // Clean up the test data
         await dynamicFrom('user_uuids')
           .delete()
           .eq('email', testEmail);
@@ -203,6 +206,7 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
     
     if (!tableCreated) {
       try {
+        // Use dynamicFrom to bypass TypeScript's type checking for dynamic table names
         const { error: sqlError } = await dynamicFrom('user_uuids')
           .insert({ 
             email: 'system_test@example.com',
