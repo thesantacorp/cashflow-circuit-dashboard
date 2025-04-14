@@ -24,8 +24,7 @@ export async function checkTableExists(tableName: string): Promise<boolean> {
       // For any other table (future-proofing), use a more generic approach
       // Use the dynamicFrom function for dynamic table names
       console.log(`Warning: checking for table other than user_uuids: ${tableName}`);
-      const { data, error } = await supabase
-        .from(tableName)
+      const { data, error } = await dynamicFrom(tableName)
         .select('count')
         .limit(1);
         
@@ -76,9 +75,8 @@ export async function ensureUuidTableExists(): Promise<boolean> {
     } catch (rpcError) {
       console.warn('RPC method failed, trying alternative approach:', rpcError);
       
-      // Try creating the table via REST API with supabase.from
-      const { error: restError } = await supabase
-        .from('user_uuids')
+      // Try creating the table via REST API with dynamicFrom
+      const { error: restError } = await dynamicFrom('user_uuids')
         .insert({ 
           email: 'system_test@example.com',
           uuid: 'test-uuid-for-table-creation'
