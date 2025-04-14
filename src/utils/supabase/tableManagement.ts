@@ -1,5 +1,5 @@
 
-import { getSupabaseClient, typeSafeFrom } from './client';
+import { getSupabaseClient, typeSafeFrom, dynamicFrom } from './client';
 import { toast } from 'sonner';
 
 // Helper to check if a table exists in Supabase
@@ -22,9 +22,13 @@ export async function checkTableExists(tableName: string): Promise<boolean> {
       return exists;
     } else {
       // For any other table (future-proofing), use a more generic approach
-      // This is just a fallback, but it will show a type error if the table doesn't exist in types
+      // Use the dynamicFrom function for dynamic table names
       console.log(`Warning: checking for table other than user_uuids: ${tableName}`);
-      return false;
+      const { data, error } = await dynamicFrom(tableName)
+        .select('count')
+        .limit(1);
+        
+      return !error || (error.message && error.message.includes('permission denied'));
     }
   } catch (error) {
     console.error(`Error checking if ${tableName} table exists:`, error);
@@ -73,7 +77,7 @@ export async function ensureUuidTableExists(): Promise<boolean> {
       
       // Try creating the table via REST API but with type-safe approach
       // Use the known table with explicit typing
-      const { error: restError } = await typeSafeFrom('user_uuids')
+      const { error: restError } = await dynamicFrom('user_uuids')
         .insert({ 
           email: 'system_test@example.com',
           uuid: 'test-uuid-for-table-creation'

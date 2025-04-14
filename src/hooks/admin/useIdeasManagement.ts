@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Idea, VoteSummary } from '@/integrations/supabase/customClient';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { ensureStorageBucketExists, makeFilePublic, typeSafeFrom } from '@/utils/supabase/client';
+import { ensureStorageBucketExists, makeFilePublic, typeSafeFrom, dynamicFrom } from '@/utils/supabase/client';
 
 export const useIdeasManagement = () => {
   const navigate = useNavigate();
@@ -256,8 +256,7 @@ export const useIdeasManagement = () => {
         
         toast.success('Idea updated successfully');
       } else {
-        const { data, error } = await supabase
-          .from('ideas')
+        const { data, error } = await typeSafeFrom('ideas')
           .insert({
             name,
             description,

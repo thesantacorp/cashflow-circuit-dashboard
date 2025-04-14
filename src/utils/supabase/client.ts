@@ -7,6 +7,9 @@ import type { Database } from '@/integrations/supabase/types';
 // Type for allowed table names based on the Database type
 type KnownTableNames = keyof Database['public']['Tables'];
 
+// Add a type that ensures the table is a known table in our Database type
+export type TableName = KnownTableNames;
+
 /**
  * Ensures a storage bucket exists and is properly configured
  * @param bucketName Name of the bucket to ensure
@@ -132,9 +135,20 @@ export const getSupabaseClient = () => {
 /**
  * Type-safe from operation to improve type checking with Supabase
  * Use for table operations to get proper typing
+ * @param table A known table name from the Database type
  */
 export const typeSafeFrom = <T extends KnownTableNames>(table: T) => {
   return supabase.from(table);
+};
+
+/**
+ * Alternative from operation that accepts string table names
+ * Use only when the table name is dynamic and can't be type checked
+ * @param tableName Dynamic table name as string
+ */
+export const dynamicFrom = (tableName: string) => {
+  // Since we're bypassing TypeScript's type checking here, we need to use 'as any'
+  return supabase.from(tableName as any);
 };
 
 /**
