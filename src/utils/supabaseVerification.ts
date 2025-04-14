@@ -24,10 +24,14 @@ export async function verifySupabaseSetup(): Promise<{
     });
     
     try {
-      return await Promise.race([
+      // Use Promise.race with proper typing to avoid infinite recursion
+      const verificationResult = await Promise.race([
         verifySupabaseSetupInternal(),
-        timeoutPromise as any
+        timeoutPromise
       ]);
+      
+      // If the result is not null, it's from verifySupabaseSetupInternal
+      return verificationResult || result;
     } catch (timeoutError) {
       console.error('Supabase verification timed out:', timeoutError);
       result.details += 'Verification timed out. ';
@@ -83,7 +87,7 @@ async function verifySupabaseSetupInternal(): Promise<{
     
     console.log('Checking if user_uuids table exists...');
     try {
-      const { data, error: tableError } = await dynamicFrom('user_uuids')
+      const { data, error: tableError } = await supabase.from('user_uuids')
         .select('count')
         .limit(1);
       
@@ -109,7 +113,7 @@ async function verifySupabaseSetupInternal(): Promise<{
     
     if (result.tableExists) {
       console.log('Testing read access...');
-      const { data: readData, error: readError } = await dynamicFrom('user_uuids')
+      const { data: readData, error: readError } = await supabase.from('user_uuids')
         .select('*')
         .limit(5);
       
@@ -128,7 +132,7 @@ async function verifySupabaseSetupInternal(): Promise<{
       const testUuid = `test-${Math.random().toString(36).substring(2, 10)}`;
       const testEmail = `test-${Math.random().toString(36).substring(2, 10)}@example.com`;
       
-      const { error: writeError } = await dynamicFrom('user_uuids')
+      const { error: writeError } = await supabase.from('user_uuids')
         .insert({ 
           email: testEmail, 
           uuid: testUuid 
@@ -139,7 +143,7 @@ async function verifySupabaseSetupInternal(): Promise<{
         result.details += 'Write access OK. ';
         console.log('Write access verified');
         
-        await dynamicFrom('user_uuids')
+        await supabase.from('user_uuids')
           .delete()
           .eq('email', testEmail);
       } else {
@@ -193,7 +197,7 @@ export async function attemptSupabaseSetupFix(): Promise<boolean> {
     
     if (!tableCreated) {
       try {
-        const { error: sqlError } = await dynamicFrom('user_uuids')
+        const { error: sqlError } = await supabase.from('user_uuids')
           .insert({ 
             email: 'system_test@example.com',
             uuid: 'test-uuid-for-table-creation'

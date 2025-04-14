@@ -1,3 +1,4 @@
+
 // This file contains functions for Supabase storage bucket management and client utilities
 
 import { supabase } from '@/integrations/supabase/client';
@@ -146,9 +147,9 @@ export const typeSafeFrom = <T extends KnownTableNames>(table: T) => {
  * @param tableName Dynamic table name as string
  */
 export const dynamicFrom = (tableName: string) => {
-  // Cast to any to bypass TypeScript's type checking for dynamic table names
+  // Force type casting to bypass TypeScript's type checking for dynamic table names
   // This is necessary when table names are determined at runtime
-  return supabase.from(tableName as unknown as KnownTableNames);
+  return supabase.from(tableName as any);
 };
 
 /**
