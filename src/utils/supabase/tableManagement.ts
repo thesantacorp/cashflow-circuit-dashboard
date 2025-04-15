@@ -85,7 +85,7 @@ export const updateTransaction = async (transaction: Transaction) => {
     const { data, error } = await supabase
       .from('transactions')
       .update(transaction)
-      .eq('transaction_id', transaction.transaction_id);
+      .eq('transaction_id', transaction.id); // Using id instead of transaction_id
 
     if (error) {
       console.error('Error updating transaction:', error);
@@ -150,7 +150,7 @@ export const updateCategory = async (category: Category) => {
     const { data, error } = await supabase
       .from('categories')
       .update(category)
-      .eq('category_id', category.category_id);
+      .eq('category_id', category.id); // Using id instead of category_id
 
     if (error) {
       console.error('Error updating category:', error);
@@ -184,4 +184,10 @@ export const deleteCategory = async (categoryId: string) => {
     console.error('Exception deleting category:', error);
     return { success: false, error };
   }
+};
+
+// This is a stub for getAllUuids.ts compatibility
+export const ensureUuidTableExists = async () => {
+  console.warn("ensureUuidTableExists function is now a stub");
+  return { success: true, error: null };
 };
