@@ -27,13 +27,19 @@ const Dashboard: React.FC<DashboardProps> = ({ type, filteredTransactions }) => 
   return (
     <div className="grid gap-6 w-full overflow-x-visible pb-6">
       <Card className="bg-primary text-primary-foreground overflow-hidden w-full max-w-full">
-        <CardHeader className="pb-2">
-          <CardTitle>Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
+        <CardHeader className="pb-2 md:pb-4">
+          <CardTitle className="text-xl md:text-2xl">Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
         </CardHeader>
         <CardContent className="break-words">
-          <div className="text-3xl font-bold overflow-x-auto">
+          <div className="text-2xl md:text-3xl lg:text-4xl font-bold overflow-x-auto whitespace-nowrap">
             {currencySymbol}{total.toFixed(2)}
           </div>
+          <p className="text-xs md:text-sm mt-1 text-primary-foreground/80">
+            {filteredTransactions 
+              ? `Based on ${filteredTransactions.filter(t => t.type === type).length} filtered transactions`
+              : `Based on ${state.transactions.filter(t => t.type === type).length} transactions`
+            }
+          </p>
         </CardContent>
       </Card>
 
