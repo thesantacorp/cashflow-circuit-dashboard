@@ -41,7 +41,7 @@ const ExpensesPage: React.FC = () => {
   }, [filteredTransactions]);
 
   return (
-    <div className="container py-4 md:py-6 max-w-7xl mx-auto px-3 sm:px-4 w-full overflow-x-hidden">
+    <div className="container py-4 md:py-6 max-w-7xl mx-auto px-3 sm:px-4 w-full overflow-hidden">
       <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 text-center sm:text-left">Expenses</h1>
       
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="mb-6 md:mb-8">
@@ -51,8 +51,8 @@ const ExpensesPage: React.FC = () => {
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="dashboard" className="pt-2 md:pt-4 max-w-full overflow-x-hidden space-y-4 md:space-y-6">
-          <div className="max-w-full mx-auto">
+        <TabsContent value="dashboard" className="pt-2 md:pt-4 w-full overflow-hidden space-y-4 md:space-y-6">
+          <div className="w-full mx-auto">
             <EmotionFilter 
               selectedEmotion={selectedEmotion} 
               onChange={setSelectedEmotion} 
@@ -60,7 +60,7 @@ const ExpensesPage: React.FC = () => {
             />
             
             {selectedEmotion !== 'all' && (
-              <Card className="mb-4 md:mb-6 border-orange-200 shadow hover:shadow-md transition-shadow">
+              <Card className="mb-4 md:mb-6 border-orange-200 shadow hover:shadow-md transition-shadow overflow-hidden">
                 <CardContent className="pt-4 md:pt-6">
                   <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
                     <div>
@@ -79,7 +79,7 @@ const ExpensesPage: React.FC = () => {
               </Card>
             )}
             
-            <div className="space-y-6 md:space-y-8">
+            <div className="space-y-6 md:space-y-8 overflow-hidden">
               <Dashboard 
                 type="expense" 
                 filteredTransactions={selectedEmotion === 'all' ? undefined : filteredTransactions} 
