@@ -1,5 +1,5 @@
 
-import { supabase } from './client';
+import { supabase } from '@/integrations/supabase/client';
 import { Category, Transaction } from '@/types';
 
 interface FetchTransactionsResponse {

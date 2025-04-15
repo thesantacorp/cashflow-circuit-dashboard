@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Currency } from "@/types";
-import { supabase } from "@/utils/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 
 interface CurrencyContextProps {
