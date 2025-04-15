@@ -27,7 +27,18 @@ export const fetchTransactions = async (userEmail: string): Promise<FetchTransac
       return { transactions: [], error };
     }
 
-    return { transactions: data as Transaction[], error: null };
+    // Transform the data to match our Transaction type
+    const transformedTransactions: Transaction[] = data.map(item => ({
+      id: item.transaction_id,
+      amount: Number(item.amount),
+      categoryId: item.category_id || '',
+      date: item.date,
+      description: item.description || '',
+      type: item.type as 'expense' | 'income',
+      emotionalState: item.emotional_state as any || 'neutral'
+    }));
+
+    return { transactions: transformedTransactions, error: null };
   } catch (error) {
     console.error('Exception fetching transactions:', error);
     return { transactions: [], error: error as Error };
@@ -49,7 +60,15 @@ export const fetchCategories = async (userEmail: string): Promise<FetchCategorie
       return { categories: [], error };
     }
 
-    return { categories: data as Category[], error: null };
+    // Transform the data to match our Category type
+    const transformedCategories: Category[] = data.map(item => ({
+      id: item.category_id,
+      name: item.name,
+      type: item.type as 'expense' | 'income',
+      color: item.color || '#cccccc'
+    }));
+
+    return { categories: transformedCategories, error: null };
   } catch (error) {
     console.error('Exception fetching categories:', error);
     return { categories: [], error: error as Error };
@@ -63,7 +82,16 @@ export const insertTransaction = async (transaction: Transaction) => {
   try {
     const { data, error } = await supabase
       .from('transactions')
-      .insert([transaction]);
+      .insert([{
+        transaction_id: transaction.id,
+        amount: transaction.amount,
+        category_id: transaction.categoryId,
+        date: transaction.date,
+        description: transaction.description || '',
+        type: transaction.type,
+        emotional_state: transaction.emotionalState || 'neutral',
+        user_email: '' // This needs to be provided by the caller
+      }]);
 
     if (error) {
       console.error('Error inserting transaction:', error);
@@ -80,12 +108,20 @@ export const insertTransaction = async (transaction: Transaction) => {
 /**
  * Updates a transaction in Supabase
  */
-export const updateTransaction = async (transaction: Transaction) => {
+export const updateTransaction = async (transaction: Transaction, userEmail: string) => {
   try {
     const { data, error } = await supabase
       .from('transactions')
-      .update(transaction)
-      .eq('transaction_id', transaction.id); // Using id instead of transaction_id
+      .update({
+        amount: transaction.amount,
+        category_id: transaction.categoryId,
+        date: transaction.date,
+        description: transaction.description || '',
+        type: transaction.type,
+        emotional_state: transaction.emotionalState || 'neutral'
+      })
+      .eq('transaction_id', transaction.id)
+      .eq('user_email', userEmail);
 
     if (error) {
       console.error('Error updating transaction:', error);
@@ -102,12 +138,13 @@ export const updateTransaction = async (transaction: Transaction) => {
 /**
  * Deletes a transaction from Supabase
  */
-export const deleteTransaction = async (transactionId: string) => {
+export const deleteTransaction = async (transactionId: string, userEmail: string) => {
   try {
     const { data, error } = await supabase
       .from('transactions')
       .delete()
-      .eq('transaction_id', transactionId);
+      .eq('transaction_id', transactionId)
+      .eq('user_email', userEmail);
 
     if (error) {
       console.error('Error deleting transaction:', error);
@@ -124,11 +161,17 @@ export const deleteTransaction = async (transactionId: string) => {
 /**
  * Inserts a category into Supabase
  */
-export const insertCategory = async (category: Category) => {
+export const insertCategory = async (category: Category, userEmail: string) => {
   try {
     const { data, error } = await supabase
       .from('categories')
-      .insert([category]);
+      .insert([{
+        category_id: category.id,
+        name: category.name,
+        type: category.type,
+        color: category.color || '#cccccc',
+        user_email: userEmail
+      }]);
 
     if (error) {
       console.error('Error inserting category:', error);
@@ -145,12 +188,17 @@ export const insertCategory = async (category: Category) => {
 /**
  * Updates a category in Supabase
  */
-export const updateCategory = async (category: Category) => {
+export const updateCategory = async (category: Category, userEmail: string) => {
   try {
     const { data, error } = await supabase
       .from('categories')
-      .update(category)
-      .eq('category_id', category.id); // Using id instead of category_id
+      .update({
+        name: category.name,
+        type: category.type,
+        color: category.color
+      })
+      .eq('category_id', category.id)
+      .eq('user_email', userEmail);
 
     if (error) {
       console.error('Error updating category:', error);
@@ -167,12 +215,13 @@ export const updateCategory = async (category: Category) => {
 /**
  * Deletes a category from Supabase
  */
-export const deleteCategory = async (categoryId: string) => {
+export const deleteCategory = async (categoryId: string, userEmail: string) => {
   try {
     const { data, error } = await supabase
       .from('categories')
       .delete()
-      .eq('category_id', categoryId);
+      .eq('category_id', categoryId)
+      .eq('user_email', userEmail);
 
     if (error) {
       console.error('Error deleting category:', error);

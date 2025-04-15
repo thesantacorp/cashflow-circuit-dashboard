@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { checkDatabaseConnection } from "@/utils/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
+import * as tableManagement from "@/utils/supabase/tableManagement";
 
 // Create provider
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -223,42 +224,17 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     
     try {
       // Fetch transactions
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_email', user.email);
+      const { transactions, error: transactionsError } = await tableManagement.fetchTransactions(user.email);
       
       if (transactionsError) throw transactionsError;
       
       // Fetch categories
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('user_email', user.email);
+      const { categories, error: categoriesError } = await tableManagement.fetchCategories(user.email);
       
       if (categoriesError) throw categoriesError;
       
-      // Transform data to match application state format
-      const transformedData = {
-        transactions: transactionsData.map((t) => ({
-          id: t.transaction_id,
-          type: t.type,
-          categoryId: t.category_id,
-          amount: t.amount,
-          description: t.description,
-          date: t.date,
-          emotionalState: t.emotional_state
-        })),
-        categories: categoriesData.map((c) => ({
-          id: c.category_id,
-          name: c.name,
-          type: c.type,
-          color: c.color
-        }))
-      };
-      
       // Replace all data in the app
-      replaceAllData(transformedData);
+      replaceAllData({ transactions, categories });
       setLastSyncTime(new Date());
       return true;
     } catch (error) {
@@ -406,28 +382,22 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!user || !isOnline) return false;
     
     try {
-      // First, delete any existing transaction with this ID (to avoid duplicates)
-      await supabase
-        .from('transactions')
-        .delete()
-        .eq('user_email', user.email)
-        .eq('transaction_id', transaction.id);
+      // Update the transaction in Supabase
+      const { error } = await tableManagement.updateTransaction(transaction, user.email);
       
-      // Then insert the new/updated transaction
-      const { error } = await supabase
-        .from('transactions')
-        .insert({
-          user_email: user.email,
-          transaction_id: transaction.id,
-          type: transaction.type,
-          category_id: transaction.categoryId,
-          amount: transaction.amount,
-          description: transaction.description || '',
-          date: transaction.date,
-          emotional_state: transaction.emotionalState || 'neutral'
+      // If update fails (probably because it doesn't exist), try to insert it
+      if (error) {
+        console.log('Transaction update failed, trying insert:', error);
+        // We need to add user_email for the insert to work with RLS
+        const insertResult = await tableManagement.insertTransaction({
+          ...transaction,
+          user_email: user.email
         });
-      
-      if (error) throw error;
+        
+        if (insertResult.error) {
+          throw insertResult.error;
+        }
+      }
       
       // Update profile with last sync date
       if (user.id) {
@@ -460,11 +430,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!user || !isOnline) return false;
     
     try {
-      const { error } = await supabase
-        .from('transactions')
-        .delete()
-        .eq('user_email', user.email)
-        .eq('transaction_id', transaction.id);
+      // Delete the transaction from Supabase
+      const { error } = await tableManagement.deleteTransaction(transaction.id, user.email);
       
       if (error) throw error;
       
@@ -490,25 +457,18 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!user || !isOnline) return false;
     
     try {
-      // First, delete any existing category with this ID (to avoid duplicates)
-      await supabase
-        .from('categories')
-        .delete()
-        .eq('user_email', user.email)
-        .eq('category_id', category.id);
+      // Update the category in Supabase
+      const { error } = await tableManagement.updateCategory(category, user.email);
       
-      // Then insert the new/updated category
-      const { error } = await supabase
-        .from('categories')
-        .insert({
-          user_email: user.email,
-          category_id: category.id,
-          name: category.name,
-          type: category.type,
-          color: category.color
-        });
-      
-      if (error) throw error;
+      // If update fails (probably because it doesn't exist), try to insert it
+      if (error) {
+        console.log('Category update failed, trying insert:', error);
+        const insertResult = await tableManagement.insertCategory(category, user.email);
+        
+        if (insertResult.error) {
+          throw insertResult.error;
+        }
+      }
       
       // Update profile with last sync date
       if (user.id) {
@@ -532,11 +492,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!user || !isOnline) return false;
     
     try {
-      const { error } = await supabase
-        .from('categories')
-        .delete()
-        .eq('user_email', user.email)
-        .eq('category_id', category.id);
+      // Delete the category from Supabase
+      const { error } = await tableManagement.deleteCategory(category.id, user.email);
       
       if (error) throw error;
       
