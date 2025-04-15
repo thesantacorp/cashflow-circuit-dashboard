@@ -80,6 +80,7 @@ export type Database = {
           avatar_url: string | null
           backup_last_date: string | null
           created_at: string | null
+          currency_preference: string | null
           email: string
           full_name: string | null
           id: string
@@ -89,6 +90,7 @@ export type Database = {
           avatar_url?: string | null
           backup_last_date?: string | null
           created_at?: string | null
+          currency_preference?: string | null
           email: string
           full_name?: string | null
           id: string
@@ -98,6 +100,7 @@ export type Database = {
           avatar_url?: string | null
           backup_last_date?: string | null
           created_at?: string | null
+          currency_preference?: string | null
           email?: string
           full_name?: string | null
           id?: string
