@@ -1,10 +1,10 @@
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { checkDatabaseConnection } from '@/utils/supabase/client';
+import { Currency } from '@/types';
 
 // Define the structure of a user profile
 interface UserProfile {
@@ -13,6 +13,7 @@ interface UserProfile {
   full_name: string | null;
   avatar_url: string | null;
   backup_last_date: string | null;
+  currency_preference: Currency | null;
   created_at: string;
   updated_at: string;
 }
