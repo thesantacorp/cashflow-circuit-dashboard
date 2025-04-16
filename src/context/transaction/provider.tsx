@@ -436,7 +436,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     dispatch({ type: "ADD_TRANSACTION", payload: newTransaction });
     toast.success("Transaction added successfully");
     setSyncNeeded(true);
-    setPendingSyncCount(prevCount => prevCount + 1);
+    setPendingSyncCount((prevCount) => prevCount + 1);
     return true;
   };
 
@@ -448,7 +448,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     dispatch({ type: "UPDATE_TRANSACTION", payload: updatedTransaction });
     toast.success("Transaction updated successfully");
     setSyncNeeded(true);
-    setPendingSyncCount(prevCount => prevCount + 1);
+    setPendingSyncCount((prevCount) => prevCount + 1);
     return true;
   };
 
