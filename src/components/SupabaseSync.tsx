@@ -160,7 +160,10 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
     return handleOperation(async () => {
       const success = await refreshData();
       if (success && !hasNotifiedThisSession) {
-        toast.success("Data refreshed from cloud");
+        toast({
+          title: "Success",
+          description: "Data refreshed from cloud"
+        });
         setHasNotifiedThisSession(true);
       }
       return success;

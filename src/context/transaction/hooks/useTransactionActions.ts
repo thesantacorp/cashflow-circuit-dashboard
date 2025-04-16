@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
@@ -15,6 +14,7 @@ import {
  * Hook to provide transaction CRUD operations
  */
 export const useTransactionActions = (user: any, isOnline: boolean, setPendingSyncCount: (fn: (prev: number) => number) => void) => {
+  
   /**
    * Add a new transaction to Supabase
    */
