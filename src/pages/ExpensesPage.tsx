@@ -48,7 +48,7 @@ const ExpensesPage: React.FC = () => {
     // If online, refresh data from Supabase silently
     if (refreshData) {
       try {
-        // Don't wait for it and don't notify
+        // Always use silent mode (true) to prevent notifications
         refreshData(true).catch(err => console.error("Background refresh error:", err));
       } catch (error) {
         console.error('Error refreshing data:', error);

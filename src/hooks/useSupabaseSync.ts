@@ -1,10 +1,9 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useTransactions } from '@/context/transaction';
 import { useAuth } from '@/context/AuthContext';
 import { getSupabaseClient } from '@/utils/supabase/client';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { useLocation } from 'react-router-dom';
 
 // Maximum number of retries for Supabase operations
@@ -127,11 +126,7 @@ export function useSupabaseSync() {
   const syncToSupabase = useCallback(async () => {
     if (!user) {
       if (location.pathname === '/profile') {
-        toast({
-          title: "Error",
-          description: "You must be logged in to sync data",
-          variant: "destructive"
-        });
+        toast.error("You must be logged in to sync data");
       }
       return false;
     }
@@ -228,10 +223,7 @@ export function useSupabaseSync() {
       
       // Only show success toast on profile page and if we haven't notified yet this session
       if (location.pathname === '/profile' && !hasNotifiedThisSession) {
-        toast({
-          title: "Success",
-          description: "Data synced successfully to cloud",
-        });
+        toast.success("Data synced successfully to cloud");
         setHasNotifiedThisSession(true);
       }
       return true;
@@ -239,11 +231,7 @@ export function useSupabaseSync() {
       console.error('Sync error:', error);
       // Only show error toast on profile page
       if (location.pathname === '/profile') {
-        toast({
-          title: "Error",
-          description: error.message || 'Network error occurred',
-          variant: "destructive",
-        });
+        toast.error(error.message || 'Network error occurred');
       }
       return false;
     } finally {
@@ -254,11 +242,7 @@ export function useSupabaseSync() {
   // Function to restore data from Supabase
   const restoreFromSupabase = useCallback(async () => {
     if (!user) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to restore data",
-        variant: "destructive"
-      });
+      toast.error("You must be logged in to restore data");
       return false;
     }
 
@@ -319,21 +303,14 @@ export function useSupabaseSync() {
       
       // Only show success toast on profile page
       if (location.pathname === '/profile') {
-        toast({
-          title: "Success",
-          description: "Data restored successfully from cloud",
-        });
+        toast.success("Data restored successfully from cloud");
       }
       return true;
     } catch (error: any) {
       console.error('Restore error:', error);
       // Only show error toast on profile page
       if (location.pathname === '/profile') {
-        toast({
-          title: "Error",
-          description: error.message || 'Network error occurred',
-          variant: "destructive",
-        });
+        toast.error(error.message || 'Network error occurred');
       }
       return false;
     } finally {

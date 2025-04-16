@@ -10,7 +10,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { checkDatabaseConnection } from "@/utils/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface SupabaseSyncProps {
   minimal?: boolean;
@@ -23,7 +23,16 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
   const [realtimeEnabled, setRealtimeEnabled] = useState(false);
-  const [hasNotifiedThisSession, setHasNotifiedThisSession] = useState(false);
+  const [hasNotifiedThisSession, setHasNotifiedThisSession] = useState<boolean>(() => {
+    return sessionStorage.getItem('notified_this_session') === 'true';
+  });
+
+  // Save notification status to session storage
+  useEffect(() => {
+    if (hasNotifiedThisSession) {
+      sessionStorage.setItem('notified_this_session', 'true');
+    }
+  }, [hasNotifiedThisSession]);
 
   // Check connection on mount
   useEffect(() => {
@@ -160,10 +169,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
     return handleOperation(async () => {
       const success = await refreshData();
       if (success && !hasNotifiedThisSession) {
-        toast({
-          title: "Success",
-          description: "Data refreshed from cloud"
-        });
+        toast.success("Data refreshed from cloud");
         setHasNotifiedThisSession(true);
       }
       return success;
