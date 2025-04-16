@@ -1,4 +1,3 @@
-
 import React, { useReducer, useEffect, useState } from "react";
 import { TransactionContext } from "./context";
 import { useDataOperations } from "./hooks/useDataOperations";
@@ -7,12 +6,34 @@ import { useAuth } from "@/context/AuthContext";
 import { checkDatabaseConnection } from "@/utils/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 import * as tableManagement from "@/utils/supabase/tableManagement";
+import { transactionReducer } from "./reducer";
 
 // Create provider
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load state from localStorage
-  const savedState = localStorage.getItem("transactionState");
-  const initialState = savedState ? JSON.parse(savedState) : { transactions: [], categories: [] };
+  // Load state from localStorage with safeguards
+  const getInitialState = () => {
+    try {
+      const savedState = localStorage.getItem("transactionState");
+      if (!savedState) {
+        console.warn("No transactionState found in localStorage, creating empty state");
+        return { transactions: [], categories: [] };
+      }
+      
+      const parsedState = JSON.parse(savedState);
+      console.log("Loaded initial state from localStorage:", parsedState);
+      
+      // Ensure proper structure
+      if (!parsedState.transactions) parsedState.transactions = [];
+      if (!parsedState.categories) parsedState.categories = [];
+      
+      return parsedState;
+    } catch (error) {
+      console.error("Error loading from localStorage:", error);
+      return { transactions: [], categories: [] };
+    }
+  };
+  
+  const initialState = getInitialState();
   const { user } = useAuth();
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
@@ -51,6 +72,13 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       switch (action.type) {
         case "ADD_TRANSACTION":
           newState = { ...state, transactions: [...state.transactions, action.payload] };
+          console.log("ADD_TRANSACTION - New state:", newState);
+          // Immediately save to localStorage for redundancy
+          try {
+            localStorage.setItem("transactionState", JSON.stringify(newState));
+          } catch (error) {
+            console.error("Error saving ADD_TRANSACTION to localStorage:", error);
+          }
           break;
         case "UPDATE_TRANSACTION":
           newState = {
@@ -59,12 +87,26 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
               t.id === action.payload.id ? action.payload : t
             )
           };
+          console.log("UPDATE_TRANSACTION - New state:", newState);
+          // Immediately save to localStorage for redundancy
+          try {
+            localStorage.setItem("transactionState", JSON.stringify(newState));
+          } catch (error) {
+            console.error("Error saving UPDATE_TRANSACTION to localStorage:", error);
+          }
           break;
         case "DELETE_TRANSACTION":
           newState = {
             ...state,
             transactions: state.transactions.filter(t => t.id !== action.payload)
           };
+          console.log("DELETE_TRANSACTION - New state:", newState);
+          // Immediately save to localStorage for redundancy
+          try {
+            localStorage.setItem("transactionState", JSON.stringify(newState));
+          } catch (error) {
+            console.error("Error saving DELETE_TRANSACTION to localStorage:", error);
+          }
           break;
         case "ADD_CATEGORY":
           // Check if a category with the same name and type already exists
@@ -122,9 +164,41 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     initialState
   );
 
-  // Save state to localStorage whenever it changes
+  // Save state to localStorage whenever it changes - with error handling
   useEffect(() => {
-    localStorage.setItem("transactionState", JSON.stringify(state));
+    try {
+      console.log("Saving state to localStorage (size: " + 
+        JSON.stringify(state).length + " bytes):", state);
+      localStorage.setItem("transactionState", JSON.stringify(state));
+      
+      // Verify save was successful
+      const savedState = localStorage.getItem("transactionState");
+      if (savedState) {
+        const parsedSaved = JSON.parse(savedState);
+        if (parsedSaved.transactions?.length !== state.transactions?.length) {
+          console.error("Verification failed: Transaction count mismatch in localStorage!", 
+            {saved: parsedSaved.transactions?.length, current: state.transactions?.length});
+          
+          // Retry save
+          console.log("Retrying localStorage save...");
+          localStorage.setItem("transactionState", JSON.stringify(state));
+        }
+      }
+    } catch (error) {
+      console.error("Error saving state to localStorage:", error);
+      
+      // Try saving with just the essential data if full state is too large
+      try {
+        const minimalState = {
+          transactions: state.transactions,
+          categories: state.categories
+        };
+        localStorage.setItem("transactionState", JSON.stringify(minimalState));
+        console.log("Saved minimal state to localStorage as fallback");
+      } catch (innerError) {
+        console.error("Even minimal state save failed:", innerError);
+      }
+    }
   }, [state]);
 
   // Use the data operations hook
@@ -270,10 +344,32 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Basic transaction operations
   const addTransaction = (transaction) => {
     const newTransaction = { ...transaction, id: crypto.randomUUID() };
+    console.log("Adding new transaction:", newTransaction);
+    
+    // First try to update the state with dispatch
     dispatch({
       type: "ADD_TRANSACTION",
       payload: newTransaction,
     });
+    
+    // Manual redundant save to localStorage as a fallback
+    try {
+      const currentState = JSON.parse(localStorage.getItem("transactionState") || JSON.stringify({ transactions: [], categories: [] }));
+      const updatedTransactions = [...currentState.transactions, newTransaction];
+      const updatedState = { ...currentState, transactions: updatedTransactions };
+      
+      console.log("Redundant save after adding transaction. New state:", updatedState);
+      localStorage.setItem("transactionState", JSON.stringify(updatedState));
+      
+      // Verify the save
+      const verifyState = localStorage.getItem("transactionState");
+      if (verifyState) {
+        const parsedVerify = JSON.parse(verifyState);
+        console.log(`Verify save: localStorage has ${parsedVerify.transactions?.length} transactions`);
+      }
+    } catch (error) {
+      console.error("Error in redundant save:", error);
+    }
     
     // Immediately sync to Supabase or mark for future sync
     if (user && isOnline) {

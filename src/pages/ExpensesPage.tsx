@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Dashboard from "@/components/Dashboard";
@@ -21,26 +20,52 @@ const ExpensesPage: React.FC = () => {
   const { getTotalByType, state } = useTransactions();
   const { currencySymbol } = useCurrency();
 
-  // Log state on mount and changes
   useEffect(() => {
-    console.log("ExpensePage - Current state:", state);
+    console.log("ExpensePage - Current state from context:", state);
+    console.log(`ExpensePage - Transaction count: ${state.transactions?.length || 0}`);
     
-    // Verify localStorage data matches the current state
-    const savedState = localStorage.getItem("transactionState");
-    if (savedState) {
-      const parsedState = JSON.parse(savedState);
-      console.log("localStorage state:", parsedState);
-      
-      // Check for discrepancies in transaction counts
-      if (parsedState.transactions?.length !== state.transactions?.length) {
-        console.warn("State mismatch: localStorage has", 
-          parsedState.transactions?.length, "transactions, but context has", 
-          state.transactions?.length);
+    try {
+      const savedState = localStorage.getItem("transactionState");
+      if (savedState) {
+        const parsedState = JSON.parse(savedState);
+        console.log("ExpensePage - localStorage state:", parsedState);
+        console.log(`ExpensePage - localStorage transaction count: ${parsedState.transactions?.length || 0}`);
+        
+        if (parsedState.transactions?.length !== state.transactions?.length) {
+          console.warn(`State mismatch: localStorage has ${
+            parsedState.transactions?.length} transactions, but context has ${
+            state.transactions?.length}`);
+        }
+        
+        if (parsedState.transactions?.length > 0 && state.transactions?.length > 0) {
+          console.log("First few transactions in localStorage:", 
+            parsedState.transactions.slice(0, 3).map(t => t.id));
+          console.log("First few transactions in context:", 
+            state.transactions.slice(0, 3).map(t => t.id));
+        }
+      } else {
+        console.warn("No transactionState found in localStorage!");
       }
+    } catch (error) {
+      console.error("Error checking localStorage:", error);
     }
+    
+    const saveVerifier = setTimeout(() => {
+      try {
+        const currentSaved = localStorage.getItem("transactionState");
+        if (currentSaved) {
+          const parsedCurrent = JSON.parse(currentSaved);
+          console.log("Verification check - localStorage transaction count:", 
+            parsedCurrent.transactions?.length);
+        }
+      } catch (e) {
+        console.error("Error in verification check:", e);
+      }
+    }, 2000);
+    
+    return () => clearTimeout(saveVerifier);
   }, [state]);
 
-  // Filter transactions based on selected emotion
   const filteredTransactions = useMemo(() => {
     if (selectedEmotion === 'all') {
       return state.transactions;
@@ -51,7 +76,6 @@ const ExpensesPage: React.FC = () => {
     );
   }, [state.transactions, selectedEmotion]);
 
-  // Calculate filtered total
   const filteredTotal = useMemo(() => {
     return filteredTransactions
       .filter(t => t.type === "expense")
@@ -61,6 +85,12 @@ const ExpensesPage: React.FC = () => {
   return (
     <div className="container py-4 md:py-6 max-w-7xl mx-auto px-3 sm:px-4 w-full overflow-hidden">
       <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 text-center sm:text-left">Expenses</h1>
+      
+      {process.env.NODE_ENV !== 'production' && (
+        <div className="mb-4 p-2 bg-yellow-100 text-yellow-800 text-sm rounded">
+          Debug: {state.transactions?.length || 0} transactions in memory
+        </div>
+      )}
       
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="mb-6 md:mb-8">
         <TabsList className="grid w-full grid-cols-3 mb-4">

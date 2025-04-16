@@ -11,7 +11,7 @@ import './types/google-api.d';
 // Import service worker type extensions - comment out problematic import
 // Types are already imported in serviceWorkerRegistration.ts
 
-// Initialize localStorage if needed
+// Initialize localStorage if needed with proper structure
 const initializeLocalStorage = () => {
   if (!localStorage.getItem("transactionState")) {
     console.log("Initializing empty transaction state in localStorage");
@@ -20,8 +20,21 @@ const initializeLocalStorage = () => {
       categories: [] 
     }));
   } else {
-    console.log("Found existing transaction state in localStorage", 
-      JSON.parse(localStorage.getItem("transactionState") || '{}'));
+    const savedState = JSON.parse(localStorage.getItem("transactionState") || '{}');
+    console.log("Found existing transaction state in localStorage", savedState);
+    
+    // Ensure the state has the proper structure
+    if (!savedState.transactions) {
+      console.warn("Missing transactions array in localStorage, fixing structure");
+      savedState.transactions = [];
+      localStorage.setItem("transactionState", JSON.stringify(savedState));
+    }
+    
+    if (!savedState.categories) {
+      console.warn("Missing categories array in localStorage, fixing structure");
+      savedState.categories = [];
+      localStorage.setItem("transactionState", JSON.stringify(savedState));
+    }
   }
 };
 
