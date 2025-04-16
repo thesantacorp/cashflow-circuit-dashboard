@@ -7,14 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CardTitle, CardDescription, CardHeader, CardContent, CardFooter, Card } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
@@ -22,22 +19,18 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     
     if (!email || !password) {
-      setError('Please enter both email and password');
+      toast.error('Please enter both email and password');
       return;
     }
     
     setIsLoading(true);
-    setError(null);
     
     try {
       await signIn(email, password);
       // On successful login, the AuthContext will handle navigation
-    } catch (error: any) {
+    } catch (error) {
       console.error('Login error:', error);
-      setError(error?.message || 'Failed to sign in. Please check your credentials.');
-      toast.error('Login failed', {
-        description: error?.message || 'Please check your credentials and try again.'
-      });
+      toast.error('Failed to sign in. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
@@ -52,12 +45,6 @@ const LoginPage: React.FC = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>

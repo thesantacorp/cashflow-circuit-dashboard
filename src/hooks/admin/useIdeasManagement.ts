@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Idea, VoteSummary } from '@/integrations/supabase/customClient';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { typeSafeFrom } from '@/utils/supabase/client';
+import { ensureStorageBucketExists, makeFilePublic } from '@/utils/supabase/client';
 
 export const useIdeasManagement = () => {
   const navigate = useNavigate();
@@ -108,14 +108,28 @@ export const useIdeasManagement = () => {
     }
   }, [isAdmin]);
 
+  // We're using the improved ensureStorageBucketExists function now
+  const createBucketDirectly = async () => {
+    try {      
+      // First check if the bucket already exists via enhanced function
+      return await ensureStorageBucketExists('ideas');
+    } catch (error) {
+      console.error('Failed to create bucket directly:', error);
+      toast.error('Storage setup issues. Will try to continue anyway.');
+      return true; // Return true to allow continuing anyway
+    }
+  };
+
   const handleFormSubmit = async (formData: {
     name: string;
     description: string;
+    imageFile: File | null;
+    imageUrl: string | null;
     countdownTimer: string;
     liveProjectLink: string;
     learnMoreLink: string;
   }) => {
-    const { name, description, countdownTimer, liveProjectLink, learnMoreLink } = formData;
+    const { name, description, imageFile, imageUrl, countdownTimer, liveProjectLink, learnMoreLink } = formData;
     
     if (!name || !description || !countdownTimer) {
       toast.error('Please fill in all required fields');
@@ -125,14 +139,72 @@ export const useIdeasManagement = () => {
     try {
       setIsUploading(true);
       
+      let finalImageUrl = imageUrl;
+      
+      if (imageFile) {
+        try {
+          const bucketName = 'ideas';
+          
+          console.log('About to ensure bucket exists...');
+          
+          const bucketCreated = await createBucketDirectly();
+          console.log('Bucket creation result:', bucketCreated);
+          
+          // Continue even if bucket "creation" failed - it might already exist
+          console.log('Proceeding with upload...');
+          
+          const fileExt = imageFile.name.split('.').pop();
+          const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+          const filePath = `${fileName}`;
+          
+          console.log(`Uploading file to ${bucketName}/${filePath}`);
+          
+          const { data, error: uploadError } = await supabase
+            .storage
+            .from(bucketName)
+            .upload(filePath, imageFile, {
+              cacheControl: '3600',
+              upsert: true
+            });
+            
+          if (uploadError) {
+            console.error('Error uploading image:', uploadError);
+            throw uploadError;
+          }
+          
+          console.log('File uploaded successfully:', data);
+          
+          try {
+            await makeFilePublic(bucketName, filePath);
+          } catch (publicErr) {
+            console.warn('Non-critical error making file public:', publicErr);
+            // Continue anyway as this is not critical
+          }
+          
+          const { data: { publicUrl } } = supabase
+            .storage
+            .from(bucketName)
+            .getPublicUrl(filePath);
+            
+          console.log('Public URL:', publicUrl);
+          finalImageUrl = publicUrl;
+        } catch (uploadErr: any) {
+          console.error('Error during image upload:', uploadErr);
+          toast.error('Failed to upload image: ' + (uploadErr.message || 'Unknown error'));
+          // Continue without image rather than failing completely
+          console.log('Continuing without image...');
+        }
+      }
+      
       const formattedDate = new Date(countdownTimer).toISOString();
       
       if (editingIdea) {
-        const { data, error } = await supabase.from('ideas')
+        const { data, error } = await supabase
+          .from('ideas')
           .update({
             name,
             description,
-            image_url: null, // Set to null to remove any existing image
+            image_url: finalImageUrl,
             countdown_timer: formattedDate,
             live_project_link: liveProjectLink || null,
             learn_more_link: learnMoreLink || null
@@ -147,11 +219,12 @@ export const useIdeasManagement = () => {
         
         toast.success('Idea updated successfully');
       } else {
-        const { data, error } = await supabase.from('ideas')
+        const { data, error } = await supabase
+          .from('ideas')
           .insert({
             name,
             description,
-            image_url: null, // No image
+            image_url: finalImageUrl,
             countdown_timer: formattedDate,
             live_project_link: liveProjectLink || null,
             learn_more_link: learnMoreLink || null,

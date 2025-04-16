@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -15,15 +16,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Transaction } from "@/types";
-import { toast } from "sonner";
-import { v4 as uuidv4 } from "uuid";
 
 interface DataExportImportProps {
   showDialog?: boolean;
 }
 
 const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }) => {
-  const { state, importData, replaceAllData, refreshData, syncToSupabase, deduplicate } = useTransactions();
+  const { state, importData, replaceAllData } = useTransactions();
   const { currency } = useCurrency();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -32,10 +31,10 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
     transactions: [],
     categories: []
   });
-  const [isImporting, setIsImporting] = useState(false);
 
   const handleExportCSV = () => {
     try {
+      // Prepare transactions data
       const transactions = state.transactions.map(t => {
         const category = state.categories.find(c => c.id === t.categoryId);
         return {
@@ -59,23 +58,30 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
         return;
       }
 
+      // Create CSV headers
       const headers = Object.keys(transactions[0]).join(',');
       
+      // Create CSV rows
       const csvRows = transactions.map(t => {
+        // Make sure to properly escape description to handle commas
         const safeDescription = t.description ? `"${t.description.replace(/"/g, '""')}"` : "";
         return `${t.id},${t.type},${t.category},${t.amount},${safeDescription},${t.date},${t.emotion},${t.currency}`;
       });
       
+      // Combine headers and rows
       const csvContent = [headers, ...csvRows].join('\n');
       
+      // Create download link
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       
+      // Set up download link
       link.setAttribute('href', url);
       link.setAttribute('download', `stack_d_export_${new Date().toISOString().split('T')[0]}.csv`);
       link.style.visibility = 'hidden';
       
+      // Trigger download
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -116,6 +122,7 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
       }
     }
     
+    // Push the last value
     values.push(currentValue);
     return values;
   };
@@ -124,7 +131,6 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsImporting(true);
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -132,6 +138,7 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
         const lines = csvData.split('\n');
         const headers = lines[0].split(',');
         
+        // Check if CSV format is valid
         if (!headers.includes('type') || !headers.includes('amount') || !headers.includes('date')) {
           throw new Error("Invalid CSV format. Required headers: type, amount, date");
         }
@@ -139,10 +146,12 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
         const transactions = [];
         const categoryMap = new Map();
         
+        // Create a map of existing categories
         state.categories.forEach(c => {
           categoryMap.set(c.name.toLowerCase(), c.id);
         });
         
+        // Start from index 1 to skip headers
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           
@@ -154,16 +163,19 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
           
           const rowData: any = {};
           
+          // Map CSV values to object properties
           headers.forEach((header, index) => {
             rowData[header] = values[index];
           });
           
+          // Find category ID or create placeholder
           let categoryId = '';
           if (rowData.category) {
             const categoryLower = rowData.category.toLowerCase();
             if (categoryMap.has(categoryLower)) {
               categoryId = categoryMap.get(categoryLower);
             } else {
+              // Use default category based on transaction type
               const defaultCategories = state.categories.filter(c => c.type === rowData.type);
               if (defaultCategories.length > 0) {
                 categoryId = defaultCategories[0].id;
@@ -171,11 +183,8 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
             }
           }
           
-          const timestamp = new Date().getTime();
-          const uniqueId = `imported-${uuidv4()}-${timestamp}`;
-          
           transactions.push({
-            id: uniqueId,
+            id: rowData.id || `imported-${Date.now()}-${i}`,
             type: rowData.type,
             amount: parseFloat(rowData.amount),
             description: rowData.description || '',
@@ -189,8 +198,6 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
           throw new Error("No valid transactions found in the CSV file");
         }
         
-        console.log(`Parsed ${transactions.length} transactions from CSV`);
-        
         setImportedData({
           transactions: transactions,
           categories: state.categories
@@ -203,10 +210,9 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
           description: error instanceof Error ? error.message : "There was an error importing your data.",
           variant: "destructive"
         });
-      } finally {
-        setIsImporting(false);
       }
       
+      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -215,58 +221,22 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
     reader.readAsText(file);
   };
 
-  const handleImportConfirm = async (replace: boolean) => {
-    try {
-      console.log(`Import confirmed. Replace mode: ${replace}`);
-      console.log(`Importing ${importedData.transactions.length} transactions`);
-      
-      deduplicate();
-      
-      setIsImporting(true);
-      
-      if (replace) {
-        const newState = {
-          transactions: importedData.transactions,
-          categories: state.categories,
-          nextTransactionId: state.nextTransactionId || 1,
-          nextCategoryId: state.nextCategoryId || 100
-        };
-        
-        console.log("Replacing all data with:", newState);
-        await replaceAllData(newState);
-        
-        await syncToSupabase();
-        
-        toast({
-          title: "Data replaced",
-          description: `${importedData.transactions.length} transactions have replaced your existing data and synced to cloud.`
-        });
-      } else {
-        console.log("Adding to existing data:", importedData);
-        await importData(importedData);
-        
-        await syncToSupabase();
-        
-        toast({
-          title: "Import successful",
-          description: `${importedData.transactions.length} transactions have been added to your data and synced to cloud.`
-        });
-      }
-      
-      await refreshData(false);
-      
-      setShowReplaceDialog(false);
-      setImportedData({ transactions: [], categories: [] });
-    } catch (error) {
-      console.error("Error during import confirmation:", error);
+  const handleImportConfirm = (replace: boolean) => {
+    if (replace) {
+      replaceAllData(importedData);
       toast({
-        title: "Import failed",
-        description: "There was an error processing your imported data.",
-        variant: "destructive"
+        title: "Data replaced",
+        description: `${importedData.transactions.length} transactions have replaced your existing data.`
       });
-    } finally {
-      setIsImporting(false);
+    } else {
+      importData(importedData);
+      toast({
+        title: "Import successful",
+        description: `${importedData.transactions.length} transactions have been added to your existing data.`
+      });
     }
+    setShowReplaceDialog(false);
+    setImportedData({ transactions: [], categories: [] });
   };
 
   return (
@@ -276,7 +246,6 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
           variant="outline" 
           className="flex items-center gap-2 text-black" 
           onClick={handleExportCSV}
-          disabled={isImporting}
         >
           <Download className="h-4 w-4" />
           Export as CSV
@@ -286,17 +255,15 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
           variant="outline" 
           className="flex items-center gap-2 text-black" 
           onClick={handleImportClick}
-          disabled={isImporting}
         >
           <Upload className="h-4 w-4" />
-          {isImporting ? "Importing..." : "Import CSV"}
+          Import CSV
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleImportCSV}
             accept=".csv"
             className="hidden"
-            disabled={isImporting}
           />
         </Button>
       </div>
@@ -314,20 +281,18 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowReplaceDialog(false)} disabled={isImporting}>
+            <AlertDialogCancel onClick={() => setShowReplaceDialog(false)}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => handleImportConfirm(false)}
               className="bg-blue-500 hover:bg-blue-600"
-              disabled={isImporting}
             >
               Add to Existing
             </AlertDialogAction>
             <AlertDialogAction
               onClick={() => handleImportConfirm(true)}
               className="bg-orange-500 hover:bg-orange-600"
-              disabled={isImporting}
             >
               Replace All
             </AlertDialogAction>

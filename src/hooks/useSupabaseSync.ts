@@ -1,10 +1,9 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useTransactions } from '@/context/transaction';
 import { useAuth } from '@/context/AuthContext';
 import { getSupabaseClient } from '@/utils/supabase/client';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 import { useLocation } from 'react-router-dom';
 
 // Maximum number of retries for Supabase operations
@@ -13,10 +12,6 @@ const RETRY_DELAY = 1000; // ms
 
 // Key for tracking if this is the first login on this device
 const FIRST_LOGIN_KEY = 'is_first_login_on_device';
-// Key for tracking notification status
-const NOTIFIED_THIS_SESSION_KEY = 'notified_this_session';
-// Key for tracking last sync attempt
-const LAST_SYNC_ATTEMPT_KEY = 'last_sync_attempt';
 
 /**
  * Utility function to wait for a specified delay
@@ -29,30 +24,12 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export function useSupabaseSync() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncDate, setLastSyncDate] = useState<Date | null>(null);
-  const { 
-    state, 
-    importData, 
-    replaceAllData, 
-    refreshData, 
-    syncToSupabase: contextSyncToSupabase 
-  } = useTransactions();
+  const { state, importData, replaceAllData, refreshData } = useTransactions();
   const { user, profile } = useAuth();
   const [isFirstLogin, setIsFirstLogin] = useState<boolean>(() => {
     return localStorage.getItem(FIRST_LOGIN_KEY) === 'true';
   });
   const location = useLocation();
-  
-  // Track if we've already notified the user this session
-  const [hasNotifiedThisSession, setHasNotifiedThisSession] = useState<boolean>(() => {
-    return sessionStorage.getItem(NOTIFIED_THIS_SESSION_KEY) === 'true';
-  });
-
-  // Set notification session status
-  useEffect(() => {
-    if (hasNotifiedThisSession) {
-      sessionStorage.setItem(NOTIFIED_THIS_SESSION_KEY, 'true');
-    }
-  }, [hasNotifiedThisSession]);
 
   // Track if this is the first login on this device
   useEffect(() => {
@@ -135,53 +112,137 @@ export function useSupabaseSync() {
   const syncToSupabase = useCallback(async () => {
     if (!user) {
       if (location.pathname === '/profile') {
-        toast.error("You must be logged in to sync data");
+        toast({
+          title: "Error",
+          description: "You must be logged in to sync data",
+          variant: "destructive"
+        });
       }
       return false;
     }
 
-    // Save the sync attempt time
-    localStorage.setItem(LAST_SYNC_ATTEMPT_KEY, new Date().toISOString());
-    
     setIsSyncing(true);
     
     try {
-      // Use the context's syncToSupabase function which is optimized for direct sync
-      const success = await contextSyncToSupabase();
+      // Get the best available client
+      const client = await getBestClient();
       
-      if (success) {
-        const now = new Date();
-        setLastSyncDate(now);
-        localStorage.setItem('lastTransactionUpdate', now.toISOString());
-        
-        // Only show success toast on profile page
-        if (location.pathname === '/profile') {
-          toast.success("Data synced successfully to cloud");
-        }
+      // Check connection to Supabase before proceeding
+      await executeWithRetry(async () => {
+        const { data, error } = await client.from('user_uuids').select('count', { count: 'exact', head: true }).limit(1);
+        if (error) throw error;
+        return data;
+      }, 'Connection check');
+      
+      // Delete existing data for this user to prevent duplicates
+      await executeWithRetry(async () => {
+        const { error } = await (client.from('transactions') as any).delete().eq('user_email', user.email);
+        if (error) throw error;
         return true;
-      } else {
-        // Only show error toast on profile page
-        if (location.pathname === '/profile') {
-          toast.error("Failed to sync data to cloud");
+      }, 'Delete existing transactions');
+      
+      await executeWithRetry(async () => {
+        const { error } = await (client.from('categories') as any).delete().eq('user_email', user.email);
+        if (error) throw error;
+        return true;
+      }, 'Delete existing categories');
+      
+      // Insert transactions in batches
+      if (state.transactions.length > 0) {
+        const batchSize = 50; // Process transactions in smaller batches
+        const batches = Math.ceil(state.transactions.length / batchSize);
+        
+        for (let i = 0; i < batches; i++) {
+          const start = i * batchSize;
+          const end = Math.min(start + batchSize, state.transactions.length);
+          const batch = state.transactions.slice(start, end);
+          
+          const transactionRows = batch.map(transaction => ({
+            user_email: user.email,
+            transaction_id: transaction.id,
+            type: transaction.type,
+            category_id: transaction.categoryId,
+            amount: transaction.amount,
+            description: transaction.description || '',
+            date: transaction.date,
+            emotional_state: transaction.emotionalState || 'neutral'
+          }));
+          
+          await executeWithRetry(async () => {
+            const { error } = await (client.from('transactions') as any).insert(transactionRows);
+            if (error) throw error;
+            return true;
+          }, `Insert transactions batch ${i + 1}/${batches}`);
         }
-        return false;
       }
+      
+      // Insert categories
+      if (state.categories.length > 0) {
+        const categoryRows = state.categories.map(category => ({
+          user_email: user.email,
+          category_id: category.id,
+          name: category.name,
+          type: category.type,
+          color: category.color
+        }));
+        
+        await executeWithRetry(async () => {
+          const { error } = await (client.from('categories') as any).insert(categoryRows);
+          if (error) throw error;
+          return true;
+        }, 'Insert categories');
+      }
+      
+      // Update profile with last backup date
+      if (user.id) {
+        await executeWithRetry(async () => {
+          const { error } = await client
+            .from('profiles')
+            .update({ 
+              backup_last_date: new Date().toISOString()
+            })
+            .eq('id', user.id);
+          if (error) throw error;
+          return true;
+        }, 'Update profile backup date');
+      }
+      
+      const now = new Date();
+      setLastSyncDate(now);
+      localStorage.setItem('lastTransactionUpdate', now.toISOString());
+      
+      // Only show success toast on profile page
+      if (location.pathname === '/profile') {
+        toast({
+          title: "Success",
+          description: "Data synced successfully to cloud",
+        });
+      }
+      return true;
     } catch (error: any) {
       console.error('Sync error:', error);
       // Only show error toast on profile page
       if (location.pathname === '/profile') {
-        toast.error(error.message || 'Network error occurred');
+        toast({
+          title: "Error",
+          description: error.message || 'Network error occurred',
+          variant: "destructive",
+        });
       }
       return false;
     } finally {
       setIsSyncing(false);
     }
-  }, [user, contextSyncToSupabase, location.pathname]);
+  }, [user, state.transactions, state.categories, executeWithRetry, getBestClient, location.pathname]);
 
   // Function to restore data from Supabase
   const restoreFromSupabase = useCallback(async () => {
     if (!user) {
-      toast.error("You must be logged in to restore data");
+      toast({
+        title: "Error",
+        description: "You must be logged in to restore data",
+        variant: "destructive"
+      });
       return false;
     }
 
@@ -242,47 +303,27 @@ export function useSupabaseSync() {
       
       // Only show success toast on profile page
       if (location.pathname === '/profile') {
-        toast.success("Data restored successfully from cloud");
+        toast({
+          title: "Success",
+          description: "Data restored successfully from cloud",
+        });
       }
       return true;
     } catch (error: any) {
       console.error('Restore error:', error);
       // Only show error toast on profile page
       if (location.pathname === '/profile') {
-        toast.error(error.message || 'Network error occurred');
+        toast({
+          title: "Error",
+          description: error.message || 'Network error occurred',
+          variant: "destructive",
+        });
       }
       return false;
     } finally {
       setIsSyncing(false);
     }
   }, [user, executeWithRetry, replaceAllData, getBestClient, location.pathname]);
-
-  // Auto-sync data on component mount or when data changes significantly
-  useEffect(() => {
-    if (!user || !navigator.onLine) return;
-    
-    // Only run this if we haven't synced recently (within last 30 seconds)
-    const lastSyncAttempt = localStorage.getItem(LAST_SYNC_ATTEMPT_KEY);
-    if (lastSyncAttempt) {
-      const lastAttemptTime = new Date(lastSyncAttempt).getTime();
-      const now = new Date().getTime();
-      const timeSinceLastSync = now - lastAttemptTime;
-      
-      // If less than 30 seconds have passed since last sync attempt, skip
-      if (timeSinceLastSync < 30000) {
-        console.log('Skipping auto-sync, last attempt was less than 30 seconds ago');
-        return;
-      }
-    }
-    
-    // Check if we have a significant number of transactions that might need syncing
-    if (state.transactions.length > 0) {
-      console.log('Auto-syncing data to Supabase');
-      syncToSupabase().catch(err => {
-        console.error('Auto-sync error:', err);
-      });
-    }
-  }, [user, state.transactions.length, syncToSupabase]);
 
   // Auto-sync data when a user logs in - but with prevention for first login
   useEffect(() => {
@@ -296,7 +337,11 @@ export function useSupabaseSync() {
         
         // Only show the welcome back message on the profile page
         if (location.pathname === '/profile') {
-          toast.info("Welcome back! Existing user just signing in on a new device? Restore data first!");
+          toast({
+            title: "Welcome back",
+            description: "Existing user just signing in on a new device? Restore data first!",
+            duration: 7000,
+          });
         }
         return;
       }
@@ -349,11 +394,11 @@ export function useSupabaseSync() {
                   await syncToSupabase();
                 } else {
                   // Remote is newer
-                  await refreshData(true);
+                  await restoreFromSupabase();
                 }
               } else {
                 // No local timestamp, use remote data
-                await refreshData(true);
+                await restoreFromSupabase();
               }
             } else {
               // No backup date in profile, assume local is newer
@@ -362,12 +407,17 @@ export function useSupabaseSync() {
           }
         } catch (error) {
           console.error('Auto-sync error:', error);
+          toast({
+            title: "Error",
+            description: "We encountered an issue syncing your data. You can try again manually.",
+            variant: "destructive",
+          });
         }
       };
       
       syncData().catch(console.error);
     }
-  }, [user, profile, state.transactions.length, state.categories.length, syncToSupabase, restoreFromSupabase, getBestClient, location.pathname, refreshData]);
+  }, [user, profile, state.transactions.length, state.categories.length, syncToSupabase, restoreFromSupabase, getBestClient, location.pathname]);
 
   // Clear first login flag on manual restore
   const handleManualRestore = async () => {
@@ -393,8 +443,6 @@ export function useSupabaseSync() {
     backupToSupabase: syncToSupabase, // Keep for backward compatibility
     syncToSupabase,                   // New, clearer naming
     restoreFromSupabase: handleManualRestore,
-    isFirstLogin,
-    hasNotifiedThisSession,
-    setHasNotifiedThisSession
+    isFirstLogin
   };
 }

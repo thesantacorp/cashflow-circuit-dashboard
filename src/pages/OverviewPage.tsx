@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useTransactions } from "@/context/transaction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -176,7 +177,7 @@ const OverviewPage: React.FC = () => {
                           {transaction.description || "No description"}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {format(new Date(transaction.date), "EEE. MMM d, yyyy")}
+                          {format(new Date(transaction.date), "MMM d, yyyy")}
                         </span>
                       </div>
                       <span

@@ -24,31 +24,20 @@ const Dashboard: React.FC<DashboardProps> = ({ type, filteredTransactions }) => 
         .reduce((sum, t) => sum + t.amount, 0)
     : getTotalByType(type);
 
-  const transactionCount = filteredTransactions
-    ? filteredTransactions.filter(t => t.type === type).length
-    : state.transactions.filter(t => t.type === type).length;
-
   return (
-    <div className="grid gap-4 sm:gap-6 w-full overflow-hidden pb-4 sm:pb-6">
-      <Card className="bg-primary text-primary-foreground w-full max-w-full overflow-hidden shadow-md">
-        <CardHeader className="pb-2 pt-4 px-4 sm:p-6 sm:pb-2">
-          <CardTitle className="text-lg sm:text-xl md:text-2xl">Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
+    <div className="grid gap-6 w-full overflow-x-visible pb-6">
+      <Card className="bg-primary text-primary-foreground overflow-hidden w-full max-w-full">
+        <CardHeader className="pb-2">
+          <CardTitle>Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
         </CardHeader>
-        <CardContent className="px-4 pb-4 sm:p-6 sm:pt-2">
-          <div className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold overflow-hidden text-ellipsis">
-            <span className="block overflow-hidden text-ellipsis">{currencySymbol}{total.toFixed(2)}</span>
+        <CardContent className="break-words">
+          <div className="text-3xl font-bold overflow-x-auto">
+            {currencySymbol}{total.toFixed(2)}
           </div>
-          <p className="text-xs sm:text-sm mt-1 text-primary-foreground/80">
-            Based on {transactionCount} {transactionCount === 1 ? 'transaction' : 'transactions'}
-          </p>
         </CardContent>
       </Card>
 
-      {type === "expense" && (
-        <div className="w-full overflow-hidden">
-          <EmotionInsights filteredTransactions={filteredTransactions} />
-        </div>
-      )}
+      {type === "expense" && <EmotionInsights filteredTransactions={filteredTransactions} />}
     </div>
   );
 };

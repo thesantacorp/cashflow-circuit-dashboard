@@ -36,7 +36,6 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
   const [emotionalState, setEmotionalState] = useState<EmotionalState>("neutral");
   const [warning, setWarning] = useState<string | null>(null);
   const [type, setType] = useState<TransactionType>("expense");
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   
   // Load transaction data when the modal opens
   useEffect(() => {
@@ -81,7 +80,7 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
     }
   };
   
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!transaction || !amount || !categoryId) return;
@@ -89,24 +88,16 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) return;
     
-    setIsSubmitting(true);
+    updateTransaction({
+      ...transaction,
+      amount: parsedAmount,
+      categoryId,
+      description,
+      date: date.toISOString(),
+      emotionalState,
+    });
     
-    try {
-      await updateTransaction({
-        ...transaction,
-        amount: parsedAmount,
-        categoryId,
-        description,
-        date: date.toISOString(),
-        emotionalState,
-      });
-      
-      onClose();
-    } catch (error) {
-      console.error("Error updating transaction:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
+    onClose();
   };
   
   if (!transaction) return null;
@@ -164,16 +155,14 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
               variant="outline" 
               onClick={onClose}
               className="border-orange-300 text-gray-700 hover:bg-orange-50"
-              type="button"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               className="bg-orange-500 hover:bg-orange-600 text-white"
-              disabled={isSubmitting}
             >
-              {isSubmitting ? "Saving..." : "Save Changes"}
+              Save Changes
             </Button>
           </DialogFooter>
         </form>

@@ -1,16 +1,16 @@
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 import { useAuth } from "@/context/AuthContext";
 import { useTransactions } from "@/context/transaction";
 import { Button } from "@/components/ui/button";
-import { CloudIcon, DownloadIcon, LoaderIcon, RefreshCw, AlertCircle, WifiOff, CloudOff, Zap } from "lucide-react";
+import { CloudIcon, DownloadIcon, LoaderIcon, RefreshCw, AlertCircle, WifiOff, CloudOff } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { checkDatabaseConnection } from "@/utils/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 
 interface SupabaseSyncProps {
   minimal?: boolean;
@@ -19,52 +19,16 @@ interface SupabaseSyncProps {
 const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
   const { isSyncing, lastSyncDate, syncToSupabase, restoreFromSupabase } = useSupabaseSync();
   const { isLoading, user } = useAuth();
-  const { isOnline, pendingSyncCount, refreshData, syncToSupabase: contextSyncToSupabase } = useTransactions();
+  const { isOnline, pendingSyncCount } = useTransactions();
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
-  const [realtimeEnabled, setRealtimeEnabled] = useState(false);
-  const [hasNotifiedThisSession, setHasNotifiedThisSession] = useState<boolean>(() => {
-    return sessionStorage.getItem('notified_this_session') === 'true';
-  });
-
-  // Save notification status to session storage
-  useEffect(() => {
-    if (hasNotifiedThisSession) {
-      sessionStorage.setItem('notified_this_session', 'true');
-    }
-  }, [hasNotifiedThisSession]);
 
   // Check connection on mount
   useEffect(() => {
     if (user && isOnline) {
       verifyConnection();
-      checkRealtimeStatus();
     }
   }, [user, isOnline]);
-
-  // Verify realtime publication is enabled
-  const checkRealtimeStatus = async () => {
-    try {
-      // Subscribe to a test channel to verify realtime is working
-      const channel = supabase.channel('realtime-test');
-      const subscription = channel.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          setRealtimeEnabled(true);
-          supabase.removeChannel(channel);
-        }
-      });
-
-      // Set a timeout to remove channel if subscription fails
-      setTimeout(() => {
-        if (!realtimeEnabled) {
-          supabase.removeChannel(channel);
-          console.log('Realtime subscription timed out');
-        }
-      }, 5000);
-    } catch (error) {
-      console.error('Error checking realtime status:', error);
-    }
-  };
 
   if (isLoading || !user) {
     return null;
@@ -120,7 +84,11 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
 
   const handleOperation = async (operation: () => Promise<boolean>) => {
     if (!isOnline) {
-      toast.error("You are currently offline. Please connect to the internet to sync your data.");
+      toast({
+        title: "Offline",
+        description: "You are currently offline. Please connect to the internet to sync your data.",
+        variant: "destructive"
+      });
       return;
     }
     
@@ -161,42 +129,6 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
     }
   };
 
-  // Enhanced sync function that uses the context's direct sync method
-  const handleDirectSync = async () => {
-    if (!isOnline || !user) {
-      toast.error("You must be online to sync data");
-      return false;
-    }
-    
-    setIsCheckingConnection(true);
-    try {
-      const success = await contextSyncToSupabase();
-      if (success) {
-        toast.success("Data synced to cloud");
-        return true;
-      } else {
-        toast.error("Failed to sync data to cloud");
-        return false;
-      }
-    } catch (error) {
-      console.error("Sync error:", error);
-      toast.error("Error syncing data");
-      return false;
-    } finally {
-      setIsCheckingConnection(false);
-    }
-  };
-
-  const handleRefresh = async () => {
-    return handleOperation(async () => {
-      const success = await refreshData(false); // Set to false to show feedback
-      if (success) {
-        toast.success("Data refreshed from cloud");
-      }
-      return success;
-    });
-  };
-
   if (minimal) {
     return (
       <div className="flex flex-col space-y-2">
@@ -204,7 +136,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
           <Button 
             size="sm" 
             variant="outline" 
-            onClick={handleDirectSync} 
+            onClick={() => handleOperation(syncToSupabase)} 
             disabled={isSyncing || isCheckingConnection || !isOnline} 
             className="flex items-center"
           >
@@ -224,18 +156,6 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
               }
             </span>
           </Button>
-          {realtimeEnabled && isOnline && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={isSyncing || isCheckingConnection || !isOnline}
-              className="flex items-center"
-            >
-              <Zap className="h-4 w-4 mr-1" />
-              <span>Refresh</span>
-            </Button>
-          )}
           {lastSyncDate && isOnline && (
             <span className="text-xs text-gray-500">
               Last synced {formatDistanceToNow(lastSyncDate, { addSuffix: true })}
@@ -315,7 +235,12 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
             <Button
               size="sm"
               variant="outline"
-              onClick={handleDirectSync}
+              onClick={() => handleOperation(() => {
+                if (window.confirm('This will upload your current data to the cloud. Continue?')) {
+                  return syncToSupabase();
+                }
+                return Promise.resolve(false);
+              })}
               disabled={isSyncing || isCheckingConnection || !isOnline}
               className="flex items-center"
             >
@@ -326,7 +251,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
               ) : (
                 <CloudIcon className="mr-2 h-3 w-3" />
               )}
-              Sync Now {pendingSyncCount > 0 && `(${pendingSyncCount})`}
+              Sync {pendingSyncCount > 0 && `(${pendingSyncCount})`}
             </Button>
             <Button
               size="sm"

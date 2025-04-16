@@ -21,8 +21,6 @@ export interface Transaction {
   description?: string;
   type: TransactionType;
   emotionalState?: EmotionalState;
-  syncedAt?: string;
-  updatedAt?: string;
 }
 
 export interface EmotionInsight {

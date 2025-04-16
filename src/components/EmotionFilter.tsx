@@ -12,12 +12,11 @@ const emotions: Array<EmotionalState | 'all'> = [
 interface EmotionFilterProps {
   selectedEmotion: EmotionalState | 'all';
   onChange: (emotion: EmotionalState | 'all') => void;
-  className?: string; // Make className optional
 }
 
-const EmotionFilter: React.FC<EmotionFilterProps> = ({ selectedEmotion, onChange, className = '' }) => {
+const EmotionFilter: React.FC<EmotionFilterProps> = ({ selectedEmotion, onChange }) => {
   return (
-    <div className={`mb-4 ${className}`}>
+    <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
         <Label className="text-sm font-medium">Filter by emotion</Label>
         {selectedEmotion !== 'all' && (

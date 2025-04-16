@@ -14,11 +14,11 @@ interface TransactionState {
 interface TransactionContextType {
   state: TransactionState;
   dispatch: React.Dispatch<any>;
-  addTransaction: (transaction: Omit<Transaction, "id">) => Promise<boolean>;
-  updateTransaction: (transaction: Transaction) => Promise<boolean>;
-  deleteTransaction: (id: string) => Promise<boolean>;
-  addCategory: (category: Omit<Category, "id">) => Promise<boolean>;
-  deleteCategory: (id: string) => Promise<boolean>;
+  addTransaction: (transaction: Omit<Transaction, "id">) => boolean;
+  updateTransaction: (transaction: Transaction) => boolean;
+  deleteTransaction: (id: string) => boolean;
+  addCategory: (category: Omit<Category, "id">) => boolean;
+  deleteCategory: (id: string) => boolean;
   getTransactionsByType: (type: TransactionType) => Transaction[];
   getCategoriesByType: (type: TransactionType) => Category[];
   getCategoryById: (id: string) => Category | undefined;
@@ -26,12 +26,10 @@ interface TransactionContextType {
   importData: (data: Partial<TransactionState>) => void;
   replaceAllData: (data: TransactionState) => void;
   lastSyncTime: Date | null;
-  refreshData: (silent?: boolean) => Promise<boolean>;
+  refreshData?: () => Promise<boolean>;
   deduplicate: () => void;
   isOnline: boolean;
   pendingSyncCount: number;
-  isLoading?: boolean;
-  syncToSupabase: () => Promise<boolean>;
 }
 
 // Create the context

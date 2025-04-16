@@ -1,310 +1,422 @@
-import React, { useReducer, useEffect, useCallback, useState } from "react";
+
+import React, { useReducer, useEffect, useState } from "react";
 import { TransactionContext } from "./context";
-import { supabase } from "@/integrations/supabase/client";
-import { TransactionState } from "./types";
-import { transactionReducer, initialState } from "./reducer";
-import { useTransactionAuth } from "./hooks/useTransactionAuth";
-import { useSupabaseData } from "./hooks/useSupabaseData";
-import { useTransactionActions } from "./hooks/useTransactionActions";
-import { useTransactionUtils } from "./hooks/useTransactionUtils";
-import { Transaction, Category } from "@/types";
+import { useDataOperations } from "./hooks/useDataOperations";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+import { checkDatabaseConnection } from "@/utils/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 
+// Create provider
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(transactionReducer, initialState);
-  const [isPerformingMajorOperation, setIsPerformingMajorOperation] = useState(false);
+  // Load state from localStorage
+  const savedState = localStorage.getItem("transactionState");
+  const initialState = savedState ? JSON.parse(savedState) : { transactions: [], categories: [] };
+  const { user } = useAuth();
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // Track operations that need to be synced
+  const [pendingSync, setPendingSync] = useState<Set<string>>(new Set());
   
-  const { 
-    user, 
-    isOnline, 
-    pendingSyncCount, 
-    setPendingSyncCount 
-  } = useTransactionAuth();
-  
-  const {
-    isLoading,
-    lastSyncTime,
-    loadInitialData,
-    refreshData: refreshDataFromSupabase,
-    setupRealtimeSubscription
-  } = useSupabaseData();
-
-  const {
-    addTransaction,
-    updateTransaction,
-    deleteTransaction: deleteTransactionAction,
-    addCategory,
-    deleteCategory
-  } = useTransactionActions(user, isOnline, setPendingSyncCount);
-
-  const {
-    getTransactionsByType,
-    getCategoriesByType,
-    getCategoryById,
-    getTotalByType,
-    deduplicate: deduplicateUtils,
-    cleanImportedTransactions
-  } = useTransactionUtils(state);
-
+  // Update online status
   useEffect(() => {
-    const initializeData = async () => {
-      const loadedData = await loadInitialData();
-      if (loadedData) {
-        console.log(`Initializing with ${loadedData.transactions.length} transactions and ${loadedData.categories.length} categories`);
-        
-        if (state.transactions.length > 0) {
-          console.log(`Merging local state with ${state.transactions.length} transactions with cloud data with ${loadedData.transactions.length} transactions`);
-          
-          const mergedTransactions = [...state.transactions];
-          
-          loadedData.transactions.forEach(cloudTx => {
-            if (!mergedTransactions.some(localTx => localTx.id === cloudTx.id)) {
-              mergedTransactions.push(cloudTx);
-            }
-          });
-          
-          const mergedState = {
-            ...state,
-            transactions: mergedTransactions,
-            categories: state.categories.length >= loadedData.categories.length ? 
-              state.categories : loadedData.categories
-          };
-          
-          console.log(`After merging, state now has ${mergedTransactions.length} transactions`);
-          
-          const dedupedState = deduplicateUtils();
-          dispatch({ type: "SET_STATE", payload: dedupedState });
-        } else {
-          dispatch({ type: "SET_STATE", payload: loadedData });
-        }
+    const handleOnline = () => {
+      console.log('Connection restored - online');
+      setIsOnline(true);
+      // When coming back online, sync pending changes
+      if (pendingSync.size > 0) {
+        syncPendingChanges();
       }
     };
-
-    initializeData();
-  }, [user]);
-
-  useEffect(() => {
-    const handleDataRefresh = async () => {
-      await refreshData(true);
-      handleDeduplicate();
+    
+    const handleOffline = () => {
+      console.log('Connection lost - offline');
+      setIsOnline(false);
     };
-
-    const channel = setupRealtimeSubscription(handleDataRefresh);
-
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
     return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
-  }, [user]);
-
-  const refreshData = async (silent = true): Promise<boolean> => {
-    try {
-      if (!user || !navigator.onLine) {
-        return false;
-      }
-      
-      const refreshedData = await refreshDataFromSupabase(state, silent);
-      if (refreshedData) {
-        if (state.transactions.length > 0) {
-          const existingTransactionsMap = new Map();
-          state.transactions.forEach(tx => {
-            existingTransactionsMap.set(tx.id, tx);
-          });
-          
-          const cloudTransactionsMap = new Map();
-          refreshedData.transactions.forEach(tx => {
-            cloudTransactionsMap.set(tx.id, tx);
-          });
-          
-          const mergedTransactions = [...state.transactions];
-          
-          refreshedData.transactions.forEach(cloudTx => {
-            if (!existingTransactionsMap.has(cloudTx.id)) {
-              mergedTransactions.push(cloudTx);
-            }
-          });
-          
-          const mergedState = {
+  }, [pendingSync]);
+  
+  const [state, dispatch] = useReducer(
+    (state, action) => {
+      let newState;
+      switch (action.type) {
+        case "ADD_TRANSACTION":
+          newState = { ...state, transactions: [...state.transactions, action.payload] };
+          break;
+        case "UPDATE_TRANSACTION":
+          newState = {
             ...state,
-            transactions: mergedTransactions,
-            categories: refreshedData.categories.length > 0 ? refreshedData.categories : state.categories
+            transactions: state.transactions.map(t => 
+              t.id === action.payload.id ? action.payload : t
+            )
           };
+          break;
+        case "DELETE_TRANSACTION":
+          newState = {
+            ...state,
+            transactions: state.transactions.filter(t => t.id !== action.payload)
+          };
+          break;
+        case "ADD_CATEGORY":
+          // Check if a category with the same name and type already exists
+          const existingCategory = state.categories.find(
+            c => c.name.toLowerCase() === action.payload.name.toLowerCase() && 
+                 c.type === action.payload.type
+          );
           
-          dispatch({ type: "SET_STATE", payload: mergedState });
-          handleDeduplicate();
-          return true;
-        } else {
-          dispatch({ type: "SET_STATE", payload: refreshedData });
-          return true;
-        }
-      }
-      return false;
-    } catch (error) {
-      console.error("Error in refreshData:", error);
-      return false;
-    }
-  };
-
-  const deleteTransaction = async (id: string): Promise<boolean> => {
-    try {
-      console.log(`Attempting to delete transaction: ${id}`);
-      
-      dispatch({ type: "DELETE_TRANSACTION", payload: id });
-      
-      const dedupedState = deduplicateUtils();
-      dispatch({ type: "SET_STATE", payload: dedupedState });
-      
-      try {
-        localStorage.setItem("transactionState", JSON.stringify(dedupedState));
-        localStorage.setItem("lastTransactionUpdate", new Date().toISOString());
-      } catch (error) {
-        console.error("Failed to save to localStorage after transaction deletion:", error);
-      }
-      
-      if (user && isOnline) {
-        console.log(`Deleting transaction ${id} from Supabase`);
-        const success = await deleteTransactionAction(id);
-        
-        if (success) {
-          console.log(`Transaction ${id} deleted from Supabase`);
+          if (existingCategory) {
+            toast.info(`Category "${action.payload.name}" already exists`);
+            return state;
+          }
           
-          await syncToSupabase();
+          newState = { ...state, categories: [...state.categories, action.payload] };
+          break;
+        case "DELETE_CATEGORY":
+          newState = {
+            ...state,
+            categories: state.categories.filter(c => c.id !== action.payload)
+          };
+          break;
+        case "IMPORT_DATA":
+          newState = { ...state, ...action.payload };
+          break;
+        case "REPLACE_ALL_DATA":
+          newState = action.payload;
+          break;
+        case "DEDUPLICATE_DATA":
+          // Deduplicate transactions by id
+          const uniqueTransactions = Array.from(
+            new Map(state.transactions.map(item => [item.id, item])).values()
+          );
           
-          return true;
-        } else {
-          console.error(`Failed to delete transaction ${id} from Supabase`);
-          return false;
-        }
+          // Deduplicate categories by name and type
+          const uniqueCategories = Array.from(
+            new Map(
+              state.categories.map(item => [`${item.name}-${item.type}`, item])
+            ).values()
+          );
+          
+          newState = {
+            ...state,
+            transactions: uniqueTransactions,
+            categories: uniqueCategories
+          };
+          break;
+        default:
+          return state;
       }
       
-      return true;
-    } catch (error) {
-      console.error("Error deleting transaction:", error);
-      return false;
-    }
-  };
-
-  const replaceAllData = (data: TransactionState) => {
-    console.log(`Replacing all data with ${data.transactions.length} transactions and ${data.categories.length} categories`);
-    
-    dispatch({ type: "REPLACE_ALL_DATA", payload: data });
-    
-    try {
-      localStorage.setItem("transactionState", JSON.stringify(data));
+      // Update lastUpdate timestamp for sync detection
       localStorage.setItem("lastTransactionUpdate", new Date().toISOString());
-      console.log("Saved replaced data to localStorage");
-      
-      if (user && isOnline) {
-        console.log("Auto-syncing imported data to Supabase");
-        syncToSupabase().catch(err => {
-          console.error("Failed to auto-sync after import:", err);
-        });
-      }
-    } catch (error) {
-      console.error("Failed to save to localStorage after replaceAllData:", error);
+      return newState;
+    },
+    initialState
+  );
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("transactionState", JSON.stringify(state));
+  }, [state]);
+
+  // Use the data operations hook
+  const { 
+    importData, 
+    replaceAllData, 
+    getTransactionsByType, 
+    getCategoriesByType, 
+    getCategoryById, 
+    getTotalByType 
+  } = useDataOperations(state, dispatch);
+
+  // Setup real-time subscription for transactions
+  useEffect(() => {
+    if (!user) return;
+
+    // Subscribe to real-time transactions updates
+    const channel = supabase
+      .channel('public:transactions')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'transactions',
+          filter: `user_email=eq.${user.email}`
+        }, 
+        async (payload) => {
+          console.log('Transaction change detected:', payload);
+          if (isOnline) {
+            await fetchLatestData();
+            setLastSyncTime(new Date());
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to real-time category updates
+    const categoryChannel = supabase
+      .channel('public:categories')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'categories',
+          filter: `user_email=eq.${user.email}`
+        }, 
+        async (payload) => {
+          console.log('Category change detected:', payload);
+          if (isOnline) {
+            await fetchLatestData();
+            setLastSyncTime(new Date());
+          }
+        }
+      )
+      .subscribe();
+
+    // Fetch initial data
+    if (isInitialLoad && user && isOnline) {
+      fetchLatestData().then(() => {
+        setIsInitialLoad(false);
+        // Deduplicate data after initial load
+        deduplicate();
+      });
     }
+    
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(categoryChannel);
+    };
+  }, [user, isInitialLoad, isOnline]);
+
+  // Sync pending changes when coming back online
+  const syncPendingChanges = async () => {
+    if (!user || pendingSync.size === 0 || !isOnline) return;
+    
+    console.log(`Syncing ${pendingSync.size} pending changes`);
+    
+    // Get transactions that need to be synced
+    const transactionsToSync = state.transactions.filter(t => 
+      pendingSync.has(t.id)
+    );
+    
+    // Sync each transaction
+    for (const transaction of transactionsToSync) {
+      await syncTransactionToSupabase(transaction);
+    }
+    
+    // Clear pending sync after successful sync
+    setPendingSync(new Set());
+    
+    toast.success(`Synced ${transactionsToSync.length} transaction(s) to cloud`);
   };
 
-  const importData = async (data: Partial<TransactionState>) => {
-    setIsPerformingMajorOperation(true);
+  // Function to fetch latest data from Supabase
+  const fetchLatestData = async () => {
+    if (!user || !isOnline) return false;
+    
     try {
-      const dedupedState = deduplicateUtils();
+      // Fetch transactions
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_email', user.email);
       
-      const incomingTransactions = data.transactions || [];
+      if (transactionsError) throw transactionsError;
       
-      const uniqueIncomingTransactions = cleanImportedTransactions(incomingTransactions);
+      // Fetch categories
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_email', user.email);
       
-      console.log(`Filtering out potential duplicates, reduced from ${incomingTransactions.length} to ${uniqueIncomingTransactions.length} transactions`);
+      if (categoriesError) throw categoriesError;
       
-      const newState = {
-        ...dedupedState,
-        transactions: [...dedupedState.transactions, ...uniqueIncomingTransactions]
+      // Transform data to match application state format
+      const transformedData = {
+        transactions: transactionsData.map((t) => ({
+          id: t.transaction_id,
+          type: t.type,
+          categoryId: t.category_id,
+          amount: t.amount,
+          description: t.description,
+          date: t.date,
+          emotionalState: t.emotional_state
+        })),
+        categories: categoriesData.map((c) => ({
+          id: c.category_id,
+          name: c.name,
+          type: c.type,
+          color: c.color
+        }))
       };
       
-      console.log(`Importing partial data, resulting in ${newState.transactions.length} transactions`);
-      
-      dispatch({ type: "REPLACE_ALL_DATA", payload: newState });
-      
-      try {
-        localStorage.setItem("transactionState", JSON.stringify(newState));
-        localStorage.setItem("lastTransactionUpdate", new Date().toISOString());
-        console.log("Saved imported data to localStorage");
-        
-        toast.success(`Imported ${uniqueIncomingTransactions.length} new transactions`);
-        
-        if (user && isOnline) {
-          console.log("Auto-syncing imported data to Supabase");
-          await syncToSupabase();
-          
-          await refreshData(false);
-        }
-      } catch (error) {
-        console.error("Failed to save to localStorage after importData:", error);
-      }
+      // Replace all data in the app
+      replaceAllData(transformedData);
+      setLastSyncTime(new Date());
+      return true;
     } catch (error) {
-      console.error("Error in importData:", error);
-      toast.error("Failed to import data");
-    } finally {
-      setIsPerformingMajorOperation(false);
+      console.error('Error fetching latest data:', error);
+      return false;
     }
   };
 
-  const syncToSupabase = async (): Promise<boolean> => {
-    if (!user || !isOnline) {
-      console.log("Cannot sync to Supabase: user not logged in or offline");
+  // Deduplicate data function
+  const deduplicate = () => {
+    dispatch({ type: "DEDUPLICATE_DATA" });
+    
+    // Also sync the deduplicated data to Supabase if user is logged in
+    if (user && isOnline) {
+      // First, deduplicate in the state
+      setTimeout(() => {
+        // Then sync all transactions and categories to Supabase
+        state.transactions.forEach(transaction => {
+          syncTransactionToSupabase(transaction);
+        });
+        
+        state.categories.forEach(category => {
+          syncCategoryToSupabase(category);
+        });
+        
+        toast.success("Data synced to cloud");
+      }, 500);
+    }
+    
+    return true;
+  };
+
+  // Basic transaction operations
+  const addTransaction = (transaction) => {
+    const newTransaction = { ...transaction, id: crypto.randomUUID() };
+    dispatch({
+      type: "ADD_TRANSACTION",
+      payload: newTransaction,
+    });
+    
+    // Immediately sync to Supabase or mark for future sync
+    if (user && isOnline) {
+      syncTransactionToSupabase(newTransaction);
+    } else if (user) {
+      // Store the ID to sync later when online
+      setPendingSync(prev => new Set(prev).add(newTransaction.id));
+    }
+    
+    toast.success("Transaction added successfully");
+    return true;
+  };
+
+  const updateTransaction = (transaction) => {
+    dispatch({ 
+      type: "UPDATE_TRANSACTION", 
+      payload: transaction 
+    });
+    
+    // Immediately sync to Supabase or mark for future sync
+    if (user && isOnline) {
+      syncTransactionToSupabase(transaction);
+    } else if (user) {
+      // Store the ID to sync later when online
+      setPendingSync(prev => new Set(prev).add(transaction.id));
+    }
+    
+    toast.success("Transaction updated successfully");
+    return true;
+  };
+
+  const deleteTransaction = (id) => {
+    // Find transaction before deleting it
+    const transaction = state.transactions.find(t => t.id === id);
+    
+    dispatch({ 
+      type: "DELETE_TRANSACTION", 
+      payload: id
+    });
+    
+    // Immediately delete from Supabase
+    if (user && transaction && isOnline) {
+      deleteTransactionFromSupabase(transaction);
+    }
+    
+    toast.success("Transaction deleted successfully");
+    return true;
+  };
+
+  const addCategory = (category) => {
+    // Check for duplicates before adding
+    const existingCategory = state.categories.find(
+      c => c.name.toLowerCase() === category.name.toLowerCase() && 
+           c.type === category.type
+    );
+    
+    if (existingCategory) {
+      toast.info(`Category "${category.name}" already exists`);
       return false;
     }
     
-    setIsPerformingMajorOperation(true);
+    const newCategory = { ...category, id: crypto.randomUUID() };
+    dispatch({
+      type: "ADD_CATEGORY",
+      payload: newCategory,
+    });
+    
+    // Immediately sync to Supabase
+    if (user && isOnline) {
+      syncCategoryToSupabase(newCategory);
+    }
+    
+    toast.success("Category added successfully");
+    return true;
+  };
+
+  const deleteCategory = (id) => {
+    const hasTransactions = state.transactions.some(
+      (transaction) => transaction.categoryId === id
+    );
+    
+    if (hasTransactions) {
+      toast.error("Cannot delete a category that has transactions");
+      return false;
+    }
+    
+    // Find category before deleting it
+    const category = state.categories.find(c => c.id === id);
+    
+    dispatch({ 
+      type: "DELETE_CATEGORY", 
+      payload: id
+    });
+    
+    // Immediately delete from Supabase
+    if (user && category && isOnline) {
+      deleteCategoryFromSupabase(category);
+    }
+    
+    toast.success("Category deleted successfully");
+    return true;
+  };
+
+  // Functions to sync data to Supabase
+  const syncTransactionToSupabase = async (transaction) => {
+    if (!user || !isOnline) return false;
+    
     try {
-      console.log(`Syncing ${state.transactions.length} transactions to Supabase`);
+      // First, delete any existing transaction with this ID (to avoid duplicates)
+      await supabase
+        .from('transactions')
+        .delete()
+        .eq('user_email', user.email)
+        .eq('transaction_id', transaction.id);
       
-      const dedupedState = deduplicateUtils();
-      if (dedupedState.transactions.length < state.transactions.length) {
-        console.log(`Found and removed ${state.transactions.length - dedupedState.transactions.length} duplicate transactions before sync`);
-        dispatch({ type: "SET_STATE", payload: dedupedState });
-      }
-      
-      try {
-        const { error: deleteTransactionsError } = await supabase
-          .from('transactions')
-          .delete()
-          .eq('user_email', user.email);
-        
-        if (deleteTransactionsError) {
-          console.error("Failed to delete existing transactions:", deleteTransactionsError);
-          return false;
-        }
-      } catch (deleteError) {
-        console.error("Exception while deleting transactions:", deleteError);
-        return false;
-      }
-      
-      try {
-        const { error: deleteCategoriesError } = await supabase
-          .from('categories')
-          .delete()
-          .eq('user_email', user.email);
-        
-        if (deleteCategoriesError) {
-          console.error("Failed to delete existing categories:", deleteCategoriesError);
-          return false;
-        }
-      } catch (deleteError) {
-        console.error("Exception while deleting categories:", deleteError);
-        return false;
-      }
-      
-      const batchSize = 25;
-      const batches = Math.ceil(dedupedState.transactions.length / batchSize);
-      
-      for (let i = 0; i < batches; i++) {
-        const start = i * batchSize;
-        const end = Math.min(start + batchSize, dedupedState.transactions.length);
-        const batch = dedupedState.transactions.slice(start, end);
-        
-        const transactionRows = batch.map(transaction => ({
+      // Then insert the new/updated transaction
+      const { error } = await supabase
+        .from('transactions')
+        .insert({
           user_email: user.email,
           transaction_id: transaction.id,
           type: transaction.type,
@@ -313,68 +425,138 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           description: transaction.description || '',
           date: transaction.date,
           emotional_state: transaction.emotionalState || 'neutral'
-        }));
-        
-        try {
-          const { error } = await supabase
-            .from('transactions')
-            .insert(transactionRows);
-          
-          if (error) {
-            console.error(`Failed to insert transaction batch ${i + 1}/${batches}:`, error);
-            return false;
-          }
-        } catch (insertError) {
-          console.error(`Exception in transaction batch ${i + 1}/${batches}:`, insertError);
-          return false;
-        }
+        });
+      
+      if (error) throw error;
+      
+      // Update profile with last sync date
+      if (user.id) {
+        await supabase
+          .from('profiles')
+          .update({ 
+            backup_last_date: new Date().toISOString()
+          })
+          .eq('id', user.id);
       }
       
-      if (dedupedState.categories.length > 0) {
-        const categoryRows = dedupedState.categories.map(category => ({
+      // Remove from pending sync if it was there
+      if (pendingSync.has(transaction.id)) {
+        setPendingSync(prev => {
+          const updated = new Set(prev);
+          updated.delete(transaction.id);
+          return updated;
+        });
+      }
+      
+      setLastSyncTime(new Date());
+      return true;
+    } catch (error) {
+      console.error('Sync transaction error:', error);
+      return false;
+    }
+  };
+
+  const deleteTransactionFromSupabase = async (transaction) => {
+    if (!user || !isOnline) return false;
+    
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('user_email', user.email)
+        .eq('transaction_id', transaction.id);
+      
+      if (error) throw error;
+      
+      // Update profile with last sync date
+      if (user.id) {
+        await supabase
+          .from('profiles')
+          .update({ 
+            backup_last_date: new Date().toISOString()
+          })
+          .eq('id', user.id);
+      }
+      
+      setLastSyncTime(new Date());
+      return true;
+    } catch (error) {
+      console.error('Delete transaction error:', error);
+      return false;
+    }
+  };
+
+  const syncCategoryToSupabase = async (category) => {
+    if (!user || !isOnline) return false;
+    
+    try {
+      // First, delete any existing category with this ID (to avoid duplicates)
+      await supabase
+        .from('categories')
+        .delete()
+        .eq('user_email', user.email)
+        .eq('category_id', category.id);
+      
+      // Then insert the new/updated category
+      const { error } = await supabase
+        .from('categories')
+        .insert({
           user_email: user.email,
           category_id: category.id,
           name: category.name,
           type: category.type,
-          color: category.color || '#cccccc'
-        }));
-        
-        const { error } = await supabase
-          .from('categories')
-          .insert(categoryRows);
-        
-        if (error) {
-          console.error("Failed to insert categories:", error);
-          return false;
-        }
+          color: category.color
+        });
+      
+      if (error) throw error;
+      
+      // Update profile with last sync date
+      if (user.id) {
+        await supabase
+          .from('profiles')
+          .update({ 
+            backup_last_date: new Date().toISOString()
+          })
+          .eq('id', user.id);
       }
       
-      console.log("Successfully synced all data to Supabase");
+      setLastSyncTime(new Date());
       return true;
     } catch (error) {
-      console.error("Error in syncToSupabase:", error);
+      console.error('Sync category error:', error);
       return false;
-    } finally {
-      setIsPerformingMajorOperation(false);
     }
   };
 
-  const handleDeduplicate = () => {
-    const deduplicatedState = deduplicateUtils();
-    dispatch({ type: "SET_STATE", payload: deduplicatedState });
-  };
-
-  useEffect(() => {
-    if (state.transactions && state.transactions.length > 0) {
-      try {
-        console.log(`Saving state to localStorage: ${state.transactions.length} transactions`);
-        localStorage.setItem("transactionState", JSON.stringify(state));
-        localStorage.setItem("lastTransactionUpdate", new Date().toISOString());
-      } catch (error) {
-        console.error("Failed to save state to localStorage:", error);
+  const deleteCategoryFromSupabase = async (category) => {
+    if (!user || !isOnline) return false;
+    
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('user_email', user.email)
+        .eq('category_id', category.id);
+      
+      if (error) throw error;
+      
+      // Update profile with last sync date
+      if (user.id) {
+        await supabase
+          .from('profiles')
+          .update({ 
+            backup_last_date: new Date().toISOString()
+          })
+          .eq('id', user.id);
       }
+      
+      setLastSyncTime(new Date());
+      return true;
+    } catch (error) {
+      console.error('Delete category error:', error);
+      return false;
     }
-  }, [state]);
+  };
 
   return (
     <TransactionContext.Provider
@@ -393,12 +575,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         importData,
         replaceAllData,
         lastSyncTime,
-        refreshData,
-        deduplicate: handleDeduplicate,
+        refreshData: fetchLatestData,
+        deduplicate,
         isOnline,
-        pendingSyncCount,
-        isLoading: isLoading || isPerformingMajorOperation,
-        syncToSupabase
+        pendingSyncCount: pendingSync.size
       }}
     >
       {children}
