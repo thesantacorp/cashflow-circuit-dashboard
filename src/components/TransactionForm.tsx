@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPurchaseWarning } from "@/utils/emotionAnalysis";
+import { toast } from "sonner";
 import AmountInput from "./form/AmountInput";
 import CategorySelector from "./form/CategorySelector";
 import DatePicker from "./form/DatePicker";
@@ -72,10 +73,16 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!amount || !categoryId) return;
+    if (!amount || !categoryId) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
     
     const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) return;
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
     
     setIsSubmitting(true);
     
@@ -90,11 +97,15 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
       });
       
       if (success) {
+        toast.success(`${type === "expense" ? "Expense" : "Income"} added successfully`);
         resetForm();
         if (onSuccess) onSuccess();
+      } else {
+        toast.error(`Failed to add ${type}. Please try again.`);
       }
     } catch (error) {
       console.error("Error adding transaction:", error);
+      toast.error(`Error adding ${type}: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -109,7 +120,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4 pt-4">
-          <WarningAlert message={warning || ""} />
+          {warning && <WarningAlert message={warning} />}
           
           <AmountInput 
             amount={amount} 

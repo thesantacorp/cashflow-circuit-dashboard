@@ -42,12 +42,17 @@ const ExpensesPage: React.FC = () => {
 
   // Handle successful transaction addition
   const handleTransactionSuccess = useCallback(async () => {
-    // Refresh data from Supabase
-    if (refreshData) {
-      await refreshData();
-    }
-    // Force re-render
+    // Trigger re-render immediately
     setRefreshTrigger(prev => prev + 1);
+    
+    // If online, refresh data from Supabase but don't wait for it
+    if (refreshData) {
+      try {
+        refreshData().catch(err => console.error("Background refresh error:", err));
+      } catch (error) {
+        console.error('Error refreshing data:', error);
+      }
+    }
   }, [refreshData]);
 
   return (
