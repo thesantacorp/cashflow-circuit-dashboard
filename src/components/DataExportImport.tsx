@@ -22,7 +22,7 @@ interface DataExportImportProps {
 }
 
 const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }) => {
-  const { state, importData, replaceAllData, refreshData } = useTransactions();
+  const { state, importData, replaceAllData, refreshData, syncToSupabase } = useTransactions();
   const { currency } = useCurrency();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -253,6 +253,17 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
           title: "Import successful",
           description: `${importedData.transactions.length} transactions have been added to your existing data.`
         });
+      }
+      
+      // Immediately sync to Supabase after import
+      if (syncToSupabase) {
+        console.log("Immediately syncing to Supabase after import");
+        try {
+          await syncToSupabase();
+          console.log("Successfully synced imported data to Supabase");
+        } catch (syncError) {
+          console.error("Failed to sync immediately after import:", syncError);
+        }
       }
       
       // Force a sync with the cloud if online and refresh data is available

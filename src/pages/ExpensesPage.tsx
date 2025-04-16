@@ -57,18 +57,44 @@ const ExpensesPage: React.FC = () => {
     }
   }, [user, syncToSupabase]);
 
-  // Sync data when page is loaded
+  // Force sync data when page is loaded
   useEffect(() => {
-    if (user && navigator.onLine && syncToSupabase && !isLoading) {
-      // Check if we have transactions to sync
-      if (state.transactions.length > 0) {
-        console.log("Initial page load - syncing data to ensure consistency");
-        syncToSupabase().catch(err => {
-          console.error("Failed to sync on page load:", err);
+    const loadAndSyncData = async () => {
+      console.log("ExpensesPage mounted - ensuring data is synced");
+      
+      // First try to refresh from cloud
+      if (refreshData) {
+        try {
+          await refreshData(true);
+        } catch (error) {
+          console.error("Error refreshing data on page load:", error);
+        }
+      }
+      
+      // Then sync local to cloud to ensure consistency
+      if (user && navigator.onLine && syncToSupabase) {
+        try {
+          console.log("Syncing data to Supabase on ExpensesPage load");
+          await syncToSupabase();
+        } catch (error) {
+          console.error("Error syncing to Supabase on page load:", error);
+        }
+      }
+    };
+    
+    loadAndSyncData();
+    
+    // Set up polling to keep checking for changes
+    const intervalId = setInterval(() => {
+      if (user && navigator.onLine) {
+        refreshData?.(true).catch(error => {
+          console.error("Error in polling refresh:", error);
         });
       }
-    }
-  }, [user, isLoading]);
+    }, 30000); // Check every 30 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [user, refreshData, syncToSupabase, isLoading]);
 
   return (
     <div className="container py-4 md:py-6 max-w-7xl mx-auto px-3 sm:px-4 w-full overflow-hidden">
