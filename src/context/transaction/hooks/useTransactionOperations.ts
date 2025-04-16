@@ -39,22 +39,61 @@ const initialState = {
   categories: []
 };
 
+// Helper function to safely access localStorage
+const safeGetStorage = (key: string, defaultValue: any) => {
+  if (typeof window === 'undefined') return defaultValue;
+  
+  try {
+    const value = localStorage.getItem(key);
+    if (!value) return defaultValue;
+    return JSON.parse(value);
+  } catch (error) {
+    console.error('Error reading from localStorage:', error);
+    return defaultValue;
+  }
+};
+
+// Helper function to safely update localStorage
+const safeSetStorage = (key: string, value: any) => {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.error('Error writing to localStorage:', error);
+  }
+};
+
 export function useTransactionOperations() {
-  // Load state from localStorage
-  const savedState = typeof window !== 'undefined' ? localStorage.getItem("transactionState") : null;
-  const parsedInitialState = savedState ? JSON.parse(savedState) : initialState;
+  // Load initial state from localStorage with safety checks
+  const savedState = safeGetStorage("transactionState", initialState);
   
   const [state, dispatch] = useReducer(
     transactionReducer,
-    parsedInitialState
+    savedState
   );
 
-  // Save state to localStorage whenever it changes
-  useEffect(() => {
+  // Wrap dispatch to also update localStorage
+  const persistingDispatch = (action: any) => {
+    dispatch(action);
+    
+    // Immediately update localStorage after state changes
+    // (This ensures we don't rely solely on the useEffect for persistence)
     if (typeof window !== 'undefined') {
-      localStorage.setItem("transactionState", JSON.stringify(state));
-      console.log("Saved state to localStorage:", state);
+      // Manually calculate the new state
+      const newState = transactionReducer(
+        safeGetStorage("transactionState", initialState), 
+        action
+      );
+      safeSetStorage("transactionState", newState);
+      console.log("Directly updated localStorage:", newState);
     }
+  };
+
+  // Save state to localStorage whenever it changes (backup persistence mechanism)
+  useEffect(() => {
+    safeSetStorage("transactionState", state);
+    console.log("useEffect: Saved state to localStorage:", state);
   }, [state]);
 
   // Add a transaction
@@ -64,21 +103,10 @@ export function useTransactionOperations() {
       id: uuidv4() 
     };
     
-    dispatch({
+    persistingDispatch({
       type: "ADD_TRANSACTION",
       payload: newTransaction,
     });
-    
-    // Also manually update localStorage for immediate persistence
-    if (typeof window !== 'undefined') {
-      const currentState = localStorage.getItem("transactionState");
-      const parsedState = currentState ? JSON.parse(currentState) : initialState;
-      const updatedState = {
-        ...parsedState,
-        transactions: [...parsedState.transactions, newTransaction]
-      };
-      localStorage.setItem("transactionState", JSON.stringify(updatedState));
-    }
     
     toast.success("Transaction added successfully");
     return true;
@@ -86,7 +114,7 @@ export function useTransactionOperations() {
 
   // Update a transaction
   const updateTransaction = (transaction: Transaction) => {
-    dispatch({ 
+    persistingDispatch({ 
       type: "UPDATE_TRANSACTION", 
       payload: transaction 
     });
@@ -96,7 +124,7 @@ export function useTransactionOperations() {
 
   // Delete a transaction
   const deleteTransaction = (id: string) => {
-    dispatch({ 
+    persistingDispatch({ 
       type: "DELETE_TRANSACTION", 
       payload: id
     });
@@ -107,21 +135,10 @@ export function useTransactionOperations() {
   // Add a category
   const addCategory = (category: Omit<Category, "id">) => {
     const newCategory = { ...category, id: uuidv4() };
-    dispatch({
+    persistingDispatch({
       type: "ADD_CATEGORY",
       payload: newCategory,
     });
-    
-    // Also manually update localStorage for immediate persistence
-    if (typeof window !== 'undefined') {
-      const currentState = localStorage.getItem("transactionState");
-      const parsedState = currentState ? JSON.parse(currentState) : initialState;
-      const updatedState = {
-        ...parsedState,
-        categories: [...parsedState.categories, newCategory]
-      };
-      localStorage.setItem("transactionState", JSON.stringify(updatedState));
-    }
     
     toast.success("Category added successfully");
     return true;
@@ -129,7 +146,7 @@ export function useTransactionOperations() {
 
   // Delete a category
   const deleteCategory = (id: string) => {
-    dispatch({ 
+    persistingDispatch({ 
       type: "DELETE_CATEGORY", 
       payload: id
     });
@@ -138,7 +155,7 @@ export function useTransactionOperations() {
   
   return {
     state,
-    dispatch,
+    dispatch: persistingDispatch,
     addTransaction,
     updateTransaction,
     deleteTransaction,
