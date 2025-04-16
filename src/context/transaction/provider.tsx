@@ -3,7 +3,8 @@ import React, { useReducer, useEffect, useState, useCallback } from "react";
 import { TransactionContext } from "./context";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
-import { Transaction, Category, TransactionState } from "@/types";
+import { Transaction, Category } from "@/types";
+import { TransactionState } from "./types";
 import { v4 as uuidv4 } from "uuid";
 
 const initialState: TransactionState = {
