@@ -42,8 +42,13 @@ const initialState = {
 export function useTransactionOperations() {
   // Get initial state from localStorage
   const getInitialState = () => {
-    const savedState = localStorage.getItem("transactionState");
-    return savedState ? JSON.parse(savedState) : initialState;
+    try {
+      const savedState = localStorage.getItem("transactionState");
+      return savedState ? JSON.parse(savedState) : initialState;
+    } catch (error) {
+      console.error("Error loading state from localStorage:", error);
+      return initialState;
+    }
   };
 
   const [state, dispatch] = useReducer(
@@ -53,7 +58,12 @@ export function useTransactionOperations() {
 
   // Save state to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem("transactionState", JSON.stringify(state));
+    try {
+      localStorage.setItem("transactionState", JSON.stringify(state));
+      console.log("State saved to localStorage:", state);
+    } catch (error) {
+      console.error("Error saving state to localStorage:", error);
+    }
   }, [state]);
 
   // Add a transaction
@@ -63,6 +73,17 @@ export function useTransactionOperations() {
       type: "ADD_TRANSACTION",
       payload: newTransaction,
     });
+    // Save immediately after adding
+    try {
+      const currentState = JSON.parse(localStorage.getItem("transactionState") || JSON.stringify(initialState));
+      const updatedState = {
+        ...currentState,
+        transactions: [...currentState.transactions, newTransaction]
+      };
+      localStorage.setItem("transactionState", JSON.stringify(updatedState));
+    } catch (error) {
+      console.error("Error saving transaction to localStorage:", error);
+    }
     toast.success("Transaction added successfully");
     return true;
   };

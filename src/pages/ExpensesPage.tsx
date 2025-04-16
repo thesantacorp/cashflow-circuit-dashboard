@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Dashboard from "@/components/Dashboard";
 import CategoryList from "@/components/CategoryList";
@@ -8,11 +8,11 @@ import TransactionList from "@/components/TransactionList";
 import LocalStorageInfo from "@/components/LocalStorageInfo";
 import SpendingRecommendations from "@/components/SpendingRecommendations";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import EmotionFilter from "@/components/EmotionFilter";
-import { EmotionalState, Transaction } from "@/types";
+import { EmotionalState } from "@/types";
 
 const ExpensesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
@@ -20,7 +20,11 @@ const ExpensesPage: React.FC = () => {
   const isMobile = useIsMobile();
   const { getTotalByType, state } = useTransactions();
   const { currencySymbol } = useCurrency();
-  const totalExpenses = getTotalByType("expense");
+
+  // Log state on mount and changes
+  useEffect(() => {
+    console.log("ExpensePage - Current state:", state);
+  }, [state]);
 
   // Filter transactions based on selected emotion
   const filteredTransactions = useMemo(() => {

@@ -11,6 +11,22 @@ import './types/google-api.d';
 // Import service worker type extensions - comment out problematic import
 // Types are already imported in serviceWorkerRegistration.ts
 
+// Initialize localStorage if needed
+const initializeLocalStorage = () => {
+  if (!localStorage.getItem("transactionState")) {
+    console.log("Initializing empty transaction state in localStorage");
+    localStorage.setItem("transactionState", JSON.stringify({ 
+      transactions: [], 
+      categories: [] 
+    }));
+  } else {
+    console.log("Found existing transaction state in localStorage");
+  }
+};
+
+// Run initialization
+initializeLocalStorage();
+
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <BrowserRouter>
