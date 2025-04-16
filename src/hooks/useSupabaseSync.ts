@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useTransactions } from '@/context/transaction';
 import { useAuth } from '@/context/AuthContext';
@@ -330,11 +331,7 @@ export function useSupabaseSync() {
         
         // Only show the welcome back message on the profile page
         if (location.pathname === '/profile') {
-          toast({
-            title: "Welcome back",
-            description: "Existing user just signing in on a new device? Restore data first!",
-            duration: 7000,
-          });
+          toast.info("Welcome back! Existing user just signing in on a new device? Restore data first!");
         }
         return;
       }
@@ -400,11 +397,7 @@ export function useSupabaseSync() {
           }
         } catch (error) {
           console.error('Auto-sync error:', error);
-          toast({
-            title: "Error",
-            description: "We encountered an issue syncing your data. You can try again manually.",
-            variant: "destructive",
-          });
+          toast.error("We encountered an issue syncing your data. You can try again manually.");
         }
       };
       
