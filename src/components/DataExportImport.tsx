@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Transaction } from "@/types";
 import { toast } from "sonner";
+import { v4 as uuidv4 } from "uuid";
 
 interface DataExportImportProps {
   showDialog?: boolean;
@@ -185,13 +187,12 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
             }
           }
           
-          // Generate a consistent ID that won't change on reimport
-          // Use a combination of date + amount + description to avoid duplicates
-          const idBase = `${rowData.date}-${rowData.amount}-${rowData.description || ''}`;
-          const id = rowData.id || `imported-${idBase.replace(/[^a-zA-Z0-9]/g, '')}`;
+          // Generate a truly unique ID for import
+          // Use a UUID plus a timestamp for absolute uniqueness
+          const uniqueId = `imported-${uuidv4()}`;
           
           transactions.push({
-            id: id,
+            id: uniqueId,
             type: rowData.type,
             amount: parseFloat(rowData.amount),
             description: rowData.description || '',
@@ -254,6 +255,9 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
         console.log("Replacing all data with:", newState);
         await replaceAllData(newState);
         
+        // Immediately sync to ensure data is saved to Supabase
+        await syncToSupabase();
+        
         toast({
           title: "Data replaced",
           description: `${importedData.transactions.length} transactions have replaced your existing data.`
@@ -262,6 +266,9 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
         // Add to existing data
         console.log("Adding to existing data:", importedData);
         await importData(importedData);
+        
+        // Immediately sync to ensure data is saved to Supabase
+        await syncToSupabase();
         
         toast({
           title: "Import successful",

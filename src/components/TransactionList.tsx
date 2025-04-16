@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Transaction, TransactionType } from "@/types";
 import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, isWithinInterval, endOfDay, endOfWeek, endOfMonth, endOfYear } from "date-fns";
-import { Trash2, Edit, Search, CloudOff, RefreshCw } from "lucide-react";
+import { Trash2, Edit, Search, CloudOff, RefreshCw, Loader } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,7 @@ interface TransactionListProps {
 type TimePeriod = "day" | "week" | "month" | "year" | "all";
 
 const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showViewAll = false, filteredTransactions }) => {
-  const { getTransactionsByType, deleteTransaction, getCategoryById, isOnline, pendingSyncCount, refreshData, syncToSupabase, isLoading } = useTransactions();
+  const { getTransactionsByType, deleteTransaction, getCategoryById, isOnline, pendingSyncCount, refreshData, syncToSupabase, isLoading, deduplicate } = useTransactions();
   const { currencySymbol } = useCurrency();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [activeTransactions, setActiveTransactions] = useState<Transaction[]>([]);
@@ -32,6 +32,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDeletingTransaction, setIsDeletingTransaction] = useState<string | null>(null);
+  
+  const isRefreshingRef = useRef(false);
+  const notificationShownRef = useRef(false);
 
   useEffect(() => {
     const transactions = filteredTransactions || getTransactionsByType(type);
@@ -112,28 +115,37 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
   };
 
   const handleRefresh = async () => {
+    if (isRefreshingRef.current) return;
+    
     setIsRefreshing(true);
+    isRefreshingRef.current = true;
+    notificationShownRef.current = false;
+    
     try {
+      deduplicate();
       await refreshData(false);
-      
       if (isOnline) {
         await syncToSupabase();
       }
-      
       const transactions = filteredTransactions || getTransactionsByType(type);
       setAllTransactions(transactions);
       
-      toast.success("Transactions refreshed successfully");
+      if (!notificationShownRef.current) {
+        toast.success("Transactions refreshed successfully");
+        notificationShownRef.current = true;
+      }
     } catch (error) {
       console.error("Error refreshing data:", error);
       toast.error("Failed to refresh transactions");
     } finally {
       setIsRefreshing(false);
+      isRefreshingRef.current = false;
     }
   };
 
   const handleDelete = async (id: string) => {
     setIsDeletingTransaction(id);
+    
     try {
       setAllTransactions(prevTransactions => 
         prevTransactions.filter(transaction => transaction.id !== id)
@@ -142,13 +154,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
       const success = await deleteTransaction(id);
       
       if (success) {
-        toast.success("Transaction deleted successfully");
-        
-        await refreshData(true);
-        
         if (isOnline) {
           await syncToSupabase();
         }
+        toast.success("Transaction deleted successfully");
+        await refreshData(true);
       } else {
         toast.error("Failed to delete transaction");
         const transactions = filteredTransactions || getTransactionsByType(type);
@@ -192,11 +202,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
     handleRefresh();
     
     const refreshInterval = setInterval(() => {
-      if (!isRefreshing && !isLoading) {
+      if (!isRefreshingRef.current && !isLoading) {
         refreshData(true)
           .catch(error => console.error("Failed to refresh data on interval:", error));
       }
-    }, 30000);
+    }, 60000);
     
     return () => clearInterval(refreshInterval);
   }, [refreshData]);

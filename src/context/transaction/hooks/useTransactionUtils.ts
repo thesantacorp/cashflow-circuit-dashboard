@@ -31,69 +31,57 @@ export const useTransactionUtils = (state: TransactionState) => {
       return state;
     }
     
-    // Create a map to track unique transactions based on ID
-    const uniqueTransactionsById = new Map<string, Transaction>();
+    // Create a map for unique transactions
+    const uniqueTransactions = new Map<string, Transaction>();
     
-    // Create another map to track potential duplicates based on date+amount+description
-    const potentialDuplicatesMap = new Map<string, Transaction[]>();
+    // Track potential duplicates with a more reliable fingerprint
+    const seenFingerprints = new Set<string>();
+    const duplicatesFound = new Set<string>();
     
-    // First pass: collect all transactions by their IDs and fingerprints
+    // First pass: identify duplicates with more reliable detection
     state.transactions.forEach(transaction => {
-      if (!transaction.id) {
-        console.warn("Found transaction without ID:", transaction);
-        return; // Skip transactions without ID
+      // Skip invalid transactions
+      if (!transaction.id || !transaction.date || !transaction.amount) {
+        console.warn("Found invalid transaction:", transaction);
+        return;
       }
       
-      // Generate fingerprint for fuzzy duplicate detection
-      const fingerprint = `${transaction.date}-${transaction.amount}-${transaction.type}-${transaction.categoryId || ''}`;
+      // Create a robust fingerprint that considers the core transaction properties
+      // Format the date consistently by taking just the date part
+      const dateStr = new Date(transaction.date).toISOString().split('T')[0];
+      const fingerprint = `${dateStr}:${transaction.amount}:${transaction.type}:${transaction.categoryId || 'uncategorized'}:${transaction.description || ''}`;
       
-      if (!potentialDuplicatesMap.has(fingerprint)) {
-        potentialDuplicatesMap.set(fingerprint, []);
-      }
-      
-      potentialDuplicatesMap.get(fingerprint)?.push(transaction);
-      
-      // Only add to uniqueTransactionsById if we haven't seen this ID yet
-      if (!uniqueTransactionsById.has(transaction.id)) {
-        uniqueTransactionsById.set(transaction.id, transaction);
+      if (seenFingerprints.has(fingerprint)) {
+        // This is a duplicate based on core properties
+        duplicatesFound.add(transaction.id);
+        console.log(`Detected duplicate transaction: ${transaction.id} with fingerprint ${fingerprint}`);
+        
+        // If this is an imported transaction and we've seen this fingerprint before,
+        // mark it as a duplicate to be removed
+        if (transaction.id.startsWith('imported-')) {
+          console.log(`Marking imported duplicate for removal: ${transaction.id}`);
+        } else {
+          // Add non-imported transactions to our unique map to ensure they're kept
+          if (!uniqueTransactions.has(transaction.id)) {
+            uniqueTransactions.set(transaction.id, transaction);
+          }
+        }
+      } else {
+        // First time seeing this fingerprint
+        seenFingerprints.add(fingerprint);
+        uniqueTransactions.set(transaction.id, transaction);
       }
     });
     
-    // Second pass: detect and handle potential duplicates 
-    // (transactions with same date, amount, type and category)
-    potentialDuplicatesMap.forEach((transactions, fingerprint) => {
-      if (transactions.length > 1) {
-        console.log(`Found ${transactions.length} potential duplicates with fingerprint: ${fingerprint}`);
-        
-        // Sort duplicates by ID to ensure consistent selection
-        transactions.sort((a, b) => a.id.localeCompare(b.id));
-        
-        // Keep the first occurrence, remove others from uniqueTransactionsById
-        const primaryTransaction = transactions[0];
-        
-        transactions.slice(1).forEach(duplicate => {
-          // If the ID starts with "imported-" it's likely an imported transaction
-          // If another transaction has the same signature, remove the imported one
-          if (duplicate.id.startsWith('imported-') && 
-              !primaryTransaction.id.startsWith('imported-')) {
-            uniqueTransactionsById.delete(duplicate.id);
-            console.log(`Removed duplicate imported transaction: ${duplicate.id}`);
-          }
-          
-          // Otherwise, keep only one occurrence of the same transaction (prevent duplication)
-          else if (duplicate.id !== primaryTransaction.id) {
-            uniqueTransactionsById.delete(duplicate.id);
-            console.log(`Removed duplicate transaction: ${duplicate.id}`);
-          }
-        });
-      }
-    });
+    // Create the final deduplicated transactions array
+    const dedupedTransactions = Array.from(uniqueTransactions.values());
     
-    const dedupedTransactions = Array.from(uniqueTransactionsById.values());
+    // Log deduplication results
+    const removedCount = state.transactions.length - dedupedTransactions.length;
     console.log(`Deduplication complete. Original: ${state.transactions.length}, Deduped: ${dedupedTransactions.length}`);
     
-    if (state.transactions.length > dedupedTransactions.length) {
-      toast.info(`Removed ${state.transactions.length - dedupedTransactions.length} duplicate transactions`);
+    if (removedCount > 0) {
+      toast.info(`Removed ${removedCount} duplicate transactions`);
     }
     
     // Return updated state with deduplicated transactions
@@ -104,22 +92,63 @@ export const useTransactionUtils = (state: TransactionState) => {
   };
 
   const cleanImportedTransactions = (transactions: Transaction[]): Transaction[] => {
-    // Create a set of existing transaction fingerprints
+    if (!transactions || transactions.length === 0) {
+      return [];
+    }
+    
+    console.log(`Cleaning ${transactions.length} imported transactions`);
+    
+    // Create a set of existing transaction fingerprints for better matching
     const existingFingerprints = new Set<string>();
     
+    // Build fingerprints from existing transactions
     state.transactions.forEach(t => {
-      const fingerprint = `${t.date}-${t.amount}-${t.type}-${t.categoryId || ''}`;
+      if (!t.date || !t.amount) return;
+      
+      const dateStr = new Date(t.date).toISOString().split('T')[0];
+      const fingerprint = `${dateStr}:${t.amount}:${t.type}:${t.categoryId || 'uncategorized'}:${t.description || ''}`;
       existingFingerprints.add(fingerprint);
     });
     
-    // Filter out transactions that already exist
+    // Filter out transactions that already exist using improved matching
     const newTransactions = transactions.filter(transaction => {
-      const fingerprint = `${transaction.date}-${transaction.amount}-${transaction.type}-${transaction.categoryId || ''}`;
+      if (!transaction.date || !transaction.amount) return false;
+      
+      const dateStr = new Date(transaction.date).toISOString().split('T')[0];
+      const fingerprint = `${dateStr}:${transaction.amount}:${transaction.type}:${transaction.categoryId || 'uncategorized'}:${transaction.description || ''}`;
+      
+      // Keep this transaction only if we haven't seen its fingerprint
       return !existingFingerprints.has(fingerprint);
     });
     
     console.log(`Filtered out ${transactions.length - newTransactions.length} already existing transactions from import`);
     return newTransactions;
+  };
+
+  const validateTransactions = (transactions: Transaction[]): Transaction[] => {
+    return transactions.filter(t => {
+      // Check for required fields
+      if (!t.id || !t.type || typeof t.amount !== 'number' || !t.date) {
+        console.warn('Filtering out invalid transaction:', t);
+        return false;
+      }
+      
+      // Ensure amount is a valid number
+      if (isNaN(t.amount)) {
+        console.warn('Filtering out transaction with invalid amount:', t);
+        return false;
+      }
+      
+      // Validate date format
+      try {
+        new Date(t.date);
+      } catch (e) {
+        console.warn('Filtering out transaction with invalid date:', t);
+        return false;
+      }
+      
+      return true;
+    });
   };
 
   return {
@@ -128,6 +157,7 @@ export const useTransactionUtils = (state: TransactionState) => {
     getCategoryById,
     getTotalByType,
     deduplicate,
-    cleanImportedTransactions
+    cleanImportedTransactions,
+    validateTransactions
   };
 };

@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Dashboard from "@/components/Dashboard";
 import CategoryList from "@/components/CategoryList";
@@ -24,8 +23,10 @@ const ExpensesPage: React.FC = () => {
   const { currencySymbol } = useCurrency();
   const { user, isLoading } = useAuth();
   const [isInitialLoadDone, setIsInitialLoadDone] = useState(false);
+  
+  const initializingRef = useRef(false);
+  const toastShownRef = useRef(false);
 
-  // Filter transactions based on selected emotion
   const filteredTransactions = useMemo(() => {
     if (selectedEmotion === 'all') {
       return state.transactions;
@@ -36,19 +37,15 @@ const ExpensesPage: React.FC = () => {
     );
   }, [state.transactions, selectedEmotion, refreshTrigger]);
 
-  // Calculate total for filtered transactions
   const filteredTotal = useMemo(() => {
     return filteredTransactions
       .filter(t => t.type === "expense")
       .reduce((sum, t) => sum + t.amount, 0);
   }, [filteredTransactions]);
 
-  // Handle successful transaction addition - silently refresh in background
   const handleTransactionSuccess = useCallback(async () => {
-    // Trigger re-render immediately
     setRefreshTrigger(prev => prev + 1);
     
-    // If online, sync to Supabase
     if (user && navigator.onLine && syncToSupabase) {
       try {
         console.log("Auto-syncing after transaction change");
@@ -59,71 +56,75 @@ const ExpensesPage: React.FC = () => {
     }
   }, [user, syncToSupabase]);
 
-  // Initial one-time setup on component mount
   useEffect(() => {
     const initializeApp = async () => {
-      if (isInitialLoadDone || !user || isLoading) return;
+      if (isInitialLoadDone || !user || isLoading || initializingRef.current) return;
       
+      initializingRef.current = true;
       console.log("ExpensesPage: Performing one-time initialization");
       
       try {
-        // First run deduplication to clean up any existing duplicates
         deduplicate();
         
-        // Then refresh data from cloud
         if (refreshData) {
           await refreshData(true);
         }
         
-        // Mark initialization as complete
         setIsInitialLoadDone(true);
         console.log("ExpensesPage: Initialization complete");
       } catch (error) {
         console.error("Error during ExpensesPage initialization:", error);
+      } finally {
+        initializingRef.current = false;
       }
     };
     
     initializeApp();
   }, [user, isLoading, deduplicate, refreshData, isInitialLoadDone]);
 
-  // Force sync data when page is loaded
   useEffect(() => {
+    toastShownRef.current = false;
+    
     const loadAndSyncData = async () => {
-      if (!user || isLoading) return;
+      if (!user || isLoading || initializingRef.current) return;
       
+      initializingRef.current = true;
       console.log("ExpensesPage mounted - ensuring data is synced");
       
       try {
-        // First try to refresh from cloud
         if (refreshData) {
           await refreshData(true);
         }
         
-        // Then sync local to cloud to ensure consistency
+        deduplicate();
+        
         if (navigator.onLine && syncToSupabase) {
           console.log("Syncing data to Supabase on ExpensesPage load");
           await syncToSupabase();
         }
-        
-        // Finally run deduplication to clean up any duplicates that might have been created
-        deduplicate();
       } catch (error) {
         console.error("Error during data sync on ExpensesPage load:", error);
+      } finally {
+        initializingRef.current = false;
       }
     };
     
     loadAndSyncData();
     
-    // Set up polling to keep checking for changes
-    const intervalId = setInterval(() => {
-      if (user && navigator.onLine && refreshData) {
-        refreshData(true).catch(error => {
+    const intervalId = setInterval(async () => {
+      if (user && navigator.onLine && refreshData && !initializingRef.current) {
+        try {
+          await refreshData(true);
+        } catch (error) {
           console.error("Error in polling refresh:", error);
-        });
+        }
       }
-    }, 60000); // Check every minute
+    }, 60000);
     
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+      toastShownRef.current = false;
+    };
   }, [user, refreshData, syncToSupabase, isLoading, deduplicate]);
 
   return (
