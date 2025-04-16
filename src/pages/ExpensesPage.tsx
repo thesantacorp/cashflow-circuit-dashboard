@@ -52,14 +52,14 @@ const ExpensesPage: React.FC = () => {
         </TabsList>
         
         <TabsContent value="dashboard" className="pt-4">
-          <div className="max-w-full mx-auto">
+          <div className="max-w-full mx-auto overflow-x-auto">
             <EmotionFilter 
               selectedEmotion={selectedEmotion} 
               onChange={setSelectedEmotion} 
             />
             
             {selectedEmotion !== 'all' && (
-              <Card className="mb-6">
+              <Card className="mb-6 overflow-hidden">
                 <CardContent className="pt-6">
                   <div className="flex justify-between items-center">
                     <div>
@@ -70,7 +70,7 @@ const ExpensesPage: React.FC = () => {
                         Showing only {selectedEmotion} transactions
                       </p>
                     </div>
-                    <div className="text-2xl font-bold">
+                    <div className="text-2xl font-bold break-words">
                       {currencySymbol}{filteredTotal.toFixed(2)}
                     </div>
                   </div>
@@ -78,11 +78,15 @@ const ExpensesPage: React.FC = () => {
               </Card>
             )}
             
-            <div className="space-y-8">
-              <Dashboard 
-                type="expense" 
-                filteredTransactions={selectedEmotion === 'all' ? undefined : filteredTransactions} 
-              />
+            <div className="space-y-8 pb-6">
+              <div className="w-full overflow-x-auto">
+                <div className={`min-w-[300px] ${isMobile ? 'w-[300px]' : 'w-full'}`}>
+                  <Dashboard 
+                    type="expense" 
+                    filteredTransactions={selectedEmotion === 'all' ? undefined : filteredTransactions} 
+                  />
+                </div>
+              </div>
               
               <div className="mt-8">
                 <SpendingRecommendations />

@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTransactions } from "@/context/transaction";
@@ -9,6 +8,7 @@ import { analyzeEmotionalSpending } from "@/utils/emotionAnalysis";
 import { getEmotionTimelineTrends } from "@/utils/emotionTimelineAnalysis";
 import { getEmotionTrends } from "@/utils/emotionTrendAnalysis";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -48,6 +48,7 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = ({
   const { state } = useTransactions();
   const { currencySymbol } = useCurrency();
   const [timelinePeriod, setTimelinePeriod] = useState<TimePeriod>("month");
+  const isMobile = useIsMobile();
   
   // Use the current currencySymbol
   const currency = currencySymbol;
@@ -207,9 +208,9 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = ({
         position: 'bottom' as const,
         display: true,
         labels: {
-          boxWidth: 10,
+          boxWidth: isMobile ? 8 : 10,
           font: {
-            size: 10
+            size: isMobile ? 8 : 10
           }
         }
       },
@@ -253,24 +254,24 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = ({
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 overflow-visible">
+    <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'md:grid-cols-2 lg:grid-cols-3'} overflow-visible`}>
       {/* Emotion Distribution */}
-      <Card className="col-span-1 overflow-visible">
+      <Card className={`col-span-1 overflow-visible ${isMobile ? 'min-w-[250px]' : ''}`}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Emotion Distribution</CardTitle>
+          <CardTitle className="text-xs sm:text-sm">Emotion Distribution</CardTitle>
           <CardDescription className="text-xs">How often you feel different emotions when spending</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[200px] flex items-center justify-center">
+          <div className="h-[150px] sm:h-[200px] flex items-center justify-center">
             <Doughnut data={distributionData} options={chartOptions} />
           </div>
         </CardContent>
       </Card>
 
       {/* Emotional Spending Summary */}
-      <Card className="col-span-1 overflow-visible">
+      <Card className={`col-span-1 overflow-visible ${isMobile ? 'min-w-[250px]' : ''}`}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Emotional Spending</CardTitle>
+          <CardTitle className="text-xs sm:text-sm">Emotional Spending</CardTitle>
           <CardDescription className="text-xs">How emotions influence your spending</CardDescription>
         </CardHeader>
         <CardContent>
@@ -278,8 +279,8 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = ({
             {Object.keys(emotionSpending).length > 0 ? (
               Object.entries(emotionSpending).map(([emotion, amount]) => (
                 <div key={emotion} className="flex justify-between items-center">
-                  <span className="capitalize text-sm">{emotion}</span>
-                  <span className="font-semibold text-sm">{currency}{amount.toFixed(2)}</span>
+                  <span className="capitalize text-xs sm:text-sm">{emotion}</span>
+                  <span className="font-semibold text-xs sm:text-sm">{currency}{amount.toFixed(2)}</span>
                 </div>
               ))
             ) : (
@@ -289,8 +290,8 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = ({
             )}
             <div className="pt-2 border-t">
               <div className="flex justify-between items-center">
-                <span className="font-medium text-sm">Avg. per transaction</span>
-                <span className="font-semibold text-sm">{currency}{averageSpending.toFixed(2)}</span>
+                <span className="font-medium text-xs sm:text-sm">Avg. per transaction</span>
+                <span className="font-semibold text-xs sm:text-sm">{currency}{averageSpending.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -298,23 +299,23 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = ({
       </Card>
 
       {/* Emotion Spending Over Time */}
-      <Card className="md:col-span-2 lg:col-span-1 overflow-visible">
+      <Card className={`${isMobile ? 'col-span-1' : 'md:col-span-2 lg:col-span-1'} overflow-visible ${isMobile ? 'min-w-[250px]' : ''}`}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Emotional Spending Trends</CardTitle>
+          <CardTitle className="text-xs sm:text-sm">Emotional Spending Trends</CardTitle>
           <CardDescription className="text-xs">How your emotional spending changes over time</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[200px]">
+          <div className="h-[150px] sm:h-[200px]">
             <Line data={trendData} options={chartOptions} />
           </div>
         </CardContent>
       </Card>
 
       {/* Emotion Timeline */}
-      <Card className="col-span-full overflow-visible">
+      <Card className={`col-span-full overflow-visible ${isMobile ? 'min-w-[250px]' : ''}`}>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <div>
-            <CardTitle className="text-sm">Emotion Timeline</CardTitle>
+            <CardTitle className="text-xs sm:text-sm">Emotion Timeline</CardTitle>
             <CardDescription className="text-xs">Your emotional spending patterns over time</CardDescription>
           </div>
           <Tabs 
@@ -322,15 +323,15 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = ({
             onValueChange={(value) => setTimelinePeriod(value as TimePeriod)}
             className="w-auto"
           >
-            <TabsList className="grid w-full grid-cols-3 h-8">
-              <TabsTrigger value="month" className="text-xs px-2">Month</TabsTrigger>
-              <TabsTrigger value="year" className="text-xs px-2">Year</TabsTrigger>
-              <TabsTrigger value="all" className="text-xs px-2">All Time</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 h-6 sm:h-8">
+              <TabsTrigger value="month" className="text-[10px] sm:text-xs px-1 sm:px-2">Month</TabsTrigger>
+              <TabsTrigger value="year" className="text-[10px] sm:text-xs px-1 sm:px-2">Year</TabsTrigger>
+              <TabsTrigger value="all" className="text-[10px] sm:text-xs px-1 sm:px-2">All Time</TabsTrigger>
             </TabsList>
           </Tabs>
         </CardHeader>
         <CardContent>
-          <div className="h-[200px]">
+          <div className="h-[150px] sm:h-[200px]">
             <Line data={timelineData} options={chartOptions} />
           </div>
         </CardContent>

@@ -26,12 +26,12 @@ const Dashboard: React.FC<DashboardProps> = ({ type, filteredTransactions }) => 
 
   return (
     <div className="grid gap-6 w-full pb-6">
-      <Card className="bg-primary text-primary-foreground w-full">
+      <Card className="bg-primary text-primary-foreground w-full overflow-hidden">
         <CardHeader className="pb-2">
-          <CardTitle>Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
+          <CardTitle className="text-xl md:text-2xl">Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-3xl font-bold">
+          <div className="text-2xl md:text-3xl font-bold break-words">
             {currencySymbol}{total.toFixed(2)}
           </div>
         </CardContent>
