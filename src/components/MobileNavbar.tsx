@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { Home, PieChart, Settings, Activity } from 'lucide-react';
+import { Home, PieChart, Settings, Activity, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import NetworkStatusIndicator from './NetworkStatusIndicator';
 import { Link } from 'react-router-dom';
@@ -40,14 +40,14 @@ const MobileNavbar: React.FC = () => {
         </Link>
         
         <Link 
-          to="/overview" 
+          to="/ideas" 
           className={cn(
             "flex flex-col items-center p-2 rounded-md", 
-            isActive('/overview') ? "text-primary" : "text-gray-500"
+            isActive('/ideas') ? "text-primary" : "text-gray-500"
           )}
         >
-          <PieChart size={20} />
-          <span className="text-xs mt-1">Overview</span>
+          <Lightbulb size={20} />
+          <span className="text-xs mt-1">Ideas</span>
         </Link>
         
         <Link 
