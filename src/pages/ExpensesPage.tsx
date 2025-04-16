@@ -25,7 +25,6 @@ const ExpensesPage: React.FC = () => {
   const [isInitialLoadDone, setIsInitialLoadDone] = useState(false);
   
   const initializingRef = useRef(false);
-  // Remove toast notification tracking
 
   const filteredTransactions = useMemo(() => {
     if (selectedEmotion === 'all') {
@@ -56,7 +55,7 @@ const ExpensesPage: React.FC = () => {
     }
   }, [user, syncToSupabase]);
 
-  // Simplified initialization without toast notifications
+  // Single one-time initialization
   useEffect(() => {
     const initializeApp = async () => {
       if (isInitialLoadDone || !user || isLoading || initializingRef.current) return;
@@ -82,43 +81,6 @@ const ExpensesPage: React.FC = () => {
     
     initializeApp();
   }, [user, isLoading, deduplicate, refreshData, isInitialLoadDone]);
-
-  // Completely removed auto-sync and auto-refresh behaviors
-  useEffect(() => {
-    // Remove toast notification tracking
-    
-    const loadAndSyncData = async () => {
-      if (!user || isLoading || initializingRef.current) return;
-      
-      initializingRef.current = true;
-      console.log("ExpensesPage mounted - ensuring data is synced");
-      
-      try {
-        if (refreshData) {
-          await refreshData(true); // Silent refresh
-        }
-        
-        deduplicate();
-        
-        if (navigator.onLine && syncToSupabase) {
-          console.log("Syncing data to Supabase on ExpensesPage load");
-          await syncToSupabase();
-        }
-      } catch (error) {
-        console.error("Error during data sync on ExpensesPage load:", error);
-      } finally {
-        initializingRef.current = false;
-      }
-    };
-    
-    loadAndSyncData();
-    
-    // Remove polling interval completely
-    
-    return () => {
-      // Remove toast notification tracking
-    };
-  }, [user, refreshData, syncToSupabase, isLoading, deduplicate]);
 
   return (
     <div className="container py-4 md:py-6 max-w-7xl mx-auto px-3 sm:px-4 w-full overflow-hidden">

@@ -107,10 +107,20 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const refreshedData = await refreshDataFromSupabase(state, silent);
       if (refreshedData) {
         if (state.transactions.length > 0) {
+          const existingTransactionsMap = new Map();
+          state.transactions.forEach(tx => {
+            existingTransactionsMap.set(tx.id, tx);
+          });
+          
+          const cloudTransactionsMap = new Map();
+          refreshedData.transactions.forEach(tx => {
+            cloudTransactionsMap.set(tx.id, tx);
+          });
+          
           const mergedTransactions = [...state.transactions];
           
           refreshedData.transactions.forEach(cloudTx => {
-            if (!mergedTransactions.some(localTx => localTx.id === cloudTx.id)) {
+            if (!existingTransactionsMap.has(cloudTx.id)) {
               mergedTransactions.push(cloudTx);
             }
           });
@@ -121,14 +131,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             categories: refreshedData.categories.length > 0 ? refreshedData.categories : state.categories
           };
           
-          console.log(`After merging local (${state.transactions.length}) and cloud (${refreshedData.transactions.length}), state now has ${mergedTransactions.length} transactions`);
-          
           dispatch({ type: "SET_STATE", payload: mergedState });
-          
           handleDeduplicate();
           return true;
         } else {
-          console.log(`Updating empty state with ${refreshedData.transactions.length} transactions from cloud`);
           dispatch({ type: "SET_STATE", payload: refreshedData });
           return true;
         }
@@ -149,6 +155,13 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const dedupedState = deduplicateUtils();
       dispatch({ type: "SET_STATE", payload: dedupedState });
       
+      try {
+        localStorage.setItem("transactionState", JSON.stringify(dedupedState));
+        localStorage.setItem("lastTransactionUpdate", new Date().toISOString());
+      } catch (error) {
+        console.error("Failed to save to localStorage after transaction deletion:", error);
+      }
+      
       if (user && isOnline) {
         console.log(`Deleting transaction ${id} from Supabase`);
         const success = await deleteTransactionAction(id);
@@ -157,9 +170,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           console.log(`Transaction ${id} deleted from Supabase`);
           
           await syncToSupabase();
-          
-          const finalDedupedState = deduplicateUtils();
-          dispatch({ type: "SET_STATE", payload: finalDedupedState });
           
           return true;
         } else {
@@ -326,7 +336,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           category_id: category.id,
           name: category.name,
           type: category.type,
-          color: category.color
+          color: category.color || '#cccccc'
         }));
         
         const { error } = await supabase

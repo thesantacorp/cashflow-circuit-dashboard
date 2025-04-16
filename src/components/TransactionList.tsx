@@ -3,7 +3,7 @@ import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Transaction, TransactionType } from "@/types";
 import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, isWithinInterval, endOfDay, endOfWeek, endOfMonth, endOfYear } from "date-fns";
-import { Trash2, Edit, Search, CloudOff, RefreshCw, Loader } from "lucide-react";
+import { Trash2, Edit, Search, CloudOff, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +34,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
   const [isDeletingTransaction, setIsDeletingTransaction] = useState<string | null>(null);
   
   const isRefreshingRef = useRef(false);
-  // Completely remove notification tracking
   
   useEffect(() => {
     const transactions = filteredTransactions || getTransactionsByType(type);
@@ -114,7 +113,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
     setEditingTransaction(null);
   };
 
-  // Completely rewritten refresh function to avoid notifications
   const handleRefresh = async () => {
     if (isRefreshingRef.current) return;
     
@@ -123,53 +121,39 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
     
     try {
       deduplicate();
-      await refreshData(true); // Silent refresh - no notifications
+      await refreshData(true);
       if (isOnline) {
         await syncToSupabase();
       }
+      
       const transactions = filteredTransactions || getTransactionsByType(type);
       setAllTransactions(transactions);
-      
-      // No toast notification
     } catch (error) {
       console.error("Error refreshing data:", error);
-      // No error toast
     } finally {
       setIsRefreshing(false);
       isRefreshingRef.current = false;
     }
   };
 
-  // Completely rewritten delete function to ensure transactions are properly deleted
   const handleDelete = async (id: string) => {
     setIsDeletingTransaction(id);
     
     try {
-      // Remove transaction from current state immediately
+      setActiveTransactions(prevTransactions => 
+        prevTransactions.filter(transaction => transaction.id !== id)
+      );
+      
       setAllTransactions(prevTransactions => 
         prevTransactions.filter(transaction => transaction.id !== id)
       );
       
-      // Force deduplication to clear any duplicates
-      deduplicate();
-      
-      // Call delete with immediate UI update
       const success = await deleteTransaction(id);
       
       if (success) {
-        // Force sync to ensure cloud is updated
-        if (isOnline) {
-          await syncToSupabase();
-        }
-        
-        // Always refresh data after delete
-        const transactions = filteredTransactions || getTransactionsByType(type);
-        setAllTransactions(transactions);
-        
         toast.success("Transaction deleted successfully");
       } else {
         toast.error("Failed to delete transaction");
-        // Refresh data to ensure UI is in sync with actual state
         const transactions = filteredTransactions || getTransactionsByType(type);
         setAllTransactions(transactions);
       }
@@ -177,7 +161,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
       console.error("Error deleting transaction:", error);
       toast.error("Failed to delete transaction");
       
-      // Refresh data to ensure UI is in sync with actual state
       const transactions = filteredTransactions || getTransactionsByType(type);
       setAllTransactions(transactions);
     } finally {
@@ -207,20 +190,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
       default: return "All Time";
     }
   };
-
-  // Completely disabled auto-refresh code
-  useEffect(() => {
-    // Initial load only, with no notifications
-    const initialLoad = async () => {
-      const transactions = filteredTransactions || getTransactionsByType(type);
-      setAllTransactions(transactions);
-    };
-    
-    initialLoad();
-    
-    // No auto-refresh interval
-    
-  }, [getTransactionsByType, type, filteredTransactions]);
 
   return (
     <>

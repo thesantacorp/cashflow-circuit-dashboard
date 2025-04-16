@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -37,7 +36,6 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
 
   const handleExportCSV = () => {
     try {
-      // Prepare transactions data
       const transactions = state.transactions.map(t => {
         const category = state.categories.find(c => c.id === t.categoryId);
         return {
@@ -61,30 +59,23 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
         return;
       }
 
-      // Create CSV headers
       const headers = Object.keys(transactions[0]).join(',');
       
-      // Create CSV rows
       const csvRows = transactions.map(t => {
-        // Make sure to properly escape description to handle commas
         const safeDescription = t.description ? `"${t.description.replace(/"/g, '""')}"` : "";
         return `${t.id},${t.type},${t.category},${t.amount},${safeDescription},${t.date},${t.emotion},${t.currency}`;
       });
       
-      // Combine headers and rows
       const csvContent = [headers, ...csvRows].join('\n');
       
-      // Create download link
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       
-      // Set up download link
       link.setAttribute('href', url);
       link.setAttribute('download', `stack_d_export_${new Date().toISOString().split('T')[0]}.csv`);
       link.style.visibility = 'hidden';
       
-      // Trigger download
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -125,7 +116,6 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
       }
     }
     
-    // Push the last value
     values.push(currentValue);
     return values;
   };
@@ -142,7 +132,6 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
         const lines = csvData.split('\n');
         const headers = lines[0].split(',');
         
-        // Check if CSV format is valid
         if (!headers.includes('type') || !headers.includes('amount') || !headers.includes('date')) {
           throw new Error("Invalid CSV format. Required headers: type, amount, date");
         }
@@ -150,12 +139,10 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
         const transactions = [];
         const categoryMap = new Map();
         
-        // Create a map of existing categories
         state.categories.forEach(c => {
           categoryMap.set(c.name.toLowerCase(), c.id);
         });
         
-        // Start from index 1 to skip headers
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           
@@ -167,19 +154,16 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
           
           const rowData: any = {};
           
-          // Map CSV values to object properties
           headers.forEach((header, index) => {
             rowData[header] = values[index];
           });
           
-          // Find category ID or create placeholder
           let categoryId = '';
           if (rowData.category) {
             const categoryLower = rowData.category.toLowerCase();
             if (categoryMap.has(categoryLower)) {
               categoryId = categoryMap.get(categoryLower);
             } else {
-              // Use default category based on transaction type
               const defaultCategories = state.categories.filter(c => c.type === rowData.type);
               if (defaultCategories.length > 0) {
                 categoryId = defaultCategories[0].id;
@@ -187,9 +171,8 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
             }
           }
           
-          // Generate a truly unique ID for import
-          // Use a UUID plus a timestamp for absolute uniqueness
-          const uniqueId = `imported-${uuidv4()}`;
+          const timestamp = new Date().getTime();
+          const uniqueId = `imported-${uuidv4()}-${timestamp}`;
           
           transactions.push({
             id: uniqueId,
@@ -224,7 +207,6 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
         setIsImporting(false);
       }
       
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -238,13 +220,11 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
       console.log(`Import confirmed. Replace mode: ${replace}`);
       console.log(`Importing ${importedData.transactions.length} transactions`);
       
-      // First run deduplication before import
       deduplicate();
       
       setIsImporting(true);
       
       if (replace) {
-        // Force complete state replacement
         const newState = {
           transactions: importedData.transactions,
           categories: state.categories,
@@ -255,35 +235,25 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
         console.log("Replacing all data with:", newState);
         await replaceAllData(newState);
         
-        // Immediately sync to ensure data is saved to Supabase
         await syncToSupabase();
         
         toast({
           title: "Data replaced",
-          description: `${importedData.transactions.length} transactions have replaced your existing data.`
+          description: `${importedData.transactions.length} transactions have replaced your existing data and synced to cloud.`
         });
       } else {
-        // Add to existing data
         console.log("Adding to existing data:", importedData);
         await importData(importedData);
         
-        // Immediately sync to ensure data is saved to Supabase
         await syncToSupabase();
         
         toast({
           title: "Import successful",
-          description: `${importedData.transactions.length} transactions have been added to your existing data.`
+          description: `${importedData.transactions.length} transactions have been added to your data and synced to cloud.`
         });
       }
       
-      // Force a full refresh after import and sync
-      try {
-        console.log("Triggering full data refresh after import");
-        await refreshData(false); // Full refresh with UI feedback
-        console.log("Successfully refreshed data after import");
-      } catch (refreshError) {
-        console.error("Failed to refresh after import:", refreshError);
-      }
+      await refreshData(false);
       
       setShowReplaceDialog(false);
       setImportedData({ transactions: [], categories: [] });
