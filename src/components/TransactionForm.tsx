@@ -69,12 +69,28 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
   };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault(); // This is crucial to prevent form navigation
+    console.log("Submitting transaction form");
     
-    if (!amount || !categoryId) return;
+    if (!amount || !categoryId) {
+      console.log("Missing required fields", { amount, categoryId });
+      return;
+    }
     
     const parsedAmount = parseFloat(amount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) return;
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      console.log("Invalid amount", parsedAmount);
+      return;
+    }
+    
+    console.log("Adding transaction", {
+      amount: parsedAmount,
+      categoryId,
+      description,
+      date: date.toISOString(),
+      type,
+      emotionalState
+    });
     
     const result = addTransaction({
       amount: parsedAmount,
@@ -84,6 +100,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onSuccess }) =>
       type,
       emotionalState,
     });
+    
+    console.log("Transaction add result:", result);
     
     if (result) {
       resetForm();

@@ -6,31 +6,41 @@ import { Category, Transaction, TransactionType } from "@/types";
 
 // Simple reducer for local state management
 const transactionReducer = (state: any, action: any) => {
+  let newState;
+  
   switch (action.type) {
     case "ADD_TRANSACTION":
-      return { ...state, transactions: [...state.transactions, action.payload] };
+      newState = { ...state, transactions: [...state.transactions, action.payload] };
+      break;
     case "UPDATE_TRANSACTION":
-      return {
+      newState = {
         ...state,
         transactions: state.transactions.map((t: any) => 
           t.id === action.payload.id ? action.payload : t
         )
       };
+      break;
     case "DELETE_TRANSACTION":
-      return {
+      newState = {
         ...state,
         transactions: state.transactions.filter((t: any) => t.id !== action.payload)
       };
+      break;
     case "ADD_CATEGORY":
-      return { ...state, categories: [...state.categories, action.payload] };
+      newState = { ...state, categories: [...state.categories, action.payload] };
+      break;
     case "DELETE_CATEGORY":
-      return {
+      newState = {
         ...state,
         categories: state.categories.filter((c: any) => c.id !== action.payload)
       };
+      break;
     default:
       return state;
   }
+  
+  console.log("Reducer updated state:", newState);
+  return newState;
 };
 
 // Initial state
@@ -59,14 +69,18 @@ const safeSetStorage = (key: string, value: any) => {
   
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    console.log(`safeSetStorage: Updated ${key} in localStorage`, value);
   } catch (error) {
     console.error('Error writing to localStorage:', error);
   }
 };
 
 export function useTransactionOperations() {
+  console.log("Initializing useTransactionOperations hook");
+  
   // Load initial state from localStorage with safety checks
   const savedState = safeGetStorage("transactionState", initialState);
+  console.log("Initial state loaded from localStorage:", savedState);
   
   const [state, dispatch] = useReducer(
     transactionReducer,
@@ -75,10 +89,10 @@ export function useTransactionOperations() {
 
   // Wrap dispatch to also update localStorage
   const persistingDispatch = (action: any) => {
+    console.log("persistingDispatch called with action:", action);
     dispatch(action);
     
     // Immediately update localStorage after state changes
-    // (This ensures we don't rely solely on the useEffect for persistence)
     if (typeof window !== 'undefined') {
       // Manually calculate the new state
       const newState = transactionReducer(
@@ -86,18 +100,20 @@ export function useTransactionOperations() {
         action
       );
       safeSetStorage("transactionState", newState);
-      console.log("Directly updated localStorage:", newState);
+      console.log("Directly updated localStorage with new state");
     }
   };
 
   // Save state to localStorage whenever it changes (backup persistence mechanism)
   useEffect(() => {
+    console.log("State changed, saving to localStorage:", state);
     safeSetStorage("transactionState", state);
-    console.log("useEffect: Saved state to localStorage:", state);
   }, [state]);
 
   // Add a transaction
   const addTransaction = (transaction: Omit<Transaction, "id">) => {
+    console.log("Adding transaction:", transaction);
+    
     const newTransaction = { 
       ...transaction, 
       id: uuidv4() 
