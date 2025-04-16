@@ -27,11 +27,13 @@ const Dashboard: React.FC<DashboardProps> = ({ type, filteredTransactions }) => 
   return (
     <div className="grid gap-6 w-full pb-6">
       <Card className="bg-primary text-primary-foreground w-full overflow-hidden">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-xl md:text-2xl">Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
+        <CardHeader className={`pb-2 ${isMobile ? 'px-4 py-3' : ''}`}>
+          <CardTitle className={`${isMobile ? 'text-lg' : 'text-xl md:text-2xl'}`}>
+            Total {type === "expense" ? "Expenses" : "Income"}
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl md:text-3xl font-bold break-words">
+        <CardContent className={isMobile ? 'px-4 py-3' : ''}>
+          <div className={`${isMobile ? 'text-xl' : 'text-2xl md:text-3xl'} font-bold break-words`}>
             {currencySymbol}{total.toFixed(2)}
           </div>
         </CardContent>
@@ -39,7 +41,11 @@ const Dashboard: React.FC<DashboardProps> = ({ type, filteredTransactions }) => 
 
       {type === "expense" && (
         <div className="w-full">
-          <EmotionInsights filteredTransactions={filteredTransactions} />
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="min-w-[300px] px-4 sm:px-0">
+              <EmotionInsights filteredTransactions={filteredTransactions} />
+            </div>
+          </div>
         </div>
       )}
     </div>

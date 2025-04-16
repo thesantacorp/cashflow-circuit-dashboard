@@ -1,9 +1,24 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import AppLogo from "./AppLogo";
 import { motion } from "framer-motion";
+import { useTransactions } from "@/context/transaction";
+import { useAuth } from "@/context/AuthContext";
 
 const LoadingScreen = () => {
+  const [showLoadingText, setShowLoadingText] = useState(false);
+  const { isLoading: isAuthLoading, user } = useAuth();
+  const { isOnline } = useTransactions();
+  
+  // Show additional loading text after 3 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowLoadingText(true);
+    }, 3000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <motion.div
       className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-r from-orange-500 to-amber-500"
@@ -44,6 +59,24 @@ const LoadingScreen = () => {
             }}
           />
         </motion.div>
+        
+        {showLoadingText && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-6 text-white text-center px-4"
+          >
+            <p className="text-sm">
+              {isAuthLoading ? "Authenticating..." : 
+               !user ? "Preparing application..." : 
+               !isOnline ? "Offline mode, loading local data..." : 
+               "Syncing your data..."}
+            </p>
+            <p className="text-xs mt-2 max-w-xs">
+              If this screen persists, try refreshing the page or checking your connection.
+            </p>
+          </motion.div>
+        )}
       </motion.div>
     </motion.div>
   );
