@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Dashboard from "@/components/Dashboard";
 import CategoryList from "@/components/CategoryList";
@@ -13,28 +13,14 @@ import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import EmotionFilter from "@/components/EmotionFilter";
 import { EmotionalState, Transaction } from "@/types";
-import NetworkStatusIndicator from "@/components/NetworkStatusIndicator";
-import SupabaseSync from "@/components/SupabaseSync";
-import { toast } from "sonner";
 
 const ExpensesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
   const [selectedEmotion, setSelectedEmotion] = useState<EmotionalState | 'all'>('all');
   const isMobile = useIsMobile();
-  const { getTotalByType, state, refreshData, isOnline } = useTransactions();
+  const { getTotalByType, state } = useTransactions();
   const { currencySymbol } = useCurrency();
   const totalExpenses = getTotalByType("expense");
-
-  // Force data refresh when page loads and on network status change
-  useEffect(() => {
-    if (refreshData && isOnline) {
-      refreshData().then(success => {
-        if (success) {
-          toast.success("Data synced successfully");
-        }
-      });
-    }
-  }, [refreshData, isOnline]);
 
   // Filter transactions based on selected emotion
   const filteredTransactions = useMemo(() => {
@@ -58,11 +44,6 @@ const ExpensesPage: React.FC = () => {
     <div className="container py-6 max-w-7xl mx-auto px-4 w-full">
       <h1 className="text-3xl font-bold mb-6 text-center sm:text-left">Expenses</h1>
       
-      <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-        <NetworkStatusIndicator minimal={true} className="mb-2 sm:mb-0" />
-        <SupabaseSync minimal={true} />
-      </div>
-      
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="mb-8">
         <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
@@ -80,8 +61,8 @@ const ExpensesPage: React.FC = () => {
             {selectedEmotion !== 'all' && (
               <Card className="mb-6 overflow-hidden">
                 <CardContent className="pt-6">
-                  <div className="flex justify-between items-center flex-wrap">
-                    <div className="mb-2 sm:mb-0">
+                  <div className="flex justify-between items-center">
+                    <div>
                       <h3 className="font-medium capitalize">
                         {selectedEmotion} spending
                       </h3>
@@ -89,7 +70,7 @@ const ExpensesPage: React.FC = () => {
                         Showing only {selectedEmotion} transactions
                       </p>
                     </div>
-                    <div className="text-lg sm:text-2xl font-bold break-words">
+                    <div className="text-2xl font-bold break-words">
                       {currencySymbol}{filteredTotal.toFixed(2)}
                     </div>
                   </div>
@@ -98,8 +79,8 @@ const ExpensesPage: React.FC = () => {
             )}
             
             <div className="space-y-8 pb-6">
-              <div className="w-full overflow-x-auto pb-2">
-                <div className="min-w-[300px] w-full max-w-full">
+              <div className="w-full overflow-x-auto">
+                <div className={`min-w-[300px] ${isMobile ? 'w-[300px]' : 'w-full'}`}>
                   <Dashboard 
                     type="expense" 
                     filteredTransactions={selectedEmotion === 'all' ? undefined : filteredTransactions} 
