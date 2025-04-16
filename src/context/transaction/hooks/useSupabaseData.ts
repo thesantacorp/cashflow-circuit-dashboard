@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -9,17 +10,11 @@ import {
 import { TransactionState } from '../types';
 import { allDefaultCategories } from '../defaultCategories';
 
-/**
- * Hook to handle data operations with Supabase
- */
 export const useSupabaseData = () => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
-  /**
-   * Load initial data from Supabase
-   */
   const loadInitialData = useCallback(async (): Promise<TransactionState | null> => {
     if (!user) {
       setIsLoading(false);
@@ -57,11 +52,6 @@ export const useSupabaseData = () => {
       
       setLastSyncTime(new Date());
       
-      // Only show initial load toast if there's actual data to display
-      if (transactions.length > 0 || categories.length > 0) {
-        toast.success("Data loaded from cloud");
-      }
-      
       return newState;
     } catch (error) {
       console.error("Error loading data from Supabase:", error);
@@ -72,11 +62,7 @@ export const useSupabaseData = () => {
     }
   }, [user]);
 
-  /**
-   * Refresh data from Supabase
-   * @param silent If true, completely suppresses ALL toast notifications
-   */
-  const refreshData = useCallback(async (currentState: TransactionState, silent = false): Promise<TransactionState | null> => {
+  const refreshData = useCallback(async (currentState: TransactionState, silent = true): Promise<TransactionState | null> => {
     if (!user || !navigator.onLine) {
       return null;
     }
@@ -111,12 +97,6 @@ export const useSupabaseData = () => {
       
       setLastSyncTime(new Date());
       
-      // Only show toast notification if explicitly not in silent mode
-      // AND if on a page where notifications make sense
-      if (!silent) {
-        toast.success("Data refreshed from cloud");
-      }
-      
       return newState;
     } catch (error) {
       console.error('Error refreshing data from Supabase:', error);
@@ -128,9 +108,6 @@ export const useSupabaseData = () => {
     }
   }, [user]);
 
-  /**
-   * Set up real-time subscription to Supabase
-   */
   const setupRealtimeSubscription = useCallback((callback: () => void) => {
     if (!user) return null;
 
