@@ -23,15 +23,17 @@ const LoginPage: React.FC = () => {
       return;
     }
     
+    console.log('Attempting to sign in with email:', email);
     setIsLoading(true);
     
     try {
       await signIn(email, password);
       // The navigation will be handled by the auth state change listener
       console.log('Sign in submitted, waiting for auth state change');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      // Error toast is already shown in the signIn function
+      // Showing specific error to help debug
+      toast.error(`Sign in failed: ${error.message || 'Invalid credentials'}`);
       setIsLoading(false);
     }
   };
