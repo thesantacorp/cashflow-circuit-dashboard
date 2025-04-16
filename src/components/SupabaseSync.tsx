@@ -4,7 +4,7 @@ import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 import { useAuth } from "@/context/AuthContext";
 import { useTransactions } from "@/context/transaction";
 import { Button } from "@/components/ui/button";
-import { CloudIcon, DownloadIcon, LoaderIcon, RefreshCw, AlertCircle, WifiOff, CloudOff } from "lucide-react";
+import { CloudIcon, DownloadIcon, LoaderIcon, RefreshCw, AlertCircle, WifiOff, CloudOff, Zap } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -19,16 +19,42 @@ interface SupabaseSyncProps {
 const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
   const { isSyncing, lastSyncDate, syncToSupabase, restoreFromSupabase } = useSupabaseSync();
   const { isLoading, user } = useAuth();
-  const { isOnline, pendingSyncCount } = useTransactions();
+  const { isOnline, pendingSyncCount, refreshData } = useTransactions();
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
+  const [realtimeEnabled, setRealtimeEnabled] = useState(false);
 
   // Check connection on mount
   useEffect(() => {
     if (user && isOnline) {
       verifyConnection();
+      checkRealtimeStatus();
     }
   }, [user, isOnline]);
+
+  // Verify realtime publication is enabled
+  const checkRealtimeStatus = async () => {
+    try {
+      // Subscribe to a test channel to verify realtime is working
+      const channel = supabase.channel('realtime-test');
+      const subscription = channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setRealtimeEnabled(true);
+          supabase.removeChannel(channel);
+        }
+      });
+
+      // Set a timeout to remove channel if subscription fails
+      setTimeout(() => {
+        if (!realtimeEnabled) {
+          supabase.removeChannel(channel);
+          console.log('Realtime subscription timed out');
+        }
+      }, 5000);
+    } catch (error) {
+      console.error('Error checking realtime status:', error);
+    }
+  };
 
   if (isLoading || !user) {
     return null;
@@ -129,6 +155,10 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
     }
   };
 
+  const handleRefresh = async () => {
+    return handleOperation(refreshData);
+  };
+
   if (minimal) {
     return (
       <div className="flex flex-col space-y-2">
@@ -156,6 +186,18 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
               }
             </span>
           </Button>
+          {realtimeEnabled && isOnline && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={isSyncing || isCheckingConnection || !isOnline}
+              className="flex items-center"
+            >
+              <Zap className="h-4 w-4 mr-1" />
+              <span>Refresh</span>
+            </Button>
+          )}
           {lastSyncDate && isOnline && (
             <span className="text-xs text-gray-500">
               Last synced {formatDistanceToNow(lastSyncDate, { addSuffix: true })}
