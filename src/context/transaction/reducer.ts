@@ -1,4 +1,3 @@
-
 import { Transaction, Category } from "@/types";
 import { allDefaultCategories } from "./defaultCategories";
 import { toast } from "sonner";
@@ -16,6 +15,8 @@ export function transactionReducer(
   action: TransactionAction
 ): TransactionState {
   switch (action.type) {
+    case "SET_STATE":
+      return action.payload;
     case "ADD_TRANSACTION":
       return {
         ...state,
@@ -83,16 +84,12 @@ export function transactionReducer(
         ...state,
         categories: state.categories.filter((category) => category.id !== action.payload),
       };
-    case "IMPORT_TRANSACTIONS":
-      return {
-        ...state,
-        transactions: [...state.transactions, ...action.payload],
-      };
     case "REPLACE_ALL_DATA":
-      return {
-        ...state,
-        transactions: action.payload,
-      };
+      // Make sure we keep default categories if none in the data
+      if (action.payload.categories?.length === 0) {
+        action.payload.categories = allDefaultCategories;
+      }
+      return action.payload;
     default:
       return state;
   }

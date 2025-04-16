@@ -1,6 +1,6 @@
 
 import { Dispatch } from "react";
-import { Transaction, Category } from "@/types";
+import { Transaction, Category, TransactionType } from "@/types";
 
 export type TransactionState = {
   transactions: Transaction[];
@@ -18,7 +18,7 @@ export type TransactionAction =
   | { type: "UPDATE_CATEGORY"; payload: Category }
   | { type: "DELETE_CATEGORY"; payload: string }
   | { type: "IMPORT_TRANSACTIONS"; payload: Transaction[] }
-  | { type: "REPLACE_ALL_DATA"; payload: Transaction[] };
+  | { type: "REPLACE_ALL_DATA"; payload: TransactionState };
 
 export type TransactionContextType = {
   state: TransactionState;
@@ -28,10 +28,10 @@ export type TransactionContextType = {
   deleteTransaction: (id: string) => Promise<boolean>;
   addCategory: (category: Omit<Category, "id">) => Promise<boolean>;
   deleteCategory: (id: string) => Promise<boolean>;
-  getTransactionsByType: (type: "income" | "expense") => Transaction[];
-  getCategoriesByType: (type: "income" | "expense") => Category[];
+  getTransactionsByType: (type: TransactionType) => Transaction[];
+  getCategoriesByType: (type: TransactionType) => Category[];
   getCategoryById: (id: string) => Category | undefined;
-  getTotalByType: (type: "income" | "expense") => number;
+  getTotalByType: (type: TransactionType) => number;
   importData: (data: Partial<TransactionState>) => void;
   replaceAllData: (data: TransactionState) => void;
   lastSyncTime: Date | null;

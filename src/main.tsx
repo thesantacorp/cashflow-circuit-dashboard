@@ -50,7 +50,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   </React.StrictMode>,
 );
 
-// Register service worker with enhanced offline/online notifications
+// Register service worker with enhanced online/offline notifications
 register({
   onSuccess: (registration) => {
     console.log('Service worker registration successful');
@@ -60,7 +60,7 @@ register({
     if ('Notification' in window && Notification.permission === 'granted') {
       navigator.serviceWorker.ready.then(registration => {
         registration.showNotification('Cashflow Circuit', {
-          body: 'App is now available offline! You can view your expenses anytime.',
+          body: 'App is now available online. Your data is securely stored in the cloud.',
           icon: '/app-icon.png'
         });
       });
