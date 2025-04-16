@@ -60,7 +60,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [loadedFromStorage, setLoadedFromStorage] = useState(false);
   const [syncNeeded, setSyncNeeded] = useState(false);
-  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   const saveToLocalStorage = useCallback((data: TransactionState) => {
@@ -448,8 +448,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     dispatch({ type: "UPDATE_TRANSACTION", payload: updatedTransaction });
     toast.success("Transaction updated successfully");
     setSyncNeeded(true);
-    // Fix the TypeScript error here by converting number to string
-    setPendingSyncCount((prevCount: number) => String(prevCount + 1) as unknown as number);
+    setPendingSyncCount(prevCount => prevCount + 1);
     return true;
   };
 
