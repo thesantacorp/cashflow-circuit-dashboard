@@ -22,7 +22,7 @@ interface DataExportImportProps {
 }
 
 const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }) => {
-  const { state, importData, replaceAllData } = useTransactions();
+  const { state, importData, replaceAllData, refreshData } = useTransactions();
   const { currency } = useCurrency();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -198,6 +198,8 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
           throw new Error("No valid transactions found in the CSV file");
         }
         
+        console.log(`Parsed ${transactions.length} transactions from CSV`);
+        
         setImportedData({
           transactions: transactions,
           categories: state.categories
@@ -221,22 +223,61 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
     reader.readAsText(file);
   };
 
-  const handleImportConfirm = (replace: boolean) => {
-    if (replace) {
-      replaceAllData(importedData);
+  const handleImportConfirm = async (replace: boolean) => {
+    try {
+      console.log(`Import confirmed. Replace mode: ${replace}`);
+      console.log(`Importing ${importedData.transactions.length} transactions`);
+      
+      if (replace) {
+        // Force complete state replacement
+        const newState = {
+          transactions: importedData.transactions,
+          categories: state.categories,
+          nextTransactionId: state.nextTransactionId || 1,
+          nextCategoryId: state.nextCategoryId || 100
+        };
+        
+        console.log("Replacing all data with:", newState);
+        replaceAllData(newState);
+        
+        toast({
+          title: "Data replaced",
+          description: `${importedData.transactions.length} transactions have replaced your existing data.`
+        });
+      } else {
+        // Add to existing data
+        console.log("Adding to existing data:", importedData);
+        importData(importedData);
+        
+        toast({
+          title: "Import successful",
+          description: `${importedData.transactions.length} transactions have been added to your existing data.`
+        });
+      }
+      
+      // Force a sync with the cloud if online and refresh data is available
+      if (refreshData) {
+        console.log("Triggering data refresh after import");
+        await refreshData(true); // Silent refresh
+      }
+      
+      // Force local storage save
+      try {
+        localStorage.setItem("lastTransactionUpdate", new Date().toISOString());
+      } catch (e) {
+        console.error("Failed to update lastTransactionUpdate in localStorage:", e);
+      }
+      
+      setShowReplaceDialog(false);
+      setImportedData({ transactions: [], categories: [] });
+    } catch (error) {
+      console.error("Error during import confirmation:", error);
       toast({
-        title: "Data replaced",
-        description: `${importedData.transactions.length} transactions have replaced your existing data.`
-      });
-    } else {
-      importData(importedData);
-      toast({
-        title: "Import successful",
-        description: `${importedData.transactions.length} transactions have been added to your existing data.`
+        title: "Import failed",
+        description: "There was an error processing your imported data.",
+        variant: "destructive"
       });
     }
-    setShowReplaceDialog(false);
-    setImportedData({ transactions: [], categories: [] });
   };
 
   return (
