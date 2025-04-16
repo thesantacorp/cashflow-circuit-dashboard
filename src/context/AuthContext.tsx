@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Session, User } from '@supabase/supabase-js';
@@ -57,8 +58,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Listen for auth state changes
   useEffect(() => {
+    console.log('Setting up auth state listener');
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
+      (event, currentSession) => {
         console.log('Auth state changed:', event, currentSession?.user?.email);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
@@ -70,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem(SESSION_KEY, currentSession.access_token);
             console.log('User signed in:', currentSession.user.email);
             
-            // Track the session client-side instead of database
+            // Track the session client-side
             try {
               const sessionData = {
                 userId: currentSession.user.id,
@@ -87,6 +90,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               // Add the new session
               activeSessions.push(sessionData);
               localStorage.setItem('active_sessions', JSON.stringify(activeSessions));
+              
+              // Navigate to expenses page after successful login
+              // Wrap in setTimeout to avoid potential auth deadlock
+              setTimeout(() => {
+                navigate('/expenses');
+              }, 0);
             } catch (error) {
               console.error('Error tracking session:', error);
             }
@@ -109,39 +118,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     // Check for existing session
-    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
-      console.log('Got existing session:', currentSession?.user?.email);
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      
-      if (currentSession?.user) {
-        // Check if this session has been invalidated by another login
-        const storedSessionId = localStorage.getItem(SESSION_KEY);
-        const activeSessionsRaw = localStorage.getItem('active_sessions') || '[]';
-        const activeSessions = JSON.parse(activeSessionsRaw);
+    const checkExistingSession = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        console.log('Got existing session:', currentSession?.user?.email);
         
-        // Find the most recent active session
-        const latestSession = activeSessions
-          .filter((s: any) => s.userId === currentSession.user.id && s.isActive)
-          .sort((a: any, b: any) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime())[0];
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
         
-        // If there's an active session and it's not this one, sign out
-        if (latestSession && storedSessionId && latestSession.sessionId !== storedSessionId) {
-          console.log('Session invalidated by another login. Signing out.');
-          await supabase.auth.signOut();
-          toast.info('You have been signed out because you signed in on another device');
-          setSession(null);
-          setUser(null);
-        } else {
-          // This is the current active session, fetch profile
-          setTimeout(() => {
-            fetchUserProfile(currentSession.user.id);
-          }, 0);
+        if (currentSession?.user) {
+          // Check if this session has been invalidated by another login
+          const storedSessionId = localStorage.getItem(SESSION_KEY);
+          const activeSessionsRaw = localStorage.getItem('active_sessions') || '[]';
+          const activeSessions = JSON.parse(activeSessionsRaw);
+          
+          // Find the most recent active session
+          const latestSession = activeSessions
+            .filter((s: any) => s.userId === currentSession.user.id && s.isActive)
+            .sort((a: any, b: any) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime())[0];
+          
+          // If there's an active session and it's not this one, sign out
+          if (latestSession && storedSessionId && latestSession.sessionId !== storedSessionId) {
+            console.log('Session invalidated by another login. Signing out.');
+            await supabase.auth.signOut();
+            toast.info('You have been signed out because you signed in on another device');
+            setSession(null);
+            setUser(null);
+          } else {
+            // This is the current active session, fetch profile
+            setTimeout(() => {
+              fetchUserProfile(currentSession.user.id);
+            }, 0);
+          }
         }
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error checking existing session:', error);
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
-    });
+    };
+    
+    checkExistingSession();
 
     return () => {
       subscription.unsubscribe();
@@ -241,7 +259,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       toast.success('Signed in successfully');
-      navigate('/expenses');
+      // Don't navigate here - let the auth state change listener handle navigation
     } catch (error: any) {
       toast.error('Sign in failed', {
         description: error.message

@@ -27,11 +27,11 @@ const LoginPage: React.FC = () => {
     
     try {
       await signIn(email, password);
-      // On successful login, the AuthContext will handle navigation
+      // The navigation will be handled by the auth state change listener
+      console.log('Sign in submitted, waiting for auth state change');
     } catch (error) {
       console.error('Login error:', error);
-      toast.error('Failed to sign in. Please check your credentials.');
-    } finally {
+      // Error toast is already shown in the signIn function
       setIsLoading(false);
     }
   };
