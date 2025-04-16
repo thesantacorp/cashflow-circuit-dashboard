@@ -1,3 +1,4 @@
+
 import React, { useReducer, useEffect, useState, useCallback } from "react";
 import { TransactionContext } from "./context";
 import { toast } from "sonner";
@@ -7,6 +8,15 @@ import { TransactionState } from "./types";
 import { v4 as uuidv4 } from "uuid";
 import { allDefaultCategories } from "./defaultCategories";
 import { supabase } from "@/integrations/supabase/client";
+import { 
+  insertTransaction, 
+  updateTransaction as updateTransactionInDb, 
+  deleteTransaction as deleteTransactionFromDb,
+  insertCategory,
+  deleteCategory as deleteCategoryFromDb,
+  fetchTransactions,
+  fetchCategories
+} from "@/utils/supabase/tableManagement";
 
 const initialState: TransactionState = {
   transactions: [],
@@ -58,156 +68,89 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [state, dispatch] = useReducer(transactionReducer, initialState);
   const { user } = useAuth();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [loadedFromStorage, setLoadedFromStorage] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [syncNeeded, setSyncNeeded] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
-  const saveToLocalStorage = useCallback((data: TransactionState) => {
-    if (!data) {
-      console.error("Invalid data provided to saveToLocalStorage");
-      return;
-    }
-    try {
-      console.log("Saving to localStorage:", data);
-      const dataToSave = {
-        transactions: data.transactions || [],
-        categories: data.categories && data.categories.length > 0 
-          ? data.categories 
-          : allDefaultCategories,
-        nextTransactionId: data.nextTransactionId || 1,
-        nextCategoryId: data.nextCategoryId || 100
-      };
-      
-      localStorage.setItem("transactionState", JSON.stringify(dataToSave));
-      
-      const savedData = localStorage.getItem("transactionState");
-      if (!savedData) {
-        throw new Error("Failed to verify data was saved to localStorage");
-      }
-      
-      const parsedData = JSON.parse(savedData);
-      if (!Array.isArray(parsedData.categories) || parsedData.categories.length === 0) {
-        console.warn("Categories not saved correctly, attempting recovery");
-        const recovery = {
-          ...parsedData,
-          categories: allDefaultCategories
-        };
-        localStorage.setItem("transactionState", JSON.stringify(recovery));
-      }
-      
-      if (user) {
-        setSyncNeeded(true);
-        const newTransactions = data.transactions.filter(t => 
-          !t.syncedAt || (t.updatedAt && new Date(t.syncedAt) < new Date(t.updatedAt))
-        );
-        setPendingSyncCount(newTransactions.length);
-      }
-      
-    } catch (error) {
-      console.error("Failed to save transactions to localStorage", error);
-      toast.error("Failed to save transactions. Storage might be full.");
-      
-      try {
-        const minimalData = {
-          transactions: data.transactions || [],
-          categories: allDefaultCategories
-        };
-        localStorage.setItem("transactionState", JSON.stringify(minimalData));
-      } catch (backupError) {
-        console.error("Even backup save failed", backupError);
-      }
-    }
-  }, [user]);
-
+  // Load data from Supabase on initialization or when user changes
   useEffect(() => {
-    try {
-      const savedState = localStorage.getItem("transactionState");
-      if (savedState) {
+    const loadData = async () => {
+      if (!user) {
+        // If no user, fall back to local storage
         try {
-          const parsedState = JSON.parse(savedState);
-          
-          if (!parsedState) {
-            throw new Error("Invalid state format in localStorage");
+          const savedState = localStorage.getItem("transactionState");
+          if (savedState) {
+            const parsedState = JSON.parse(savedState);
+            if (parsedState) {
+              dispatch({ 
+                type: "REPLACE_ALL_DATA", 
+                payload: {
+                  ...parsedState,
+                  categories: parsedState.categories && parsedState.categories.length > 0 
+                    ? parsedState.categories 
+                    : allDefaultCategories
+                }
+              });
+            }
           }
-          
-          if (!Array.isArray(parsedState.categories) || parsedState.categories.length === 0) {
-            parsedState.categories = allDefaultCategories;
-          }
-          
-          const validState = {
-            transactions: Array.isArray(parsedState.transactions) ? parsedState.transactions : [],
-            categories: parsedState.categories,
-            nextTransactionId: parsedState.nextTransactionId || 1,
-            nextCategoryId: parsedState.nextCategoryId || 100
-          };
-          
-          console.log("Loading from localStorage:", validState);
-          
-          dispatch({ 
-            type: "REPLACE_ALL_DATA", 
-            payload: validState
-          });
-          
-          setLoadedFromStorage(true);
-        } catch (parseError) {
-          console.error("Failed to parse state from localStorage", parseError);
+        } catch (error) {
+          console.error("Failed to load from localStorage", error);
           dispatch({ 
             type: "REPLACE_ALL_DATA", 
             payload: initialState
           });
         }
-      } else {
-        console.log("No saved state found, using initial state with default categories");
-        dispatch({ 
-          type: "REPLACE_ALL_DATA", 
-          payload: initialState
-        });
+        setIsLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error("Critical error loading state from localStorage", error);
-      toast.error("There was a problem loading your data. Default categories will be used.");
-      dispatch({ 
-        type: "REPLACE_ALL_DATA", 
-        payload: initialState
-      });
-    }
-  }, []);
 
-  useEffect(() => {
-    if (syncNeeded && user && isOnline) {
-      const syncData = async () => {
-        try {
-          console.log("Auto-syncing data to Supabase...");
-          await syncToSupabase();
-          setSyncNeeded(false);
-          setPendingSyncCount(0);
-          setLastSyncTime(new Date());
-          toast.success("Data synced to cloud");
-        } catch (error) {
-          console.error("Auto-sync failed:", error);
+      setIsLoading(true);
+      try {
+        const { transactions, error: transactionsError } = await fetchTransactions(user.email);
+        
+        if (transactionsError) {
+          console.error("Error fetching transactions:", transactionsError);
+          toast.error("Failed to load transactions from cloud");
+          setIsLoading(false);
+          return;
         }
-      };
-      
-      syncData();
-    }
-  }, [syncNeeded, user, isOnline]);
+        
+        const { categories, error: categoriesError } = await fetchCategories(user.email);
+        
+        if (categoriesError) {
+          console.error("Error fetching categories:", categoriesError);
+          toast.error("Failed to load categories from cloud");
+          setIsLoading(false);
+          return;
+        }
 
-  useEffect(() => {
-    if (loadedFromStorage) {
-      if (!state.categories || state.categories.length === 0) {
-        console.warn("Attempting to save with empty categories, adding defaults");
-        const stateWithDefaults = {
-          ...state,
-          categories: allDefaultCategories
-        };
-        saveToLocalStorage(stateWithDefaults);
-      } else {
-        saveToLocalStorage(state);
+        const finalCategories = categories.length > 0 ? categories : allDefaultCategories;
+        
+        dispatch({
+          type: "REPLACE_ALL_DATA",
+          payload: {
+            transactions,
+            categories: finalCategories,
+            nextTransactionId: state.nextTransactionId,
+            nextCategoryId: state.nextCategoryId
+          }
+        });
+        
+        setLastSyncTime(new Date());
+        toast.success("Data loaded from cloud");
+      } catch (error) {
+        console.error("Error loading data from Supabase:", error);
+        toast.error("Failed to load data from cloud");
+      } finally {
+        setIsLoading(false);
       }
-    }
-  }, [state, saveToLocalStorage, loadedFromStorage]);
+    };
 
+    loadData();
+  }, [user]);
+
+  // Monitor online status
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -215,6 +158,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setSyncNeeded(true);
       }
     };
+    
     const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
@@ -226,6 +170,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
   }, [user, pendingSyncCount]);
 
+  // Listen for real-time updates from Supabase
   useEffect(() => {
     if (!user) return;
 
@@ -247,160 +192,39 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
   }, [user]);
 
-  const syncToSupabase = async () => {
-    if (!user || !isOnline) {
-      return false;
-    }
-
-    try {
-      const { data: existingTransactions, error: fetchError } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_email', user.email);
-      
-      if (fetchError) throw fetchError;
-      
-      const existingTransactionMap = new Map();
-      existingTransactions?.forEach(tx => {
-        existingTransactionMap.set(tx.transaction_id, tx);
-      });
-      
-      const transactionsToSync = state.transactions.map(tx => {
-        const existing = existingTransactionMap.get(tx.id);
-        const now = new Date().toISOString();
-        return {
-          ...tx,
-          syncedAt: now,
-          updatedAt: tx.updatedAt || now
-        };
-      });
-      
-      const { error: categoriesDeleteError } = await supabase
-        .from('categories')
-        .delete()
-        .eq('user_email', user.email);
-      
-      if (categoriesDeleteError) throw categoriesDeleteError;
-      
-      const categoryRows = state.categories.map(category => ({
-        user_email: user.email,
-        category_id: category.id,
-        name: category.name,
-        type: category.type,
-        color: category.color
-      }));
-      
-      const { error: categoriesInsertError } = await supabase
-        .from('categories')
-        .insert(categoryRows);
-      
-      if (categoriesInsertError) throw categoriesInsertError;
-      
-      const { error: transactionsDeleteError } = await supabase
-        .from('transactions')
-        .delete()
-        .eq('user_email', user.email);
-      
-      if (transactionsDeleteError) throw transactionsDeleteError;
-      
-      if (transactionsToSync.length > 0) {
-        const transactionRows = transactionsToSync.map(transaction => ({
-          user_email: user.email,
-          transaction_id: transaction.id,
-          type: transaction.type,
-          category_id: transaction.categoryId,
-          amount: transaction.amount,
-          description: transaction.description || '',
-          date: transaction.date,
-          emotional_state: transaction.emotionalState || 'neutral'
-        }));
-        
-        const { error: transactionsInsertError } = await supabase
-          .from('transactions')
-          .insert(transactionRows);
-        
-        if (transactionsInsertError) throw transactionsInsertError;
-      }
-      
-      const updatedTransactions = state.transactions.map(tx => ({
-        ...tx,
-        syncedAt: new Date().toISOString()
-      }));
-      
-      dispatch({
-        type: "REPLACE_ALL_DATA",
-        payload: {
-          ...state,
-          transactions: updatedTransactions
-        }
-      });
-      
-      setLastSyncTime(new Date());
-      return true;
-    } catch (error) {
-      console.error('Error syncing to Supabase:', error);
-      toast.error('Failed to sync data to cloud');
-      return false;
-    }
-  };
-
+  // Refresh data from Supabase
   const refreshData = async () => {
     if (!user || !isOnline) {
       return false;
     }
 
     try {
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_email', user.email);
+      const { transactions, error: transactionsError } = await fetchTransactions(user.email);
       
-      if (transactionsError) throw transactionsError;
-      
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('user_email', user.email);
-      
-      if (categoriesError) throw categoriesError;
-      
-      if ((!transactionsData || transactionsData.length === 0) &&
-          (!categoriesData || categoriesData.length === 0)) {
-        return syncToSupabase();
+      if (transactionsError) {
+        throw transactionsError;
       }
       
-      const transactions = transactionsData.map(t => ({
-        id: t.transaction_id,
-        type: t.type as 'income' | 'expense',
-        categoryId: t.category_id,
-        amount: parseFloat(t.amount),
-        description: t.description,
-        date: t.date,
-        emotionalState: t.emotional_state || 'neutral',
-        syncedAt: new Date().toISOString()
-      }));
+      const { categories, error: categoriesError } = await fetchCategories(user.email);
       
-      let categories = categoriesData.length > 0 
-        ? categoriesData.map(c => ({
-            id: c.category_id,
-            name: c.name,
-            type: c.type as 'income' | 'expense',
-            color: c.color || '#cccccc'
-          }))
-        : allDefaultCategories;
+      if (categoriesError) {
+        throw categoriesError;
+      }
+      
+      const finalCategories = categories.length > 0 ? categories : allDefaultCategories;
       
       dispatch({
         type: "REPLACE_ALL_DATA",
         payload: {
           transactions,
-          categories,
+          categories: finalCategories,
           nextTransactionId: state.nextTransactionId,
           nextCategoryId: state.nextCategoryId
         }
       });
       
       setLastSyncTime(new Date());
-      toast.success("Data synchronized from cloud");
+      toast.success("Data refreshed from cloud");
       return true;
     } catch (error) {
       console.error('Error refreshing data from Supabase:', error);
@@ -409,6 +233,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
+  // Deduplicate transactions
   const deduplicate = () => {
     const uniqueTransactions = Array.from(
       new Map(state.transactions.map(item => [item.id, item])).values()
@@ -427,51 +252,285 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return true;
   };
 
-  const addTransaction = (transaction: Omit<Transaction, "id">) => {
-    const newTransaction = { 
-      ...transaction, 
-      id: uuidv4(),
-      updatedAt: new Date().toISOString()
-    };
-    dispatch({ type: "ADD_TRANSACTION", payload: newTransaction });
-    toast.success("Transaction added successfully");
-    setSyncNeeded(true);
-    setPendingSyncCount((prevCount: number) => prevCount + 1);
-    return true;
+  // Add transaction directly to Supabase
+  const addTransaction = async (transaction: Omit<Transaction, "id">) => {
+    if (!user && !isOnline) {
+      toast.error("You must be online to add transactions");
+      return false;
+    }
+
+    try {
+      const newTransaction = { 
+        ...transaction, 
+        id: uuidv4(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      // First update local state for immediate UI feedback
+      dispatch({ type: "ADD_TRANSACTION", payload: newTransaction });
+      
+      // Then save to Supabase
+      if (user) {
+        const result = await insertTransaction({
+          ...newTransaction,
+          user_email: user.email
+        });
+        
+        if (!result.success) {
+          toast.error("Failed to save transaction to cloud");
+          setSyncNeeded(true);
+          setPendingSyncCount((prevCount: number) => prevCount + 1);
+        } else {
+          toast.success("Transaction added and saved to cloud");
+        }
+      } else {
+        // Fallback to local storage if no user
+        try {
+          const currentStateRaw = localStorage.getItem("transactionState");
+          const currentState = currentStateRaw 
+            ? JSON.parse(currentStateRaw) 
+            : { transactions: [], categories: allDefaultCategories };
+          
+          const updatedState = { 
+            ...currentState,
+            transactions: [...currentState.transactions, newTransaction]
+          };
+          
+          localStorage.setItem("transactionState", JSON.stringify(updatedState));
+          toast.success("Transaction saved locally");
+        } catch (error) {
+          console.error("Error saving to localStorage:", error);
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error adding transaction:", error);
+      toast.error("Failed to add transaction");
+      return false;
+    }
   };
 
-  const updateTransaction = (transaction: Transaction) => {
-    const updatedTransaction = {
-      ...transaction,
-      updatedAt: new Date().toISOString()
-    };
-    dispatch({ type: "UPDATE_TRANSACTION", payload: updatedTransaction });
-    toast.success("Transaction updated successfully");
-    setSyncNeeded(true);
-    setPendingSyncCount((prevCount: number) => prevCount + 1);
-    return true;
+  // Update transaction directly in Supabase
+  const updateTransaction = async (transaction: Transaction) => {
+    if (!user && !isOnline) {
+      toast.error("You must be online to update transactions");
+      return false;
+    }
+
+    try {
+      const updatedTransaction = {
+        ...transaction,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // First update local state for immediate UI feedback
+      dispatch({ type: "UPDATE_TRANSACTION", payload: updatedTransaction });
+      
+      // Then update in Supabase
+      if (user) {
+        const result = await updateTransactionInDb(updatedTransaction, user.email);
+        
+        if (!result.success) {
+          toast.error("Failed to update transaction in cloud");
+          setSyncNeeded(true);
+          setPendingSyncCount((prevCount: number) => prevCount + 1);
+        } else {
+          toast.success("Transaction updated and saved to cloud");
+        }
+      } else {
+        // Fallback to local storage if no user
+        try {
+          const currentStateRaw = localStorage.getItem("transactionState");
+          const currentState = currentStateRaw 
+            ? JSON.parse(currentStateRaw) 
+            : { transactions: [], categories: allDefaultCategories };
+          
+          const updatedTransactions = currentState.transactions.map((t: Transaction) => 
+            t.id === transaction.id ? updatedTransaction : t
+          );
+          
+          const updatedState = { 
+            ...currentState,
+            transactions: updatedTransactions
+          };
+          
+          localStorage.setItem("transactionState", JSON.stringify(updatedState));
+          toast.success("Transaction updated locally");
+        } catch (error) {
+          console.error("Error updating in localStorage:", error);
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error updating transaction:", error);
+      toast.error("Failed to update transaction");
+      return false;
+    }
   };
 
-  const deleteTransaction = (id: string) => {
-    dispatch({ type: "DELETE_TRANSACTION", payload: id });
-    toast.success("Transaction deleted successfully");
-    setSyncNeeded(true);
-    return true;
+  // Delete transaction directly from Supabase
+  const deleteTransaction = async (id: string) => {
+    if (!user && !isOnline) {
+      toast.error("You must be online to delete transactions");
+      return false;
+    }
+
+    try {
+      // First update local state for immediate UI feedback
+      dispatch({ type: "DELETE_TRANSACTION", payload: id });
+      
+      // Then delete from Supabase
+      if (user) {
+        const result = await deleteTransactionFromDb(id, user.email);
+        
+        if (!result.success) {
+          toast.error("Failed to delete transaction from cloud");
+          setSyncNeeded(true);
+        } else {
+          toast.success("Transaction deleted from cloud");
+        }
+      } else {
+        // Fallback to local storage if no user
+        try {
+          const currentStateRaw = localStorage.getItem("transactionState");
+          const currentState = currentStateRaw 
+            ? JSON.parse(currentStateRaw) 
+            : { transactions: [], categories: allDefaultCategories };
+          
+          const updatedTransactions = currentState.transactions.filter((t: Transaction) => t.id !== id);
+          
+          const updatedState = { 
+            ...currentState,
+            transactions: updatedTransactions
+          };
+          
+          localStorage.setItem("transactionState", JSON.stringify(updatedState));
+          toast.success("Transaction deleted locally");
+        } catch (error) {
+          console.error("Error deleting from localStorage:", error);
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+      toast.error("Failed to delete transaction");
+      return false;
+    }
   };
 
-  const addCategory = (category: Omit<Category, "id">) => {
-    const newCategory = { ...category, id: uuidv4() };
-    dispatch({ type: "ADD_CATEGORY", payload: newCategory });
-    toast.success("Category added successfully");
-    setSyncNeeded(true);
-    return true;
+  // Add category directly to Supabase
+  const addCategory = async (category: Omit<Category, "id">) => {
+    if (!user && !isOnline) {
+      toast.error("You must be online to add categories");
+      return false;
+    }
+
+    try {
+      const newCategory = { ...category, id: uuidv4() };
+      
+      // First update local state for immediate UI feedback
+      dispatch({ type: "ADD_CATEGORY", payload: newCategory });
+      
+      // Then save to Supabase
+      if (user) {
+        const result = await insertCategory(newCategory, user.email);
+        
+        if (!result.success) {
+          toast.error("Failed to save category to cloud");
+          setSyncNeeded(true);
+        } else {
+          toast.success("Category added and saved to cloud");
+        }
+      } else {
+        // Fallback to local storage if no user
+        try {
+          const currentStateRaw = localStorage.getItem("transactionState");
+          const currentState = currentStateRaw 
+            ? JSON.parse(currentStateRaw) 
+            : { transactions: [], categories: allDefaultCategories };
+          
+          const updatedState = { 
+            ...currentState,
+            categories: [...currentState.categories, newCategory]
+          };
+          
+          localStorage.setItem("transactionState", JSON.stringify(updatedState));
+          toast.success("Category saved locally");
+        } catch (error) {
+          console.error("Error saving to localStorage:", error);
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error adding category:", error);
+      toast.error("Failed to add category");
+      return false;
+    }
   };
 
-  const deleteCategory = (id: string) => {
-    dispatch({ type: "DELETE_CATEGORY", payload: id });
-    toast.success("Category deleted successfully");
-    setSyncNeeded(true);
-    return true;
+  // Delete category directly from Supabase
+  const deleteCategory = async (id: string) => {
+    if (!user && !isOnline) {
+      toast.error("You must be online to delete categories");
+      return false;
+    }
+
+    // Check if category is in use
+    const hasTransactions = state.transactions.some(
+      (transaction) => transaction.categoryId === id
+    );
+    
+    if (hasTransactions) {
+      toast.error("Cannot delete a category that has transactions");
+      return false;
+    }
+
+    try {
+      // First update local state for immediate UI feedback
+      dispatch({ type: "DELETE_CATEGORY", payload: id });
+      
+      // Then delete from Supabase
+      if (user) {
+        const result = await deleteCategoryFromDb(id, user.email);
+        
+        if (!result.success) {
+          toast.error("Failed to delete category from cloud");
+          setSyncNeeded(true);
+        } else {
+          toast.success("Category deleted from cloud");
+        }
+      } else {
+        // Fallback to local storage if no user
+        try {
+          const currentStateRaw = localStorage.getItem("transactionState");
+          const currentState = currentStateRaw 
+            ? JSON.parse(currentStateRaw) 
+            : { transactions: [], categories: allDefaultCategories };
+          
+          const updatedCategories = currentState.categories.filter((c: Category) => c.id !== id);
+          
+          const updatedState = { 
+            ...currentState,
+            categories: updatedCategories 
+          };
+          
+          localStorage.setItem("transactionState", JSON.stringify(updatedState));
+          toast.success("Category deleted locally");
+        } catch (error) {
+          console.error("Error deleting from localStorage:", error);
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      toast.error("Failed to delete category");
+      return false;
+    }
   };
 
   return (
@@ -496,7 +555,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         refreshData,
         deduplicate,
         isOnline,
-        pendingSyncCount
+        pendingSyncCount,
+        isLoading
       }}
     >
       {children}
