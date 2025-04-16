@@ -24,6 +24,20 @@ const ExpensesPage: React.FC = () => {
   // Log state on mount and changes
   useEffect(() => {
     console.log("ExpensePage - Current state:", state);
+    
+    // Verify localStorage data matches the current state
+    const savedState = localStorage.getItem("transactionState");
+    if (savedState) {
+      const parsedState = JSON.parse(savedState);
+      console.log("localStorage state:", parsedState);
+      
+      // Check for discrepancies in transaction counts
+      if (parsedState.transactions?.length !== state.transactions?.length) {
+        console.warn("State mismatch: localStorage has", 
+          parsedState.transactions?.length, "transactions, but context has", 
+          state.transactions?.length);
+      }
+    }
   }, [state]);
 
   // Filter transactions based on selected emotion

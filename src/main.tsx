@@ -20,7 +20,8 @@ const initializeLocalStorage = () => {
       categories: [] 
     }));
   } else {
-    console.log("Found existing transaction state in localStorage");
+    console.log("Found existing transaction state in localStorage", 
+      JSON.parse(localStorage.getItem("transactionState") || '{}'));
   }
 };
 
