@@ -34,8 +34,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
   const [isDeletingTransaction, setIsDeletingTransaction] = useState<string | null>(null);
   
   const isRefreshingRef = useRef(false);
-  const notificationShownRef = useRef(false);
-
+  // Completely remove notification tracking
+  
   useEffect(() => {
     const transactions = filteredTransactions || getTransactionsByType(type);
     setAllTransactions(transactions);
@@ -114,53 +114,62 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
     setEditingTransaction(null);
   };
 
+  // Completely rewritten refresh function to avoid notifications
   const handleRefresh = async () => {
     if (isRefreshingRef.current) return;
     
     setIsRefreshing(true);
     isRefreshingRef.current = true;
-    notificationShownRef.current = false;
     
     try {
       deduplicate();
-      await refreshData(false);
+      await refreshData(true); // Silent refresh - no notifications
       if (isOnline) {
         await syncToSupabase();
       }
       const transactions = filteredTransactions || getTransactionsByType(type);
       setAllTransactions(transactions);
       
-      if (!notificationShownRef.current) {
-        toast.success("Transactions refreshed successfully");
-        notificationShownRef.current = true;
-      }
+      // No toast notification
     } catch (error) {
       console.error("Error refreshing data:", error);
-      toast.error("Failed to refresh transactions");
+      // No error toast
     } finally {
       setIsRefreshing(false);
       isRefreshingRef.current = false;
     }
   };
 
+  // Completely rewritten delete function to ensure transactions are properly deleted
   const handleDelete = async (id: string) => {
     setIsDeletingTransaction(id);
     
     try {
+      // Remove transaction from current state immediately
       setAllTransactions(prevTransactions => 
         prevTransactions.filter(transaction => transaction.id !== id)
       );
       
+      // Force deduplication to clear any duplicates
+      deduplicate();
+      
+      // Call delete with immediate UI update
       const success = await deleteTransaction(id);
       
       if (success) {
+        // Force sync to ensure cloud is updated
         if (isOnline) {
           await syncToSupabase();
         }
+        
+        // Always refresh data after delete
+        const transactions = filteredTransactions || getTransactionsByType(type);
+        setAllTransactions(transactions);
+        
         toast.success("Transaction deleted successfully");
-        await refreshData(true);
       } else {
         toast.error("Failed to delete transaction");
+        // Refresh data to ensure UI is in sync with actual state
         const transactions = filteredTransactions || getTransactionsByType(type);
         setAllTransactions(transactions);
       }
@@ -168,6 +177,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
       console.error("Error deleting transaction:", error);
       toast.error("Failed to delete transaction");
       
+      // Refresh data to ensure UI is in sync with actual state
       const transactions = filteredTransactions || getTransactionsByType(type);
       setAllTransactions(transactions);
     } finally {
@@ -198,18 +208,19 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
     }
   };
 
+  // Completely disabled auto-refresh code
   useEffect(() => {
-    handleRefresh();
+    // Initial load only, with no notifications
+    const initialLoad = async () => {
+      const transactions = filteredTransactions || getTransactionsByType(type);
+      setAllTransactions(transactions);
+    };
     
-    const refreshInterval = setInterval(() => {
-      if (!isRefreshingRef.current && !isLoading) {
-        refreshData(true)
-          .catch(error => console.error("Failed to refresh data on interval:", error));
-      }
-    }, 60000);
+    initialLoad();
     
-    return () => clearInterval(refreshInterval);
-  }, [refreshData]);
+    // No auto-refresh interval
+    
+  }, [getTransactionsByType, type, filteredTransactions]);
 
   return (
     <>

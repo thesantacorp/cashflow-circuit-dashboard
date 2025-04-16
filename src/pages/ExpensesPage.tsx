@@ -25,7 +25,7 @@ const ExpensesPage: React.FC = () => {
   const [isInitialLoadDone, setIsInitialLoadDone] = useState(false);
   
   const initializingRef = useRef(false);
-  const toastShownRef = useRef(false);
+  // Remove toast notification tracking
 
   const filteredTransactions = useMemo(() => {
     if (selectedEmotion === 'all') {
@@ -56,6 +56,7 @@ const ExpensesPage: React.FC = () => {
     }
   }, [user, syncToSupabase]);
 
+  // Simplified initialization without toast notifications
   useEffect(() => {
     const initializeApp = async () => {
       if (isInitialLoadDone || !user || isLoading || initializingRef.current) return;
@@ -67,7 +68,7 @@ const ExpensesPage: React.FC = () => {
         deduplicate();
         
         if (refreshData) {
-          await refreshData(true);
+          await refreshData(true); // Silent refresh
         }
         
         setIsInitialLoadDone(true);
@@ -82,8 +83,9 @@ const ExpensesPage: React.FC = () => {
     initializeApp();
   }, [user, isLoading, deduplicate, refreshData, isInitialLoadDone]);
 
+  // Completely removed auto-sync and auto-refresh behaviors
   useEffect(() => {
-    toastShownRef.current = false;
+    // Remove toast notification tracking
     
     const loadAndSyncData = async () => {
       if (!user || isLoading || initializingRef.current) return;
@@ -93,7 +95,7 @@ const ExpensesPage: React.FC = () => {
       
       try {
         if (refreshData) {
-          await refreshData(true);
+          await refreshData(true); // Silent refresh
         }
         
         deduplicate();
@@ -111,19 +113,10 @@ const ExpensesPage: React.FC = () => {
     
     loadAndSyncData();
     
-    const intervalId = setInterval(async () => {
-      if (user && navigator.onLine && refreshData && !initializingRef.current) {
-        try {
-          await refreshData(true);
-        } catch (error) {
-          console.error("Error in polling refresh:", error);
-        }
-      }
-    }, 60000);
+    // Remove polling interval completely
     
     return () => {
-      clearInterval(intervalId);
-      toastShownRef.current = false;
+      // Remove toast notification tracking
     };
   }, [user, refreshData, syncToSupabase, isLoading, deduplicate]);
 
