@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+
+import React, { useState, useMemo, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Dashboard from "@/components/Dashboard";
 import CategoryList from "@/components/CategoryList";
@@ -16,8 +17,9 @@ import { EmotionalState } from "@/types";
 const ExpensesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
   const [selectedEmotion, setSelectedEmotion] = useState<EmotionalState | 'all'>('all');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const isMobile = useIsMobile();
-  const { getTotalByType, state } = useTransactions();
+  const { getTotalByType, state, refreshData } = useTransactions();
   const { currencySymbol } = useCurrency();
 
   // Filter transactions based on selected emotion
@@ -29,7 +31,7 @@ const ExpensesPage: React.FC = () => {
     return state.transactions.filter((transaction) => 
       transaction.emotionalState === selectedEmotion
     );
-  }, [state.transactions, selectedEmotion]);
+  }, [state.transactions, selectedEmotion, refreshTrigger]);
 
   // Calculate total for filtered transactions
   const filteredTotal = useMemo(() => {
@@ -37,6 +39,16 @@ const ExpensesPage: React.FC = () => {
       .filter(t => t.type === "expense")
       .reduce((sum, t) => sum + t.amount, 0);
   }, [filteredTransactions]);
+
+  // Handle successful transaction addition
+  const handleTransactionSuccess = useCallback(async () => {
+    // Refresh data from Supabase
+    if (refreshData) {
+      await refreshData();
+    }
+    // Force re-render
+    setRefreshTrigger(prev => prev + 1);
+  }, [refreshData]);
 
   return (
     <div className="container py-4 md:py-6 max-w-7xl mx-auto px-3 sm:px-4 w-full overflow-hidden">
@@ -124,12 +136,16 @@ const ExpensesPage: React.FC = () => {
           
           <div className={`grid ${isMobile ? 'grid-cols-1 gap-6' : 'md:grid-cols-2 gap-4 lg:gap-6'}`}>
             <div className="w-full max-w-lg mx-auto md:mx-0">
-              <TransactionForm type="expense" />
+              <TransactionForm 
+                type="expense" 
+                onSuccess={handleTransactionSuccess} 
+              />
             </div>
             <div className="w-full">
               <TransactionList 
                 type="expense" 
                 filteredTransactions={selectedEmotion === 'all' ? undefined : filteredTransactions} 
+                key={`transaction-list-${refreshTrigger}`}
               />
             </div>
           </div>

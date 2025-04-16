@@ -1,10 +1,9 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Transaction, TransactionType } from "@/types";
 import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, isWithinInterval, endOfDay, endOfWeek, endOfMonth, endOfYear } from "date-fns";
-import { Trash2, Edit, Search, CloudOff } from "lucide-react";
+import { Trash2, Edit, Search, CloudOff, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +21,7 @@ interface TransactionListProps {
 type TimePeriod = "day" | "week" | "month" | "year" | "all";
 
 const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showViewAll = false, filteredTransactions }) => {
-  const { getTransactionsByType, deleteTransaction, getCategoryById, isOnline, pendingSyncCount } = useTransactions();
+  const { getTransactionsByType, deleteTransaction, getCategoryById, isOnline, pendingSyncCount, refreshData } = useTransactions();
   const { currencySymbol } = useCurrency();
   const allTransactions = getTransactionsByType(type);
   const transactions = filteredTransactions || allTransactions;
@@ -30,6 +29,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const filterTransactionsByTimePeriod = (transactions: Transaction[], period: TimePeriod): Transaction[] => {
     if (period === "all") return transactions;
@@ -83,7 +83,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
   };
 
   const filteredByTimePeriod = filterTransactionsByTimePeriod(transactions, timePeriod);
-  
   const filteredBySearch = filterTransactionsBySearch(filteredByTimePeriod, searchQuery);
   
   const sortedTransactions = [...filteredBySearch].sort(
@@ -100,6 +99,26 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
   const handleCloseModal = () => {
     setIsEditModalOpen(false);
     setEditingTransaction(null);
+  };
+
+  const handleRefresh = async () => {
+    if (refreshData) {
+      setIsRefreshing(true);
+      try {
+        await refreshData();
+      } catch (error) {
+        console.error("Error refreshing data:", error);
+      } finally {
+        setIsRefreshing(false);
+      }
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    await deleteTransaction(id);
+    if (refreshData) {
+      await refreshData();
+    }
   };
 
   const getEmotionColor = (emotion?: string) => {
@@ -125,6 +144,14 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
     }
   };
 
+  useEffect(() => {
+    if (refreshData) {
+      refreshData().catch(error => {
+        console.error("Failed to refresh data on component mount:", error);
+      });
+    }
+  }, [refreshData]);
+
   return (
     <>
       <Card className="border-orange-200 shadow-lg bg-gradient-to-b from-white to-orange-50/30">
@@ -138,6 +165,16 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
                   <span>{pendingSyncCount} pending</span>
                 </Badge>
               )}
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={handleRefresh} 
+                disabled={isRefreshing}
+                className="h-8 sm:h-9 text-xs sm:text-sm"
+              >
+                <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
               <Select value={timePeriod} onValueChange={(value: TimePeriod) => setTimePeriod(value)}>
                 <SelectTrigger className="w-[130px] h-8 sm:h-9 text-xs sm:text-sm">
                   <SelectValue placeholder="Time Period" />
@@ -216,7 +253,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive hover:bg-red-100"
-                          onClick={() => deleteTransaction(transaction.id)}
+                          onClick={() => handleDelete(transaction.id)}
                         >
                           <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
