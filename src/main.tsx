@@ -5,26 +5,17 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import { register } from './serviceWorkerRegistration';
+import { Toaster } from 'sonner';
 // Import the type declarations to ensure they're included in the build
 import './types/google-api.d';
-
-// Initialize storage before the app renders
-if (typeof window !== 'undefined') {
-  // Check if localStorage is working
-  try {
-    // Test localStorage functionality
-    localStorage.setItem('storageTest', 'test');
-    localStorage.removeItem('storageTest');
-    console.log('localStorage is available and working');
-  } catch (e) {
-    console.error('localStorage is not available:', e);
-  }
-}
+// Import service worker type extensions - comment out problematic import
+// Types are already imported in serviceWorkerRegistration.ts
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <BrowserRouter>
       <App />
+      <Toaster />
     </BrowserRouter>
   </React.StrictMode>,
 );

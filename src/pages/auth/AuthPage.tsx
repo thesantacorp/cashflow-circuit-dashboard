@@ -8,14 +8,6 @@ import AppLogo from '@/components/AppLogo';
 const AuthPage = () => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
-  
-  useEffect(() => {
-    console.log('AuthPage - Auth state:', {
-      user: user?.email,
-      isLoading,
-      pathname: location.pathname
-    });
-  }, [user, isLoading, location.pathname]);
 
   // If still loading, show loading screen
   if (isLoading) {
@@ -25,14 +17,12 @@ const AuthPage = () => {
   // If user is already authenticated and tries to access /auth directly,
   // redirect to the expenses page
   if (user && location.pathname === '/auth') {
-    console.log('User already authenticated, redirecting to expenses');
     return <Navigate to="/expenses" replace />;
   }
 
-  // If user is already authenticated and on login page,
+  // If user is already authenticated and not on a specific auth page,
   // redirect to the expenses page
   if (user && location.pathname === '/auth/login') {
-    console.log('User already authenticated and on login page, redirecting to expenses');
     return <Navigate to="/expenses" replace />;
   }
 

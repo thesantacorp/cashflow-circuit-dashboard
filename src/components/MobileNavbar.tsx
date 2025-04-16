@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { Home, PieChart, Settings, Activity, Lightbulb } from 'lucide-react';
+import { Home, PieChart, Settings, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import NetworkStatusIndicator from './NetworkStatusIndicator';
 import { Link } from 'react-router-dom';
@@ -15,7 +15,7 @@ const MobileNavbar: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 py-2 px-4 md:hidden">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 py-2 px-4 md:hidden">
       <div className="flex items-center justify-around">
         <Link 
           to="/expenses" 
@@ -40,14 +40,14 @@ const MobileNavbar: React.FC = () => {
         </Link>
         
         <Link 
-          to="/ideas" 
+          to="/overview" 
           className={cn(
             "flex flex-col items-center p-2 rounded-md", 
-            isActive('/ideas') ? "text-primary" : "text-gray-500"
+            isActive('/overview') ? "text-primary" : "text-gray-500"
           )}
         >
-          <Lightbulb size={20} />
-          <span className="text-xs mt-1">Ideas</span>
+          <PieChart size={20} />
+          <span className="text-xs mt-1">Overview</span>
         </Link>
         
         <Link 
