@@ -136,64 +136,72 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getTotalByType 
   } = useDataOperations(state, dispatch);
 
-  // Setup real-time subscription for transactions
+  // Setup real-time subscription for transactions - with improved error handling
   useEffect(() => {
     if (!user) return;
 
-    // Subscribe to real-time transactions updates
-    const channel = supabase
-      .channel('public:transactions')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'transactions',
-          filter: `user_email=eq.${user.email}`
-        }, 
-        async (payload) => {
-          console.log('Transaction change detected:', payload);
-          if (isOnline) {
-            await fetchLatestData();
-            setLastSyncTime(new Date());
+    try {
+      // Subscribe to real-time transactions updates
+      const channel = supabase
+        .channel('public:transactions')
+        .on('postgres_changes', 
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'transactions',
+            filter: `user_email=eq.${user.email}`
+          }, 
+          async (payload) => {
+            console.log('Transaction change detected:', payload);
+            if (isOnline) {
+              await fetchLatestData();
+              setLastSyncTime(new Date());
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe((status) => {
+          console.log('Transaction channel status:', status);
+        });
 
-    // Subscribe to real-time category updates
-    const categoryChannel = supabase
-      .channel('public:categories')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'categories',
-          filter: `user_email=eq.${user.email}`
-        }, 
-        async (payload) => {
-          console.log('Category change detected:', payload);
-          if (isOnline) {
-            await fetchLatestData();
-            setLastSyncTime(new Date());
+      // Subscribe to real-time category updates
+      const categoryChannel = supabase
+        .channel('public:categories')
+        .on('postgres_changes', 
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'categories',
+            filter: `user_email=eq.${user.email}`
+          }, 
+          async (payload) => {
+            console.log('Category change detected:', payload);
+            if (isOnline) {
+              await fetchLatestData();
+              setLastSyncTime(new Date());
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe((status) => {
+          console.log('Category channel status:', status);
+        });
 
-    // Fetch initial data
-    if (isInitialLoad && user && isOnline) {
-      fetchLatestData().then(() => {
-        setIsInitialLoad(false);
-        // Deduplicate data after initial load
-        deduplicate();
-      });
+      // Fetch initial data with force flag to ensure update
+      if (user && isOnline) {
+        fetchLatestData(true).then(() => {
+          setIsInitialLoad(false);
+          // Deduplicate data after initial load
+          deduplicate();
+        });
+      }
+      
+      return () => {
+        supabase.removeChannel(channel);
+        supabase.removeChannel(categoryChannel);
+      };
+    } catch (error) {
+      console.error('Error setting up real-time subscriptions:', error);
     }
-    
-    return () => {
-      supabase.removeChannel(channel);
-      supabase.removeChannel(categoryChannel);
-    };
-  }, [user, isInitialLoad, isOnline]);
+  }, [user, isOnline]);
 
   // Sync pending changes when coming back online
   const syncPendingChanges = async () => {
@@ -218,10 +226,12 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   // Function to fetch latest data from Supabase
-  const fetchLatestData = async () => {
+  const fetchLatestData = async (force = false) => {
     if (!user || !isOnline) return false;
     
     try {
+      console.log('Fetching latest data from Supabase...');
+      
       // Fetch transactions
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
@@ -257,9 +267,14 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }))
       };
       
-      // Replace all data in the app
-      replaceAllData(transformedData);
-      setLastSyncTime(new Date());
+      console.log(`Fetched ${transformedData.transactions.length} transactions and ${transformedData.categories.length} categories`);
+      
+      // Only replace all data if we have remote data or if force flag is set
+      if (transformedData.transactions.length > 0 || transformedData.categories.length > 0 || force) {
+        replaceAllData(transformedData);
+        setLastSyncTime(new Date());
+      }
+      
       return true;
     } catch (error) {
       console.error('Error fetching latest data:', error);
@@ -332,6 +347,11 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const deleteTransaction = (id) => {
     // Find transaction before deleting it
     const transaction = state.transactions.find(t => t.id === id);
+    
+    if (!transaction) {
+      toast.error("Transaction not found");
+      return false;
+    }
     
     dispatch({ 
       type: "DELETE_TRANSACTION", 

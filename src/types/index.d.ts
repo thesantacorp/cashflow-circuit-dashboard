@@ -1,4 +1,3 @@
-
 export {};
 
 declare global {
@@ -56,6 +55,15 @@ declare global {
     sad?: number;
     neutral?: number;
     hopeful?: number;
+  }
+
+  export interface Profile {
+    id: string;
+    full_name?: string;
+    avatar_url?: string;
+    email?: string;
+    backup_last_date?: string;
+    currency_preference?: Currency;
   }
 }
 

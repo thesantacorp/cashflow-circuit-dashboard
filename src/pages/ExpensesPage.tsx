@@ -41,7 +41,7 @@ const ExpensesPage: React.FC = () => {
   }, [filteredTransactions]);
 
   return (
-    <div className="container py-6 max-w-7xl mx-auto px-4 w-full overflow-x-hidden">
+    <div className="container py-6 max-w-7xl mx-auto px-4 w-full">
       <h1 className="text-3xl font-bold mb-6 text-center sm:text-left">Expenses</h1>
       
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="mb-8">
@@ -51,7 +51,7 @@ const ExpensesPage: React.FC = () => {
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="dashboard" className="pt-4 max-w-full overflow-x-hidden">
+        <TabsContent value="dashboard" className="pt-4">
           <div className="max-w-full mx-auto">
             <EmotionFilter 
               selectedEmotion={selectedEmotion} 
