@@ -1,5 +1,6 @@
 import { TransactionState } from "../types";
 import { Category, Transaction, TransactionType } from "@/types";
+import { toast } from "sonner";
 
 export const useTransactionUtils = (state: TransactionState) => {
   const getTransactionsByType = (type: TransactionType): Transaction[] => {
@@ -43,9 +44,6 @@ export const useTransactionUtils = (state: TransactionState) => {
         return; // Skip transactions without ID
       }
       
-      // Add to unique transactions map (by ID)
-      uniqueTransactionsById.set(transaction.id, transaction);
-      
       // Generate fingerprint for fuzzy duplicate detection
       const fingerprint = `${transaction.date}-${transaction.amount}-${transaction.type}-${transaction.categoryId || ''}`;
       
@@ -54,6 +52,11 @@ export const useTransactionUtils = (state: TransactionState) => {
       }
       
       potentialDuplicatesMap.get(fingerprint)?.push(transaction);
+      
+      // Only add to uniqueTransactionsById if we haven't seen this ID yet
+      if (!uniqueTransactionsById.has(transaction.id)) {
+        uniqueTransactionsById.set(transaction.id, transaction);
+      }
     });
     
     // Second pass: detect and handle potential duplicates 
@@ -71,14 +74,16 @@ export const useTransactionUtils = (state: TransactionState) => {
         transactions.slice(1).forEach(duplicate => {
           // If the ID starts with "imported-" it's likely an imported transaction
           // If another transaction has the same signature, remove the imported one
-          const shouldRemove = duplicate.id.startsWith('imported-') && 
-                               !primaryTransaction.id.startsWith('imported-');
-          
-          // If this is an imported transaction and there's a non-imported one with same signature,
-          // remove the imported one to avoid duplication
-          if (shouldRemove) {
+          if (duplicate.id.startsWith('imported-') && 
+              !primaryTransaction.id.startsWith('imported-')) {
             uniqueTransactionsById.delete(duplicate.id);
             console.log(`Removed duplicate imported transaction: ${duplicate.id}`);
+          }
+          
+          // Otherwise, keep only one occurrence of the same transaction (prevent duplication)
+          else if (duplicate.id !== primaryTransaction.id) {
+            uniqueTransactionsById.delete(duplicate.id);
+            console.log(`Removed duplicate transaction: ${duplicate.id}`);
           }
         });
       }
@@ -87,6 +92,10 @@ export const useTransactionUtils = (state: TransactionState) => {
     const dedupedTransactions = Array.from(uniqueTransactionsById.values());
     console.log(`Deduplication complete. Original: ${state.transactions.length}, Deduped: ${dedupedTransactions.length}`);
     
+    if (state.transactions.length > dedupedTransactions.length) {
+      toast.info(`Removed ${state.transactions.length - dedupedTransactions.length} duplicate transactions`);
+    }
+    
     // Return updated state with deduplicated transactions
     return {
       ...state,
@@ -94,11 +103,31 @@ export const useTransactionUtils = (state: TransactionState) => {
     };
   };
 
+  const cleanImportedTransactions = (transactions: Transaction[]): Transaction[] => {
+    // Create a set of existing transaction fingerprints
+    const existingFingerprints = new Set<string>();
+    
+    state.transactions.forEach(t => {
+      const fingerprint = `${t.date}-${t.amount}-${t.type}-${t.categoryId || ''}`;
+      existingFingerprints.add(fingerprint);
+    });
+    
+    // Filter out transactions that already exist
+    const newTransactions = transactions.filter(transaction => {
+      const fingerprint = `${transaction.date}-${transaction.amount}-${transaction.type}-${transaction.categoryId || ''}`;
+      return !existingFingerprints.has(fingerprint);
+    });
+    
+    console.log(`Filtered out ${transactions.length - newTransactions.length} already existing transactions from import`);
+    return newTransactions;
+  };
+
   return {
     getTransactionsByType,
     getCategoriesByType,
     getCategoryById,
     getTotalByType,
-    deduplicate
+    deduplicate,
+    cleanImportedTransactions
   };
 };

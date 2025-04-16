@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -16,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Transaction } from "@/types";
+import { toast } from "sonner";
 
 interface DataExportImportProps {
   showDialog?: boolean;
@@ -31,6 +31,7 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
     transactions: [],
     categories: []
   });
+  const [isImporting, setIsImporting] = useState(false);
 
   const handleExportCSV = () => {
     try {
@@ -131,6 +132,7 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setIsImporting(true);
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -217,6 +219,8 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
           description: error instanceof Error ? error.message : "There was an error importing your data.",
           variant: "destructive"
         });
+      } finally {
+        setIsImporting(false);
       }
       
       // Reset file input
@@ -233,6 +237,11 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
       console.log(`Import confirmed. Replace mode: ${replace}`);
       console.log(`Importing ${importedData.transactions.length} transactions`);
       
+      // First run deduplication before import
+      deduplicate();
+      
+      setIsImporting(true);
+      
       if (replace) {
         // Force complete state replacement
         const newState = {
@@ -243,19 +252,16 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
         };
         
         console.log("Replacing all data with:", newState);
-        replaceAllData(newState);
+        await replaceAllData(newState);
         
         toast({
           title: "Data replaced",
           description: `${importedData.transactions.length} transactions have replaced your existing data.`
         });
       } else {
-        // First deduplicate to avoid importing duplicates
-        deduplicate();
-        
         // Add to existing data
         console.log("Adding to existing data:", importedData);
-        importData(importedData);
+        await importData(importedData);
         
         toast({
           title: "Import successful",
@@ -263,33 +269,14 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
         });
       }
       
-      // IMPORTANT: Wait a moment for state to update before syncing
-      setTimeout(async () => {
-        // Immediately sync to Supabase after import
-        if (syncToSupabase) {
-          console.log("Immediately syncing to Supabase after import");
-          try {
-            await syncToSupabase();
-            console.log("Successfully synced imported data to Supabase");
-            
-            // Force a deduplicate after sync
-            deduplicate();
-          } catch (syncError) {
-            console.error("Failed to sync immediately after import:", syncError);
-          }
-        }
-        
-        // Force a full refresh after import and sync
-        if (refreshData) {
-          console.log("Triggering full data refresh after import");
-          try {
-            await refreshData(false); // Full refresh with UI feedback
-            console.log("Successfully refreshed data after import");
-          } catch (refreshError) {
-            console.error("Failed to refresh after import:", refreshError);
-          }
-        }
-      }, 500);
+      // Force a full refresh after import and sync
+      try {
+        console.log("Triggering full data refresh after import");
+        await refreshData(false); // Full refresh with UI feedback
+        console.log("Successfully refreshed data after import");
+      } catch (refreshError) {
+        console.error("Failed to refresh after import:", refreshError);
+      }
       
       setShowReplaceDialog(false);
       setImportedData({ transactions: [], categories: [] });
@@ -300,6 +287,8 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
         description: "There was an error processing your imported data.",
         variant: "destructive"
       });
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -310,6 +299,7 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
           variant="outline" 
           className="flex items-center gap-2 text-black" 
           onClick={handleExportCSV}
+          disabled={isImporting}
         >
           <Download className="h-4 w-4" />
           Export as CSV
@@ -319,15 +309,17 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
           variant="outline" 
           className="flex items-center gap-2 text-black" 
           onClick={handleImportClick}
+          disabled={isImporting}
         >
           <Upload className="h-4 w-4" />
-          Import CSV
+          {isImporting ? "Importing..." : "Import CSV"}
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleImportCSV}
             accept=".csv"
             className="hidden"
+            disabled={isImporting}
           />
         </Button>
       </div>
@@ -345,18 +337,20 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowReplaceDialog(false)}>
+            <AlertDialogCancel onClick={() => setShowReplaceDialog(false)} disabled={isImporting}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => handleImportConfirm(false)}
               className="bg-blue-500 hover:bg-blue-600"
+              disabled={isImporting}
             >
               Add to Existing
             </AlertDialogAction>
             <AlertDialogAction
               onClick={() => handleImportConfirm(true)}
               className="bg-orange-500 hover:bg-orange-600"
+              disabled={isImporting}
             >
               Replace All
             </AlertDialogAction>

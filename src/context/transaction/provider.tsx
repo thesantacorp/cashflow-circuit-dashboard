@@ -1,5 +1,4 @@
-
-import React, { useReducer, useEffect, useCallback } from "react";
+import React, { useReducer, useEffect, useCallback, useState } from "react";
 import { TransactionContext } from "./context";
 import { supabase } from "@/integrations/supabase/client";
 import { TransactionState } from "./types";
@@ -13,6 +12,7 @@ import { toast } from "sonner";
 
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(transactionReducer, initialState);
+  const [isPerformingMajorOperation, setIsPerformingMajorOperation] = useState(false);
   
   // Use our custom hooks
   const { 
@@ -33,7 +33,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const {
     addTransaction,
     updateTransaction,
-    deleteTransaction,
+    deleteTransaction: deleteTransactionAction,
     addCategory,
     deleteCategory
   } = useTransactionActions(user, isOnline, setPendingSyncCount);
@@ -43,7 +43,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getCategoriesByType,
     getCategoryById,
     getTotalByType,
-    deduplicate: deduplicateUtils
+    deduplicate: deduplicateUtils,
+    cleanImportedTransactions
   } = useTransactionUtils(state);
 
   // Load initial data
@@ -151,6 +152,34 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return false;
     }
   };
+  
+  // Enhanced delete transaction function that syncs with Supabase
+  const deleteTransaction = async (id: string): Promise<boolean> => {
+    try {
+      // First, remove from local state
+      dispatch({ type: "DELETE_TRANSACTION", payload: id });
+      
+      // Then try to delete from Supabase
+      if (user && isOnline) {
+        const success = await deleteTransactionAction(id);
+        if (success) {
+          // After successful deletion, force sync to Supabase to ensure consistency
+          await syncToSupabase();
+          return true;
+        } else {
+          console.error("Failed to delete transaction from Supabase");
+          // Even if Supabase delete fails, keep local state updated
+          // We'll sync the deletion later when online
+          return false;
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+      return false;
+    }
+  };
 
   // Replace all data in the state
   const replaceAllData = (data: TransactionState) => {
@@ -178,45 +207,55 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   // Import partial data into the state
-  const importData = (data: Partial<TransactionState>) => {
-    // First run deduplication on both existing data and incoming data
-    const dedupedState = deduplicateUtils();
-    
-    // Prepare the incoming transactions, ensuring they have unique IDs
-    const incomingTransactions = data.transactions || [];
-    const existingIds = new Set(dedupedState.transactions.map(t => t.id));
-    const uniqueIncomingTransactions = incomingTransactions.filter(t => !existingIds.has(t.id));
-    
-    console.log(`Filtered ${incomingTransactions.length - uniqueIncomingTransactions.length} already existing transactions`);
-    
-    const newState = {
-      ...dedupedState,
-      transactions: [...dedupedState.transactions, ...uniqueIncomingTransactions]
-    };
-    
-    console.log(`Importing partial data, resulting in ${newState.transactions.length} transactions`);
-    
-    // Update the state
-    dispatch({ type: "REPLACE_ALL_DATA", payload: newState });
-    
-    // Save to localStorage immediately
+  const importData = async (data: Partial<TransactionState>) => {
+    setIsPerformingMajorOperation(true);
     try {
-      localStorage.setItem("transactionState", JSON.stringify(newState));
-      localStorage.setItem("lastTransactionUpdate", new Date().toISOString());
-      console.log("Saved imported data to localStorage");
+      // First run deduplication on both existing data and incoming data
+      const dedupedState = deduplicateUtils();
       
-      // Show success toast
-      toast.success(`Imported ${uniqueIncomingTransactions.length} new transactions`);
+      // Prepare the incoming transactions, ensuring they have unique IDs
+      const incomingTransactions = data.transactions || [];
       
-      // IMPORTANT: After importing data, always sync to Supabase
-      if (user && isOnline) {
-        console.log("Auto-syncing imported data to Supabase");
-        syncToSupabase().catch(err => {
-          console.error("Failed to auto-sync after import:", err);
-        });
+      // Clean imported transactions to avoid duplicates
+      const uniqueIncomingTransactions = cleanImportedTransactions(incomingTransactions);
+      
+      console.log(`Filtering out potential duplicates, reduced from ${incomingTransactions.length} to ${uniqueIncomingTransactions.length} transactions`);
+      
+      const newState = {
+        ...dedupedState,
+        transactions: [...dedupedState.transactions, ...uniqueIncomingTransactions]
+      };
+      
+      console.log(`Importing partial data, resulting in ${newState.transactions.length} transactions`);
+      
+      // Update the state
+      dispatch({ type: "REPLACE_ALL_DATA", payload: newState });
+      
+      // Save to localStorage immediately
+      try {
+        localStorage.setItem("transactionState", JSON.stringify(newState));
+        localStorage.setItem("lastTransactionUpdate", new Date().toISOString());
+        console.log("Saved imported data to localStorage");
+        
+        // Show success toast
+        toast.success(`Imported ${uniqueIncomingTransactions.length} new transactions`);
+        
+        // IMPORTANT: After importing data, always sync to Supabase
+        if (user && isOnline) {
+          console.log("Auto-syncing imported data to Supabase");
+          await syncToSupabase();
+          
+          // After syncing to Supabase, refresh data from Supabase to ensure consistency
+          await refreshData(false);
+        }
+      } catch (error) {
+        console.error("Failed to save to localStorage after importData:", error);
       }
     } catch (error) {
-      console.error("Failed to save to localStorage after importData:", error);
+      console.error("Error in importData:", error);
+      toast.error("Failed to import data");
+    } finally {
+      setIsPerformingMajorOperation(false);
     }
   };
 
@@ -227,9 +266,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return false;
     }
     
-    console.log(`Syncing ${state.transactions.length} transactions to Supabase`);
-    
+    setIsPerformingMajorOperation(true);
     try {
+      console.log(`Syncing ${state.transactions.length} transactions to Supabase`);
+      
       // First run deduplication before syncing to avoid duplicates in cloud
       const dedupedState = deduplicateUtils();
       if (dedupedState.transactions.length < state.transactions.length) {
@@ -316,6 +356,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } catch (error) {
       console.error("Error in syncToSupabase:", error);
       return false;
+    } finally {
+      setIsPerformingMajorOperation(false);
     }
   };
 
@@ -359,7 +401,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         deduplicate: handleDeduplicate,
         isOnline,
         pendingSyncCount,
-        isLoading,
+        isLoading: isLoading || isPerformingMajorOperation,
         syncToSupabase
       }}
     >

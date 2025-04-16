@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import EditTransactionModal from "./EditTransactionModal";
+import { toast } from "sonner";
 
 interface TransactionListProps {
   type: TransactionType;
@@ -21,15 +22,21 @@ interface TransactionListProps {
 type TimePeriod = "day" | "week" | "month" | "year" | "all";
 
 const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showViewAll = false, filteredTransactions }) => {
-  const { getTransactionsByType, deleteTransaction, getCategoryById, isOnline, pendingSyncCount, refreshData } = useTransactions();
+  const { getTransactionsByType, deleteTransaction, getCategoryById, isOnline, pendingSyncCount, refreshData, syncToSupabase, isLoading } = useTransactions();
   const { currencySymbol } = useCurrency();
-  const allTransactions = getTransactionsByType(type);
-  const transactions = filteredTransactions || allTransactions;
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [activeTransactions, setActiveTransactions] = useState<Transaction[]>([]);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isDeletingTransaction, setIsDeletingTransaction] = useState<string | null>(null);
+
+  useEffect(() => {
+    const transactions = filteredTransactions || getTransactionsByType(type);
+    setAllTransactions(transactions);
+  }, [filteredTransactions, getTransactionsByType, type]);
 
   const filterTransactionsByTimePeriod = (transactions: Transaction[], period: TimePeriod): Transaction[] => {
     if (period === "all") return transactions;
@@ -82,14 +89,17 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
     });
   };
 
-  const filteredByTimePeriod = filterTransactionsByTimePeriod(transactions, timePeriod);
-  const filteredBySearch = filterTransactionsBySearch(filteredByTimePeriod, searchQuery);
-  
-  const sortedTransactions = [...filteredBySearch].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
-  
-  const displayTransactions = limit ? sortedTransactions.slice(0, limit) : sortedTransactions;
+  useEffect(() => {
+    const filteredByTimePeriod = filterTransactionsByTimePeriod(allTransactions, timePeriod);
+    const filteredBySearch = filterTransactionsBySearch(filteredByTimePeriod, searchQuery);
+    
+    const sortedTransactions = [...filteredBySearch].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+    
+    const displayTransactions = limit ? sortedTransactions.slice(0, limit) : sortedTransactions;
+    setActiveTransactions(displayTransactions);
+  }, [allTransactions, timePeriod, searchQuery, limit, getCategoryById]);
 
   const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction);
@@ -102,22 +112,56 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
   };
 
   const handleRefresh = async () => {
-    if (refreshData) {
-      setIsRefreshing(true);
-      try {
-        await refreshData();
-      } catch (error) {
-        console.error("Error refreshing data:", error);
-      } finally {
-        setIsRefreshing(false);
+    setIsRefreshing(true);
+    try {
+      await refreshData(false);
+      
+      if (isOnline) {
+        await syncToSupabase();
       }
+      
+      const transactions = filteredTransactions || getTransactionsByType(type);
+      setAllTransactions(transactions);
+      
+      toast.success("Transactions refreshed successfully");
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+      toast.error("Failed to refresh transactions");
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    await deleteTransaction(id);
-    if (refreshData) {
-      await refreshData();
+    setIsDeletingTransaction(id);
+    try {
+      setAllTransactions(prevTransactions => 
+        prevTransactions.filter(transaction => transaction.id !== id)
+      );
+      
+      const success = await deleteTransaction(id);
+      
+      if (success) {
+        toast.success("Transaction deleted successfully");
+        
+        await refreshData(true);
+        
+        if (isOnline) {
+          await syncToSupabase();
+        }
+      } else {
+        toast.error("Failed to delete transaction");
+        const transactions = filteredTransactions || getTransactionsByType(type);
+        setAllTransactions(transactions);
+      }
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+      toast.error("Failed to delete transaction");
+      
+      const transactions = filteredTransactions || getTransactionsByType(type);
+      setAllTransactions(transactions);
+    } finally {
+      setIsDeletingTransaction(null);
     }
   };
 
@@ -145,11 +189,16 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
   };
 
   useEffect(() => {
-    if (refreshData) {
-      refreshData().catch(error => {
-        console.error("Failed to refresh data on component mount:", error);
-      });
-    }
+    handleRefresh();
+    
+    const refreshInterval = setInterval(() => {
+      if (!isRefreshing && !isLoading) {
+        refreshData(true)
+          .catch(error => console.error("Failed to refresh data on interval:", error));
+      }
+    }, 30000);
+    
+    return () => clearInterval(refreshInterval);
   }, [refreshData]);
 
   return (
@@ -169,10 +218,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
                 size="sm" 
                 variant="outline" 
                 onClick={handleRefresh} 
-                disabled={isRefreshing}
+                disabled={isRefreshing || isLoading}
                 className="h-8 sm:h-9 text-xs sm:text-sm"
               >
-                <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing || isLoading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
               <Select value={timePeriod} onValueChange={(value: TimePeriod) => setTimePeriod(value)}>
@@ -201,76 +250,86 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
           </div>
         </CardHeader>
         <CardContent className="p-2 sm:p-3 md:p-4">
-          <div className="space-y-2 sm:space-y-3 mt-2">
-            {displayTransactions.length > 0 ? (
-              displayTransactions.map((transaction) => {
-                const category = getCategoryById(transaction.categoryId);
-                return (
-                  <div
-                    key={transaction.id}
-                    className="flex flex-wrap items-center justify-between p-2 sm:p-3 border rounded-lg hover:shadow-md transition-shadow duration-200"
-                    style={{
-                      borderLeftColor: category?.color || "#ccc",
-                      borderLeftWidth: "4px",
-                    }}
-                  >
-                    <div className="flex flex-col mr-2 mb-2 sm:mb-0 flex-grow">
-                      <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-                        <span className="font-medium break-words max-w-[150px] sm:max-w-[200px] md:max-w-full text-sm sm:text-base">
-                          {category?.name || "Unknown Category"}
+          {isLoading && activeTransactions.length === 0 ? (
+            <div className="text-center text-muted-foreground py-6 sm:py-8">
+              Loading transactions...
+            </div>
+          ) : (
+            <div className="space-y-2 sm:space-y-3 mt-2">
+              {activeTransactions.length > 0 ? (
+                activeTransactions.map((transaction) => {
+                  const category = getCategoryById(transaction.categoryId);
+                  const isDeleting = isDeletingTransaction === transaction.id;
+                  
+                  return (
+                    <div
+                      key={transaction.id}
+                      className={`flex flex-wrap items-center justify-between p-2 sm:p-3 border rounded-lg hover:shadow-md transition-shadow duration-200 ${isDeleting ? 'opacity-50' : ''}`}
+                      style={{
+                        borderLeftColor: category?.color || "#ccc",
+                        borderLeftWidth: "4px",
+                      }}
+                    >
+                      <div className="flex flex-col mr-2 mb-2 sm:mb-0 flex-grow">
+                        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                          <span className="font-medium break-words max-w-[150px] sm:max-w-[200px] md:max-w-full text-sm sm:text-base">
+                            {category?.name || "Unknown Category"}
+                          </span>
+                          {transaction.emotionalState && (
+                            <Badge variant="outline" className={`${getEmotionColor(transaction.emotionalState)} text-xs`}>
+                              {transaction.emotionalState}
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-xs sm:text-sm text-muted-foreground break-words max-w-[200px] sm:max-w-full">
+                          {transaction.description || "No description"}
                         </span>
-                        {transaction.emotionalState && (
-                          <Badge variant="outline" className={`${getEmotionColor(transaction.emotionalState)} text-xs`}>
-                            {transaction.emotionalState}
-                          </Badge>
-                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(transaction.date), "EEE. MMM d, yyyy")}
+                        </span>
                       </div>
-                      <span className="text-xs sm:text-sm text-muted-foreground break-words max-w-[200px] sm:max-w-full">
-                        {transaction.description || "No description"}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {format(new Date(transaction.date), "EEE. MMM d, yyyy")}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 sm:gap-2 ml-auto">
-                      <span
-                        className={`font-semibold text-sm sm:text-base ${
-                          type === "expense" ? "text-red-600" : "text-green-600"
-                        }`}
-                      >
-                        {type === "expense" ? "-" : "+"}{currencySymbol}{transaction.amount.toFixed(2)}
-                      </span>
-                      <div className="flex">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 sm:h-8 sm:w-8 text-orange-500 hover:text-orange-700 hover:bg-orange-100"
-                          onClick={() => handleEdit(transaction)}
+                      <div className="flex items-center gap-1 sm:gap-2 ml-auto">
+                        <span
+                          className={`font-semibold text-sm sm:text-base ${
+                            type === "expense" ? "text-red-600" : "text-green-600"
+                          }`}
                         >
-                          <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive hover:bg-red-100"
-                          onClick={() => handleDelete(transaction.id)}
-                        >
-                          <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                        </Button>
+                          {type === "expense" ? "-" : "+"}{currencySymbol}{transaction.amount.toFixed(2)}
+                        </span>
+                        <div className="flex">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 sm:h-8 sm:w-8 text-orange-500 hover:text-orange-700 hover:bg-orange-100"
+                            onClick={() => handleEdit(transaction)}
+                            disabled={isDeleting || isRefreshing || isLoading}
+                          >
+                            <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive hover:bg-red-100"
+                            onClick={() => handleDelete(transaction.id)}
+                            disabled={isDeleting || isRefreshing || isLoading}
+                          >
+                            <Trash2 className={`h-3 w-3 sm:h-4 sm:w-4 ${isDeleting ? 'animate-spin' : ''}`} />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="text-center text-muted-foreground py-6 sm:py-8">
-                {searchQuery ? 
-                  `No results found for "${searchQuery}"` : 
-                  `No ${type} transactions found for ${getPeriodLabel().toLowerCase()}.`
-                }
-              </p>
-            )}
-          </div>
+                  );
+                })
+              ) : (
+                <p className="text-center text-muted-foreground py-6 sm:py-8">
+                  {searchQuery ? 
+                    `No results found for "${searchQuery}"` : 
+                    `No ${type} transactions found for ${getPeriodLabel().toLowerCase()}.`
+                  }
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
       
