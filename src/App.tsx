@@ -1,171 +1,90 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Routes, Route, Navigate } from "react-router-dom";
-import { TransactionProvider } from "@/context/transaction/provider";
-import { CurrencyProvider } from "@/context/CurrencyContext";
-import { BackupProvider } from "@/context/BackupContext";
-import { NotificationProvider } from "@/context/NotificationContext";
-import { AuthProvider } from "@/context/AuthContext";
-import Navbar from "@/components/Navbar";
-import CommunityLink from "@/components/CommunityLink";
-import OverviewPageEnhanced from "@/pages/OverviewPageEnhanced";
-import ExpensesPage from "@/pages/ExpensesPage";
-import IncomePage from "@/pages/IncomePage";
-import IdeasPage from "@/pages/IdeasPage";
-import NotFound from "./pages/NotFound";
-import AdminNotificationDashboard from "./pages/AdminNotificationDashboard";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminIdeasDashboard from "./pages/admin/AdminIdeasDashboard";
+import { Routes, Route } from "react-router-dom";
+import { lazy, Suspense } from "react";
+import Navigation from "./components/Navigation";
+import { TransactionProvider } from "./context/transaction";
+import { AuthProvider } from "./context/AuthContext";
+import { CurrencyProvider } from "./context/CurrencyContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-import AuthPage from "./pages/auth/AuthPage";
-import LoginPage from "./pages/auth/LoginPage";
-import SignupPage from "./pages/auth/SignupPage";
-import VerifyEmailPage from "./pages/auth/VerifyEmailPage";
-import VerificationSuccessPage from "./pages/auth/VerificationSuccessPage";
-import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
-import UpdatePasswordPage from "./pages/auth/UpdatePasswordPage";
-import ProfilePage from "./pages/ProfilePage";
-import MobileNavbar from "./components/MobileNavbar";
+import PwaInstallPrompt from "./components/PwaInstallPrompt";
+import { Toaster } from "sonner";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      staleTime: 30000,
-      refetchOnWindowFocus: false
-    }
-  }
-});
+// Lazy load pages
+const ExpensesPage = lazy(() => import("./pages/ExpensesPage"));
+const IncomePage = lazy(() => import("./pages/IncomePage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const Index = lazy(() => import("./pages/Index"));
+const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/auth/RegisterPage"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const CategoriesPage = lazy(() => import("./pages/CategoriesPage"));
+const ErrorPage = lazy(() => import("./pages/ErrorPage"));
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TransactionProvider>
-          <CurrencyProvider>
-            <BackupProvider>
-              <NotificationProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <Sonner />
-                  <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white overflow-x-hidden">
-                    <Routes>
-                      {/* Auth routes */}
-                      <Route path="/auth" element={<AuthPage />}>
-                        <Route index element={<LoginPage />} />
-                        <Route path="login" element={<LoginPage />} />
-                        <Route path="signup" element={<SignupPage />} />
-                        <Route path="verify-email" element={<VerifyEmailPage />} />
-                        <Route path="verification-success" element={<VerificationSuccessPage />} />
-                        <Route path="forgot-password" element={<ForgotPasswordPage />} />
-                        <Route path="update-password" element={<UpdatePasswordPage />} />
-                      </Route>
-
-                      {/* Admin routes */}
-                      <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />
-                      <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                      <Route path="/admin/ideas" element={<AdminIdeasDashboard />} />
-
-                      {/* Protected routes */}
-                      <Route path="/" element={
-                        <ProtectedRoute>
-                          <>
-                            <Navbar />
-                            <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
-                              <div className="max-w-7xl mx-auto w-full">
-                                <Navigate to="/expenses" replace />
-                              </div>
-                            </main>
-                            <MobileNavbar />
-                            <CommunityLink />
-                          </>
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/expenses" element={
-                        <ProtectedRoute>
-                          <>
-                            <Navbar />
-                            <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
-                              <div className="max-w-7xl mx-auto w-full">
-                                <ExpensesPage />
-                              </div>
-                            </main>
-                            <MobileNavbar />
-                            <CommunityLink />
-                          </>
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/overview" element={
-                        <ProtectedRoute>
-                          <>
-                            <Navbar />
-                            <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
-                              <div className="max-w-7xl mx-auto w-full">
-                                <OverviewPageEnhanced />
-                              </div>
-                            </main>
-                            <MobileNavbar />
-                            <CommunityLink />
-                          </>
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/income" element={
-                        <ProtectedRoute>
-                          <>
-                            <Navbar />
-                            <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
-                              <div className="max-w-7xl mx-auto w-full">
-                                <IncomePage />
-                              </div>
-                            </main>
-                            <MobileNavbar />
-                            <CommunityLink />
-                          </>
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/ideas" element={
-                        <ProtectedRoute>
-                          <>
-                            <Navbar />
-                            <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
-                              <div className="max-w-7xl mx-auto w-full">
-                                <IdeasPage />
-                              </div>
-                            </main>
-                            <MobileNavbar />
-                            <CommunityLink />
-                          </>
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/profile" element={
-                        <ProtectedRoute>
-                          <>
-                            <Navbar />
-                            <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
-                              <div className="max-w-7xl mx-auto w-full">
-                                <ProfilePage />
-                              </div>
-                            </main>
-                            <MobileNavbar />
-                            <CommunityLink />
-                          </>
-                        </ProtectedRoute>
-                      } />
-                      
-                      {/* 404 route */}
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </div>
-                </TooltipProvider>
-              </NotificationProvider>
-            </BackupProvider>
-          </CurrencyProvider>
-        </TransactionProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <AuthProvider>
+      <TransactionProvider>
+        <CurrencyProvider>
+          <Toaster position="bottom-center" />
+          
+          <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-900">
+            <Navigation />
+            
+            <Suspense fallback={<div className="flex flex-1 items-center justify-center">Loading...</div>}>
+              <main className="flex-1">
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth/login" element={<LoginPage />} />
+                  <Route path="/auth/register" element={<RegisterPage />} />
+                  
+                  <Route path="/expenses" element={
+                    <ProtectedRoute>
+                      <ExpensesPage />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/income" element={
+                    <ProtectedRoute>
+                      <IncomePage />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/dashboard" element={
+                    <ProtectedRoute>
+                      <DashboardPage />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/categories" element={
+                    <ProtectedRoute>
+                      <CategoriesPage />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/profile" element={
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/settings" element={
+                    <ProtectedRoute>
+                      <SettingsPage />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="*" element={<ErrorPage />} />
+                </Routes>
+              </main>
+            </Suspense>
+            
+            {/* PWA Install Prompt */}
+            <PwaInstallPrompt />
+          </div>
+        </CurrencyProvider>
+      </TransactionProvider>
+    </AuthProvider>
   );
 }
 

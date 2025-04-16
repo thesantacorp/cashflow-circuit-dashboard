@@ -2,7 +2,7 @@
 /* eslint-disable no-restricted-globals */
 
 // Improved service worker with better caching strategies and offline expense page support
-const CACHE_NAME = 'cashflow-circuit-v3';
+const CACHE_NAME = 'cashflow-circuit-v4';
 const APP_SHELL_URLS = [
   '/',
   '/index.html',
@@ -11,20 +11,23 @@ const APP_SHELL_URLS = [
   '/app-icon.png',
   // Include expense page in the core cached assets
   '/expenses',
+  '/income',
   // Static assets
   '/static/js/main.chunk.js',
   '/static/js/bundle.js',
   '/static/css/main.chunk.css',
 ];
 
-// Additional routes that should be available offline
+// Critical routes that should always be available offline
 const OFFLINE_ROUTES = [
   '/expenses',
+  '/income',
   '/'
 ];
 
 // Install a service worker
 self.addEventListener('install', (event) => {
+  console.log('Service Worker: Installing...');
   // Perform install steps
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -32,7 +35,10 @@ self.addEventListener('install', (event) => {
         console.log('Service Worker: Caching app shell and critical paths');
         return cache.addAll(APP_SHELL_URLS);
       })
-      .then(() => self.skipWaiting()) // Force activation
+      .then(() => {
+        console.log('Service Worker: Installation completed, now forcing activation');
+        return self.skipWaiting(); // Force activation
+      })
   );
 });
 
@@ -48,7 +54,43 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       (async () => {
-        // Try to get a fresh version from the network
+        const url = new URL(event.request.url);
+        console.log('Service Worker: Handling navigation to', url.pathname);
+        
+        // Check if this is one of our critical offline routes
+        const isOfflineRoute = OFFLINE_ROUTES.some(route => 
+          url.pathname === route || url.pathname.endsWith(route)
+        );
+        
+        // For critical offline routes, use cache-first strategy
+        if (isOfflineRoute) {
+          try {
+            // Try to get from cache first
+            const cachedResponse = await caches.match(event.request);
+            if (cachedResponse) {
+              console.log('Service Worker: Serving from cache for offline route:', url.pathname);
+              return cachedResponse;
+            }
+            
+            // If not in cache, try network
+            const networkResponse = await fetch(event.request);
+            
+            // Cache successful responses for later offline use
+            const cache = await caches.open(CACHE_NAME);
+            cache.put(event.request, networkResponse.clone());
+            
+            return networkResponse;
+          } catch (error) {
+            console.log('Fetch failed for offline route; returning fallback.', error);
+            
+            // If network fails and we don't have this specific URL cached, 
+            // try to serve index.html as a fallback
+            const cache = await caches.open(CACHE_NAME);
+            return cache.match('/index.html');
+          }
+        }
+        
+        // For non-critical routes, try network first, fall back to cache
         try {
           const networkResponse = await fetch(event.request);
           
@@ -58,27 +100,15 @@ self.addEventListener('fetch', (event) => {
           
           return networkResponse;
         } catch (error) {
-          console.log('Fetch failed; returning offline page instead.', error);
+          console.log('Fetch failed; trying cache.', error);
           
-          // If network fails, try to serve from cache
-          const cache = await caches.open(CACHE_NAME);
-          const cachedResponse = await cache.match(event.request);
-          
-          // If we have a cached version of this page, serve it
+          const cachedResponse = await caches.match(event.request);
           if (cachedResponse) {
             return cachedResponse;
           }
           
-          // If we don't have this specific URL cached, check if it's one of our offline routes
-          const url = new URL(event.request.url);
-          const offlinePath = OFFLINE_ROUTES.find(route => url.pathname.endsWith(route));
-          
-          if (offlinePath) {
-            // If it's an offline route, serve the index.html as a fallback
-            return cache.match('/index.html');
-          }
-          
-          // Last resort fallback
+          // Last resort fallback for navigation
+          const cache = await caches.open(CACHE_NAME);
           return cache.match('/index.html');
         }
       })()
@@ -86,27 +116,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For API calls (e.g. JSON data), use network-first approach to always try for fresh data
+  // For API calls (e.g. JSON data), use stale-while-revalidate approach
   if (event.request.url.includes('/api/') || 
+      event.request.url.includes('supabase') || 
       event.request.headers.get('accept')?.includes('application/json')) {
     event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          // Clone the response before using it
-          const responseToCache = response.clone();
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.match(event.request).then((cachedResponse) => {
+          const fetchPromise = fetch(event.request).then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              cache.put(event.request, networkResponse.clone());
+            }
+            return networkResponse;
+          }).catch((error) => {
+            console.error('Error fetching data:', error);
+            // Return cached response if available, even if it's stale
+            return cachedResponse;
+          });
           
-          // Cache the successful response
-          caches.open(CACHE_NAME)
-            .then(cache => {
-              cache.put(event.request, responseToCache);
-            });
-            
-          return response;
-        })
-        .catch(() => {
-          // Fall back to cache if network fails
-          return caches.match(event.request);
-        })
+          // Return the cached response if we have one, otherwise wait for the network response
+          return cachedResponse || fetchPromise;
+        });
+      })
     );
     return;
   }
@@ -145,6 +176,7 @@ self.addEventListener('fetch', (event) => {
 
 // Update a service worker
 self.addEventListener('activate', (event) => {
+  console.log('Service Worker: Activating...');
   const cacheWhitelist = [CACHE_NAME];
   
   event.waitUntil(
