@@ -13,33 +13,73 @@ import './types/google-api.d';
 
 // Initialize localStorage if needed with proper structure
 const initializeLocalStorage = () => {
-  if (!localStorage.getItem("transactionState")) {
-    console.log("Initializing empty transaction state in localStorage");
-    localStorage.setItem("transactionState", JSON.stringify({ 
-      transactions: [], 
-      categories: [] 
-    }));
-  } else {
-    const savedState = JSON.parse(localStorage.getItem("transactionState") || '{}');
+  try {
+    if (!localStorage.getItem("transactionState")) {
+      console.log("Initializing empty transaction state in localStorage");
+      const initialState = { 
+        transactions: [], 
+        categories: [] 
+      };
+      localStorage.setItem("transactionState", JSON.stringify(initialState));
+      return;
+    } 
+    
+    // Validate existing state
+    const savedStateString = localStorage.getItem("transactionState");
+    if (!savedStateString) {
+      throw new Error("Empty transactionState in localStorage");
+    }
+    
+    const savedState = JSON.parse(savedStateString);
     console.log("Found existing transaction state in localStorage", savedState);
     
     // Ensure the state has the proper structure
-    if (!savedState.transactions) {
-      console.warn("Missing transactions array in localStorage, fixing structure");
+    let modified = false;
+    
+    if (!Array.isArray(savedState.transactions)) {
+      console.warn("Missing or invalid transactions array in localStorage, fixing structure");
       savedState.transactions = [];
+      modified = true;
+    }
+    
+    if (!Array.isArray(savedState.categories)) {
+      console.warn("Missing or invalid categories array in localStorage, fixing structure");
+      savedState.categories = [];
+      modified = true;
+    }
+    
+    if (modified) {
+      console.log("Saving fixed transaction state structure to localStorage");
       localStorage.setItem("transactionState", JSON.stringify(savedState));
     }
     
-    if (!savedState.categories) {
-      console.warn("Missing categories array in localStorage, fixing structure");
-      savedState.categories = [];
-      localStorage.setItem("transactionState", JSON.stringify(savedState));
-    }
+  } catch (error) {
+    console.error("Error in localStorage initialization:", error);
+    // Reset to empty state on error
+    const initialState = { 
+      transactions: [], 
+      categories: [] 
+    };
+    localStorage.setItem("transactionState", JSON.stringify(initialState));
   }
 };
 
-// Run initialization
+// Run initialization on app start
 initializeLocalStorage();
+
+// Add a listener for storage events to handle cross-tab synchronization
+window.addEventListener('storage', (event) => {
+  if (event.key === 'transactionState' && event.newValue) {
+    console.log('Transaction state updated in another tab, refreshing data');
+    try {
+      const newState = JSON.parse(event.newValue);
+      console.log('New state from storage event:', newState);
+      // The state will be picked up on the next render cycle
+    } catch (error) {
+      console.error('Error parsing transaction state from storage event:', error);
+    }
+  }
+});
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

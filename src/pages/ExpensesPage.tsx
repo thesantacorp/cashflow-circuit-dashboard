@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Dashboard from "@/components/Dashboard";
@@ -12,6 +13,7 @@ import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import EmotionFilter from "@/components/EmotionFilter";
 import { EmotionalState } from "@/types";
+import { toast } from "sonner";
 
 const ExpensesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
@@ -20,36 +22,51 @@ const ExpensesPage: React.FC = () => {
   const { getTotalByType, state } = useTransactions();
   const { currencySymbol } = useCurrency();
 
+  // Verify transactions are loaded correctly on mount and after changes
   useEffect(() => {
     console.log("ExpensePage - Current state from context:", state);
-    console.log(`ExpensePage - Transaction count: ${state.transactions?.length || 0}`);
+    const transactionCount = state.transactions?.length || 0;
+    console.log(`ExpensePage - Transaction count: ${transactionCount}`);
     
     try {
-      const savedState = localStorage.getItem("transactionState");
-      if (savedState) {
-        const parsedState = JSON.parse(savedState);
+      // Check localStorage directly to verify data persistence
+      const savedStateRaw = localStorage.getItem("transactionState");
+      if (!savedStateRaw) {
+        console.error("No transactionState found in localStorage!");
+        return;
+      }
+      
+      try {
+        const parsedState = JSON.parse(savedStateRaw);
+        const localStorageCount = parsedState.transactions?.length || 0;
         console.log("ExpensePage - localStorage state:", parsedState);
-        console.log(`ExpensePage - localStorage transaction count: ${parsedState.transactions?.length || 0}`);
+        console.log(`ExpensePage - localStorage transaction count: ${localStorageCount}`);
         
-        if (parsedState.transactions?.length !== state.transactions?.length) {
-          console.warn(`State mismatch: localStorage has ${
-            parsedState.transactions?.length} transactions, but context has ${
-            state.transactions?.length}`);
+        // Alert if there's a mismatch between context and localStorage
+        if (localStorageCount !== transactionCount) {
+          console.warn(`State mismatch: localStorage has ${localStorageCount} transactions, but context has ${transactionCount}`);
+          
+          // Show a toast to the user if there's a serious mismatch
+          if (transactionCount > 0 && localStorageCount === 0) {
+            toast.error("Storage issue detected. Your data may not be saving correctly.");
+          }
         }
         
-        if (parsedState.transactions?.length > 0 && state.transactions?.length > 0) {
+        // Log some sample transactions for debugging
+        if (localStorageCount > 0 && transactionCount > 0) {
           console.log("First few transactions in localStorage:", 
             parsedState.transactions.slice(0, 3).map(t => t.id));
           console.log("First few transactions in context:", 
             state.transactions.slice(0, 3).map(t => t.id));
         }
-      } else {
-        console.warn("No transactionState found in localStorage!");
+      } catch (error) {
+        console.error("Error parsing localStorage state:", error);
       }
     } catch (error) {
       console.error("Error checking localStorage:", error);
     }
     
+    // Delayed verification check to ensure data was properly saved
     const saveVerifier = setTimeout(() => {
       try {
         const currentSaved = localStorage.getItem("transactionState");
@@ -57,6 +74,25 @@ const ExpensesPage: React.FC = () => {
           const parsedCurrent = JSON.parse(currentSaved);
           console.log("Verification check - localStorage transaction count:", 
             parsedCurrent.transactions?.length);
+          
+          // Test localStorage by adding and immediately removing a test item
+          try {
+            // Add a test item
+            const testKey = "test_localStorage_" + Date.now();
+            localStorage.setItem(testKey, "test");
+            // Check if it was added
+            const testValue = localStorage.getItem(testKey);
+            // Remove the test item
+            localStorage.removeItem(testKey);
+            
+            if (testValue !== "test") {
+              console.error("localStorage test failed - could not write and read test value!");
+              toast.error("Your browser storage may be restricted. Data saving may not work.");
+            }
+          } catch (error) {
+            console.error("localStorage write test failed:", error);
+            toast.error("Storage access is restricted. Your data may not be saved.");
+          }
         }
       } catch (e) {
         console.error("Error in verification check:", e);
@@ -66,6 +102,7 @@ const ExpensesPage: React.FC = () => {
     return () => clearTimeout(saveVerifier);
   }, [state]);
 
+  // Filter transactions based on selected emotion
   const filteredTransactions = useMemo(() => {
     if (selectedEmotion === 'all') {
       return state.transactions;
@@ -76,6 +113,7 @@ const ExpensesPage: React.FC = () => {
     );
   }, [state.transactions, selectedEmotion]);
 
+  // Calculate total for filtered transactions
   const filteredTotal = useMemo(() => {
     return filteredTransactions
       .filter(t => t.type === "expense")
