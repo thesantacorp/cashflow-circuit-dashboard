@@ -50,6 +50,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const initializeData = async () => {
       const loadedData = await loadInitialData();
       if (loadedData) {
+        console.log(`Initializing with ${loadedData.transactions.length} transactions and ${loadedData.categories.length} categories`);
         dispatch({ type: "SET_STATE", payload: loadedData });
       }
     };
@@ -73,17 +74,30 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [user]);
 
   // Function to refresh data from Supabase with silent option
-  const refreshData = async (silent = false): Promise<boolean> => {
-    const refreshedData = await refreshDataFromSupabase(state, silent);
-    if (refreshedData) {
-      dispatch({ type: "SET_STATE", payload: refreshedData });
-      return true;
+  const refreshData = async (silent = true): Promise<boolean> => {
+    try {
+      const refreshedData = await refreshDataFromSupabase(state, silent);
+      if (refreshedData) {
+        // Only update state if we have more or equal transactions than current state
+        // This helps preserve local data when cloud data might be missing
+        if (refreshedData.transactions.length >= state.transactions.length) {
+          dispatch({ type: "SET_STATE", payload: refreshedData });
+          return true;
+        } else {
+          console.log(`Keeping current state with ${state.transactions.length} transactions instead of refreshed data with ${refreshedData.transactions.length} transactions`);
+          return false;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error("Error in refreshData:", error);
+      return false;
     }
-    return false;
   };
 
   // Replace all data in the state
   const replaceAllData = (data: TransactionState) => {
+    console.log(`Replacing all data with ${data.transactions.length} transactions and ${data.categories.length} categories`);
     dispatch({ type: "REPLACE_ALL_DATA", payload: data });
   };
 
@@ -93,6 +107,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       ...state,
       ...data
     };
+    console.log(`Importing partial data, resulting in ${newState.transactions.length} transactions and ${newState.categories.length} categories`);
     dispatch({ type: "REPLACE_ALL_DATA", payload: newState });
   };
 
