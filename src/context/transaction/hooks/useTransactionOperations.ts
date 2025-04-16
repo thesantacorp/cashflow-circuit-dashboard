@@ -40,11 +40,15 @@ const initialState = {
 };
 
 export function useTransactionOperations() {
-  // Load state from localStorage
-  const savedState = localStorage.getItem("transactionState");
+  // Get initial state from localStorage
+  const getInitialState = () => {
+    const savedState = localStorage.getItem("transactionState");
+    return savedState ? JSON.parse(savedState) : initialState;
+  };
+
   const [state, dispatch] = useReducer(
     transactionReducer,
-    savedState ? JSON.parse(savedState) : initialState
+    getInitialState()
   );
 
   // Save state to localStorage whenever it changes
@@ -54,9 +58,10 @@ export function useTransactionOperations() {
 
   // Add a transaction
   const addTransaction = (transaction: Omit<Transaction, "id">) => {
+    const newTransaction = { ...transaction, id: uuidv4() };
     dispatch({
       type: "ADD_TRANSACTION",
-      payload: { ...transaction, id: uuidv4() },
+      payload: newTransaction,
     });
     toast.success("Transaction added successfully");
     return true;
