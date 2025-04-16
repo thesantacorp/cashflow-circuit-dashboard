@@ -54,6 +54,26 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         // Always preserve local data if it has more transactions
         if (state.transactions.length > loadedData.transactions.length && state.transactions.length > 0) {
           console.log(`Keeping local state with ${state.transactions.length} transactions instead of loaded data with ${loadedData.transactions.length} transactions`);
+          
+          // Instead of completely ignoring cloud data, merge it with local data
+          const mergedTransactions = [...state.transactions];
+          
+          // Add any transactions from cloud that aren't in local state
+          loadedData.transactions.forEach(cloudTx => {
+            if (!mergedTransactions.some(localTx => localTx.id === cloudTx.id)) {
+              mergedTransactions.push(cloudTx);
+            }
+          });
+          
+          const mergedState = {
+            ...state,
+            transactions: mergedTransactions,
+            categories: state.categories.length >= loadedData.categories.length ? 
+              state.categories : loadedData.categories
+          };
+          
+          console.log(`After merging, state now has ${mergedTransactions.length} transactions`);
+          dispatch({ type: "SET_STATE", payload: mergedState });
         } else {
           dispatch({ type: "SET_STATE", payload: loadedData });
         }
@@ -84,34 +104,27 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const refreshedData = await refreshDataFromSupabase(state, silent);
       if (refreshedData) {
         if (state.transactions.length > 0) {
-          // Only update state if we have more or equal transactions than current state
-          // This helps preserve local data when cloud data might be missing
-          if (refreshedData.transactions.length >= state.transactions.length) {
-            console.log(`Updating state with ${refreshedData.transactions.length} transactions from cloud refresh`);
-            dispatch({ type: "SET_STATE", payload: refreshedData });
-            return true;
-          } else {
-            console.log(`Keeping current state with ${state.transactions.length} transactions instead of refreshed data with ${refreshedData.transactions.length} transactions`);
-            
-            // Instead of ignoring cloud data, merge it with local data to avoid loss
-            const mergedTransactions = [...state.transactions];
-            
-            // Add any transactions from cloud that aren't in local state
-            refreshedData.transactions.forEach(cloudTx => {
-              if (!mergedTransactions.some(localTx => localTx.id === cloudTx.id)) {
-                mergedTransactions.push(cloudTx);
-              }
-            });
-            
-            const mergedState = {
-              ...state,
-              transactions: mergedTransactions
-            };
-            
-            console.log(`Merged state now has ${mergedTransactions.length} transactions`);
-            dispatch({ type: "SET_STATE", payload: mergedState });
-            return true;
-          }
+          // Rather than comparing lengths, always merge cloud and local data
+          // This ensures we don't lose transactions that might be in either source
+          const mergedTransactions = [...state.transactions];
+          
+          // Add any transactions from cloud that aren't in local state
+          refreshedData.transactions.forEach(cloudTx => {
+            if (!mergedTransactions.some(localTx => localTx.id === cloudTx.id)) {
+              mergedTransactions.push(cloudTx);
+            }
+          });
+          
+          const mergedState = {
+            ...state,
+            transactions: mergedTransactions,
+            categories: state.categories.length > refreshedData.categories.length ? 
+              state.categories : refreshedData.categories
+          };
+          
+          console.log(`After merging local (${state.transactions.length}) and cloud (${refreshedData.transactions.length}), state now has ${mergedTransactions.length} transactions`);
+          dispatch({ type: "SET_STATE", payload: mergedState });
+          return true;
         } else {
           // If we don't have any transactions, update with cloud data
           console.log(`Updating empty state with ${refreshedData.transactions.length} transactions from cloud`);
@@ -138,6 +151,14 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       localStorage.setItem("transactionState", JSON.stringify(data));
       localStorage.setItem("lastTransactionUpdate", new Date().toISOString());
       console.log("Saved replaced data to localStorage");
+      
+      // IMPORTANT: After importing or replacing data, always sync to Supabase
+      if (user && isOnline) {
+        console.log("Auto-syncing imported data to Supabase");
+        syncToSupabase().catch(err => {
+          console.error("Failed to auto-sync after import:", err);
+        });
+      }
     } catch (error) {
       console.error("Failed to save to localStorage after replaceAllData:", error);
     }
@@ -160,8 +181,108 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       localStorage.setItem("transactionState", JSON.stringify(newState));
       localStorage.setItem("lastTransactionUpdate", new Date().toISOString());
       console.log("Saved imported data to localStorage");
+      
+      // IMPORTANT: After importing data, always sync to Supabase
+      if (user && isOnline) {
+        console.log("Auto-syncing imported data to Supabase");
+        syncToSupabase().catch(err => {
+          console.error("Failed to auto-sync after import:", err);
+        });
+      }
     } catch (error) {
       console.error("Failed to save to localStorage after importData:", error);
+    }
+  };
+
+  // Function to directly sync current state to Supabase
+  const syncToSupabase = async (): Promise<boolean> => {
+    if (!user || !isOnline) {
+      console.log("Cannot sync to Supabase: user not logged in or offline");
+      return false;
+    }
+    
+    console.log(`Syncing ${state.transactions.length} transactions to Supabase`);
+    
+    try {
+      // Delete existing transactions for this user
+      const { error: deleteTransactionsError } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('user_email', user.email);
+      
+      if (deleteTransactionsError) {
+        console.error("Failed to delete existing transactions:", deleteTransactionsError);
+        return false;
+      }
+      
+      // Delete existing categories for this user
+      const { error: deleteCategoriesError } = await supabase
+        .from('categories')
+        .delete()
+        .eq('user_email', user.email);
+      
+      if (deleteCategoriesError) {
+        console.error("Failed to delete existing categories:", deleteCategoriesError);
+        return false;
+      }
+      
+      // Insert all transactions in batches
+      if (state.transactions.length > 0) {
+        const batchSize = 50;
+        const batches = Math.ceil(state.transactions.length / batchSize);
+        
+        for (let i = 0; i < batches; i++) {
+          const start = i * batchSize;
+          const end = Math.min(start + batchSize, state.transactions.length);
+          const batch = state.transactions.slice(start, end);
+          
+          const transactionRows = batch.map(transaction => ({
+            user_email: user.email,
+            transaction_id: transaction.id,
+            type: transaction.type,
+            category_id: transaction.categoryId,
+            amount: transaction.amount,
+            description: transaction.description || '',
+            date: transaction.date,
+            emotional_state: transaction.emotionalState || 'neutral'
+          }));
+          
+          const { error } = await supabase
+            .from('transactions')
+            .insert(transactionRows);
+          
+          if (error) {
+            console.error(`Failed to insert transaction batch ${i + 1}/${batches}:`, error);
+            return false;
+          }
+        }
+      }
+      
+      // Insert all categories
+      if (state.categories.length > 0) {
+        const categoryRows = state.categories.map(category => ({
+          user_email: user.email,
+          category_id: category.id,
+          name: category.name,
+          type: category.type,
+          color: category.color
+        }));
+        
+        const { error } = await supabase
+          .from('categories')
+          .insert(categoryRows);
+        
+        if (error) {
+          console.error("Failed to insert categories:", error);
+          return false;
+        }
+      }
+      
+      console.log("Successfully synced all data to Supabase");
+      return true;
+    } catch (error) {
+      console.error("Error in syncToSupabase:", error);
+      return false;
     }
   };
 
@@ -205,7 +326,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         deduplicate: handleDeduplicate,
         isOnline,
         pendingSyncCount,
-        isLoading
+        isLoading,
+        syncToSupabase
       }}
     >
       {children}

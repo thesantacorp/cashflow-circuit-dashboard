@@ -15,6 +15,8 @@ const RETRY_DELAY = 1000; // ms
 const FIRST_LOGIN_KEY = 'is_first_login_on_device';
 // Key for tracking notification status
 const NOTIFIED_THIS_SESSION_KEY = 'notified_this_session';
+// Key for tracking last sync attempt
+const LAST_SYNC_ATTEMPT_KEY = 'last_sync_attempt';
 
 /**
  * Utility function to wait for a specified delay
@@ -27,7 +29,13 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export function useSupabaseSync() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncDate, setLastSyncDate] = useState<Date | null>(null);
-  const { state, importData, replaceAllData, refreshData } = useTransactions();
+  const { 
+    state, 
+    importData, 
+    replaceAllData, 
+    refreshData, 
+    syncToSupabase: contextSyncToSupabase 
+  } = useTransactions();
   const { user, profile } = useAuth();
   const [isFirstLogin, setIsFirstLogin] = useState<boolean>(() => {
     return localStorage.getItem(FIRST_LOGIN_KEY) === 'true';
@@ -132,102 +140,32 @@ export function useSupabaseSync() {
       return false;
     }
 
+    // Save the sync attempt time
+    localStorage.setItem(LAST_SYNC_ATTEMPT_KEY, new Date().toISOString());
+    
     setIsSyncing(true);
     
     try {
-      // Get the best available client
-      const client = await getBestClient();
+      // Use the context's syncToSupabase function which is optimized for direct sync
+      const success = await contextSyncToSupabase();
       
-      // Check connection to Supabase before proceeding
-      await executeWithRetry(async () => {
-        const { data, error } = await client.from('user_uuids').select('count', { count: 'exact', head: true }).limit(1);
-        if (error) throw error;
-        return data;
-      }, 'Connection check');
-      
-      // Delete existing data for this user to prevent duplicates
-      await executeWithRetry(async () => {
-        const { error } = await (client.from('transactions') as any).delete().eq('user_email', user.email);
-        if (error) throw error;
-        return true;
-      }, 'Delete existing transactions');
-      
-      await executeWithRetry(async () => {
-        const { error } = await (client.from('categories') as any).delete().eq('user_email', user.email);
-        if (error) throw error;
-        return true;
-      }, 'Delete existing categories');
-      
-      // Insert transactions in batches
-      if (state.transactions.length > 0) {
-        const batchSize = 50; // Process transactions in smaller batches
-        const batches = Math.ceil(state.transactions.length / batchSize);
+      if (success) {
+        const now = new Date();
+        setLastSyncDate(now);
+        localStorage.setItem('lastTransactionUpdate', now.toISOString());
         
-        for (let i = 0; i < batches; i++) {
-          const start = i * batchSize;
-          const end = Math.min(start + batchSize, state.transactions.length);
-          const batch = state.transactions.slice(start, end);
-          
-          const transactionRows = batch.map(transaction => ({
-            user_email: user.email,
-            transaction_id: transaction.id,
-            type: transaction.type,
-            category_id: transaction.categoryId,
-            amount: transaction.amount,
-            description: transaction.description || '',
-            date: transaction.date,
-            emotional_state: transaction.emotionalState || 'neutral'
-          }));
-          
-          await executeWithRetry(async () => {
-            const { error } = await (client.from('transactions') as any).insert(transactionRows);
-            if (error) throw error;
-            return true;
-          }, `Insert transactions batch ${i + 1}/${batches}`);
+        // Only show success toast on profile page
+        if (location.pathname === '/profile') {
+          toast.success("Data synced successfully to cloud");
         }
+        return true;
+      } else {
+        // Only show error toast on profile page
+        if (location.pathname === '/profile') {
+          toast.error("Failed to sync data to cloud");
+        }
+        return false;
       }
-      
-      // Insert categories
-      if (state.categories.length > 0) {
-        const categoryRows = state.categories.map(category => ({
-          user_email: user.email,
-          category_id: category.id,
-          name: category.name,
-          type: category.type,
-          color: category.color
-        }));
-        
-        await executeWithRetry(async () => {
-          const { error } = await (client.from('categories') as any).insert(categoryRows);
-          if (error) throw error;
-          return true;
-        }, 'Insert categories');
-      }
-      
-      // Update profile with last backup date
-      if (user.id) {
-        await executeWithRetry(async () => {
-          const { error } = await client
-            .from('profiles')
-            .update({ 
-              backup_last_date: new Date().toISOString()
-            })
-            .eq('id', user.id);
-          if (error) throw error;
-          return true;
-        }, 'Update profile backup date');
-      }
-      
-      const now = new Date();
-      setLastSyncDate(now);
-      localStorage.setItem('lastTransactionUpdate', now.toISOString());
-      
-      // Only show success toast on profile page and if we haven't notified yet this session
-      if (location.pathname === '/profile' && !hasNotifiedThisSession) {
-        toast.success("Data synced successfully to cloud");
-        setHasNotifiedThisSession(true);
-      }
-      return true;
     } catch (error: any) {
       console.error('Sync error:', error);
       // Only show error toast on profile page
@@ -238,7 +176,7 @@ export function useSupabaseSync() {
     } finally {
       setIsSyncing(false);
     }
-  }, [user, state.transactions, state.categories, location.pathname, hasNotifiedThisSession]);
+  }, [user, contextSyncToSupabase, location.pathname]);
 
   // Function to restore data from Supabase
   const restoreFromSupabase = useCallback(async () => {
@@ -319,6 +257,33 @@ export function useSupabaseSync() {
     }
   }, [user, executeWithRetry, replaceAllData, getBestClient, location.pathname]);
 
+  // Auto-sync data on component mount or when data changes significantly
+  useEffect(() => {
+    if (!user || !navigator.onLine) return;
+    
+    // Only run this if we haven't synced recently (within last 30 seconds)
+    const lastSyncAttempt = localStorage.getItem(LAST_SYNC_ATTEMPT_KEY);
+    if (lastSyncAttempt) {
+      const lastAttemptTime = new Date(lastSyncAttempt).getTime();
+      const now = new Date().getTime();
+      const timeSinceLastSync = now - lastAttemptTime;
+      
+      // If less than 30 seconds have passed since last sync attempt, skip
+      if (timeSinceLastSync < 30000) {
+        console.log('Skipping auto-sync, last attempt was less than 30 seconds ago');
+        return;
+      }
+    }
+    
+    // Check if we have a significant number of transactions that might need syncing
+    if (state.transactions.length > 0) {
+      console.log('Auto-syncing data to Supabase');
+      syncToSupabase().catch(err => {
+        console.error('Auto-sync error:', err);
+      });
+    }
+  }, [user, state.transactions.length, syncToSupabase]);
+
   // Auto-sync data when a user logs in - but with prevention for first login
   useEffect(() => {
     if (user && profile) {
@@ -384,11 +349,11 @@ export function useSupabaseSync() {
                   await syncToSupabase();
                 } else {
                   // Remote is newer
-                  await restoreFromSupabase();
+                  await refreshData(true);
                 }
               } else {
                 // No local timestamp, use remote data
-                await restoreFromSupabase();
+                await refreshData(true);
               }
             } else {
               // No backup date in profile, assume local is newer
@@ -397,13 +362,12 @@ export function useSupabaseSync() {
           }
         } catch (error) {
           console.error('Auto-sync error:', error);
-          toast.error("We encountered an issue syncing your data. You can try again manually.");
         }
       };
       
       syncData().catch(console.error);
     }
-  }, [user, profile, state.transactions.length, state.categories.length, syncToSupabase, restoreFromSupabase, getBestClient, location.pathname]);
+  }, [user, profile, state.transactions.length, state.categories.length, syncToSupabase, restoreFromSupabase, getBestClient, location.pathname, refreshData]);
 
   // Clear first login flag on manual restore
   const handleManualRestore = async () => {

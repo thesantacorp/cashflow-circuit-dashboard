@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+
+import React, { useEffect, useState, useCallback } from "react";
 import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 import { useAuth } from "@/context/AuthContext";
 import { useTransactions } from "@/context/transaction";
@@ -18,7 +19,7 @@ interface SupabaseSyncProps {
 const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
   const { isSyncing, lastSyncDate, syncToSupabase, restoreFromSupabase } = useSupabaseSync();
   const { isLoading, user } = useAuth();
-  const { isOnline, pendingSyncCount, refreshData } = useTransactions();
+  const { isOnline, pendingSyncCount, refreshData, syncToSupabase: contextSyncToSupabase } = useTransactions();
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
   const [realtimeEnabled, setRealtimeEnabled] = useState(false);
@@ -160,12 +161,37 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
     }
   };
 
+  // Enhanced sync function that uses the context's direct sync method
+  const handleDirectSync = async () => {
+    if (!isOnline || !user) {
+      toast.error("You must be online to sync data");
+      return false;
+    }
+    
+    setIsCheckingConnection(true);
+    try {
+      const success = await contextSyncToSupabase();
+      if (success) {
+        toast.success("Data synced to cloud");
+        return true;
+      } else {
+        toast.error("Failed to sync data to cloud");
+        return false;
+      }
+    } catch (error) {
+      console.error("Sync error:", error);
+      toast.error("Error syncing data");
+      return false;
+    } finally {
+      setIsCheckingConnection(false);
+    }
+  };
+
   const handleRefresh = async () => {
     return handleOperation(async () => {
-      const success = await refreshData();
-      if (success && !hasNotifiedThisSession) {
+      const success = await refreshData(false); // Set to false to show feedback
+      if (success) {
         toast.success("Data refreshed from cloud");
-        setHasNotifiedThisSession(true);
       }
       return success;
     });
@@ -178,7 +204,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
           <Button 
             size="sm" 
             variant="outline" 
-            onClick={() => handleOperation(syncToSupabase)} 
+            onClick={handleDirectSync} 
             disabled={isSyncing || isCheckingConnection || !isOnline} 
             className="flex items-center"
           >
@@ -289,12 +315,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleOperation(() => {
-                if (window.confirm('This will upload your current data to the cloud. Continue?')) {
-                  return syncToSupabase();
-                }
-                return Promise.resolve(false);
-              })}
+              onClick={handleDirectSync}
               disabled={isSyncing || isCheckingConnection || !isOnline}
               className="flex items-center"
             >
@@ -305,7 +326,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
               ) : (
                 <CloudIcon className="mr-2 h-3 w-3" />
               )}
-              Sync {pendingSyncCount > 0 && `(${pendingSyncCount})`}
+              Sync Now {pendingSyncCount > 0 && `(${pendingSyncCount})`}
             </Button>
             <Button
               size="sm"

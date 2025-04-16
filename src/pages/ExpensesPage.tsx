@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Dashboard from "@/components/Dashboard";
 import CategoryList from "@/components/CategoryList";
@@ -13,14 +12,16 @@ import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import EmotionFilter from "@/components/EmotionFilter";
 import { EmotionalState } from "@/types";
+import { useAuth } from "@/context/AuthContext";
 
 const ExpensesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
   const [selectedEmotion, setSelectedEmotion] = useState<EmotionalState | 'all'>('all');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const isMobile = useIsMobile();
-  const { getTotalByType, state, refreshData } = useTransactions();
+  const { getTotalByType, state, refreshData, syncToSupabase } = useTransactions();
   const { currencySymbol } = useCurrency();
+  const { user, isLoading } = useAuth();
 
   // Filter transactions based on selected emotion
   const filteredTransactions = useMemo(() => {
@@ -45,16 +46,29 @@ const ExpensesPage: React.FC = () => {
     // Trigger re-render immediately
     setRefreshTrigger(prev => prev + 1);
     
-    // If online, refresh data from Supabase silently - ALWAYS force silent mode
-    if (refreshData) {
+    // If online, sync to Supabase
+    if (user && navigator.onLine && syncToSupabase) {
       try {
-        // Always use silent mode (true) to prevent notifications
-        refreshData(true).catch(err => console.error("Background refresh error:", err));
+        console.log("Auto-syncing after transaction change");
+        await syncToSupabase();
       } catch (error) {
-        console.error('Error refreshing data:', error);
+        console.error('Error syncing data:', error);
       }
     }
-  }, [refreshData]);
+  }, [user, syncToSupabase]);
+
+  // Sync data when page is loaded
+  useEffect(() => {
+    if (user && navigator.onLine && syncToSupabase && !isLoading) {
+      // Check if we have transactions to sync
+      if (state.transactions.length > 0) {
+        console.log("Initial page load - syncing data to ensure consistency");
+        syncToSupabase().catch(err => {
+          console.error("Failed to sync on page load:", err);
+        });
+      }
+    }
+  }, [user, isLoading]);
 
   return (
     <div className="container py-4 md:py-6 max-w-7xl mx-auto px-3 sm:px-4 w-full overflow-hidden">

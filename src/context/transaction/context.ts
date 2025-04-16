@@ -31,6 +31,7 @@ interface TransactionContextType {
   isOnline: boolean;
   pendingSyncCount: number;
   isLoading?: boolean;
+  syncToSupabase: () => Promise<boolean>;
 }
 
 // Create the context
