@@ -45,7 +45,7 @@ const ExpensesPage: React.FC = () => {
     // Trigger re-render immediately
     setRefreshTrigger(prev => prev + 1);
     
-    // If online, refresh data from Supabase silently
+    // If online, refresh data from Supabase silently - ALWAYS force silent mode
     if (refreshData) {
       try {
         // Always use silent mode (true) to prevent notifications

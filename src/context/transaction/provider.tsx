@@ -60,7 +60,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Set up realtime subscription
   useEffect(() => {
     const handleDataRefresh = () => {
-      refreshData(true); // Silent refresh for realtime updates
+      refreshData(true); // ALWAYS use silent refresh for realtime updates to prevent toast spam
     };
 
     const channel = setupRealtimeSubscription(handleDataRefresh);

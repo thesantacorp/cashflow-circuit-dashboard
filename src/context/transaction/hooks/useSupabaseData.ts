@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -57,7 +56,12 @@ export const useSupabaseData = () => {
       };
       
       setLastSyncTime(new Date());
-      toast.success("Data loaded from cloud");
+      
+      // Only show initial load toast if there's actual data to display
+      if (transactions.length > 0 || categories.length > 0) {
+        toast.success("Data loaded from cloud");
+      }
+      
       return newState;
     } catch (error) {
       console.error("Error loading data from Supabase:", error);
@@ -70,7 +74,7 @@ export const useSupabaseData = () => {
 
   /**
    * Refresh data from Supabase
-   * @param silent If true, don't show success toast notifications
+   * @param silent If true, completely suppresses ALL toast notifications
    */
   const refreshData = useCallback(async (currentState: TransactionState, silent = false): Promise<TransactionState | null> => {
     if (!user || !navigator.onLine) {
@@ -81,12 +85,18 @@ export const useSupabaseData = () => {
       const { transactions, error: transactionsError } = await fetchTransactions(user.email);
       
       if (transactionsError) {
+        if (!silent) {
+          toast.error("Failed to load transactions from cloud");
+        }
         throw transactionsError;
       }
       
       const { categories, error: categoriesError } = await fetchCategories(user.email);
       
       if (categoriesError) {
+        if (!silent) {
+          toast.error("Failed to load categories from cloud");
+        }
         throw categoriesError;
       }
       
@@ -101,7 +111,8 @@ export const useSupabaseData = () => {
       
       setLastSyncTime(new Date());
       
-      // Only show toast notification if not silent
+      // Only show toast notification if explicitly not in silent mode
+      // AND if on a page where notifications make sense
       if (!silent) {
         toast.success("Data refreshed from cloud");
       }
@@ -109,8 +120,10 @@ export const useSupabaseData = () => {
       return newState;
     } catch (error) {
       console.error('Error refreshing data from Supabase:', error);
-      // Always show error toasts, even in silent mode
-      toast.error('Failed to refresh data from cloud');
+      // Only show error toasts if not in silent mode
+      if (!silent) {
+        toast.error('Failed to refresh data from cloud');
+      }
       return null;
     }
   }, [user]);
