@@ -12,6 +12,11 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+// Safari standalone property interface
+interface SafariNavigator extends Navigator {
+  standalone?: boolean;
+}
+
 const PwaInstallPrompt = () => {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -35,7 +40,7 @@ const PwaInstallPrompt = () => {
   useEffect(() => {
     // Check if app is already installed
     if (window.matchMedia('(display-mode: standalone)').matches || 
-        window.navigator.standalone === true) {
+        (window.navigator as SafariNavigator).standalone === true) {
       setIsInstalled(true);
       return;
     }
