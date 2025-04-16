@@ -41,15 +41,20 @@ const initialState = {
 
 export function useTransactionOperations() {
   // Load state from localStorage
-  const savedState = localStorage.getItem("transactionState");
+  const savedState = typeof window !== 'undefined' ? localStorage.getItem("transactionState") : null;
+  const parsedInitialState = savedState ? JSON.parse(savedState) : initialState;
+  
   const [state, dispatch] = useReducer(
     transactionReducer,
-    savedState ? JSON.parse(savedState) : initialState
+    parsedInitialState
   );
 
   // Save state to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem("transactionState", JSON.stringify(state));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("transactionState", JSON.stringify(state));
+      console.log("Saved state to localStorage:", state);
+    }
   }, [state]);
 
   // Add a transaction
@@ -63,6 +68,17 @@ export function useTransactionOperations() {
       type: "ADD_TRANSACTION",
       payload: newTransaction,
     });
+    
+    // Also manually update localStorage for immediate persistence
+    if (typeof window !== 'undefined') {
+      const currentState = localStorage.getItem("transactionState");
+      const parsedState = currentState ? JSON.parse(currentState) : initialState;
+      const updatedState = {
+        ...parsedState,
+        transactions: [...parsedState.transactions, newTransaction]
+      };
+      localStorage.setItem("transactionState", JSON.stringify(updatedState));
+    }
     
     toast.success("Transaction added successfully");
     return true;
@@ -90,10 +106,23 @@ export function useTransactionOperations() {
 
   // Add a category
   const addCategory = (category: Omit<Category, "id">) => {
+    const newCategory = { ...category, id: uuidv4() };
     dispatch({
       type: "ADD_CATEGORY",
-      payload: { ...category, id: uuidv4() },
+      payload: newCategory,
     });
+    
+    // Also manually update localStorage for immediate persistence
+    if (typeof window !== 'undefined') {
+      const currentState = localStorage.getItem("transactionState");
+      const parsedState = currentState ? JSON.parse(currentState) : initialState;
+      const updatedState = {
+        ...parsedState,
+        categories: [...parsedState.categories, newCategory]
+      };
+      localStorage.setItem("transactionState", JSON.stringify(updatedState));
+    }
+    
     toast.success("Category added successfully");
     return true;
   };
