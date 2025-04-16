@@ -1,4 +1,3 @@
-
 import React, { useReducer, useEffect, useState, useCallback } from "react";
 import { TransactionContext } from "./context";
 import { toast } from "sonner";
@@ -73,34 +72,9 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
-  // Load data from Supabase on initialization or when user changes
   useEffect(() => {
     const loadData = async () => {
       if (!user) {
-        // If no user, fall back to local storage
-        try {
-          const savedState = localStorage.getItem("transactionState");
-          if (savedState) {
-            const parsedState = JSON.parse(savedState);
-            if (parsedState) {
-              dispatch({ 
-                type: "REPLACE_ALL_DATA", 
-                payload: {
-                  ...parsedState,
-                  categories: parsedState.categories && parsedState.categories.length > 0 
-                    ? parsedState.categories 
-                    : allDefaultCategories
-                }
-              });
-            }
-          }
-        } catch (error) {
-          console.error("Failed to load from localStorage", error);
-          dispatch({ 
-            type: "REPLACE_ALL_DATA", 
-            payload: initialState
-          });
-        }
         setIsLoading(false);
         return;
       }
@@ -150,7 +124,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     loadData();
   }, [user]);
 
-  // Monitor online status
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -170,7 +143,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
   }, [user, pendingSyncCount]);
 
-  // Listen for real-time updates from Supabase
   useEffect(() => {
     if (!user) return;
 
@@ -192,7 +164,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
   }, [user]);
 
-  // Refresh data from Supabase
   const refreshData = async () => {
     if (!user || !isOnline) {
       return false;
@@ -233,7 +204,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  // Deduplicate transactions
   const deduplicate = () => {
     const uniqueTransactions = Array.from(
       new Map(state.transactions.map(item => [item.id, item])).values()
@@ -252,7 +222,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return true;
   };
 
-  // Add transaction directly to Supabase
   const addTransaction = async (transaction: Omit<Transaction, "id">) => {
     if (!user && !isOnline) {
       toast.error("You must be online to add transactions");
@@ -266,41 +235,26 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         updatedAt: new Date().toISOString()
       };
       
-      // First update local state for immediate UI feedback
       dispatch({ type: "ADD_TRANSACTION", payload: newTransaction });
       
-      // Then save to Supabase
       if (user) {
-        const result = await insertTransaction({
+        const dataForSupabase = {
           ...newTransaction,
           user_email: user.email
-        });
+        };
+        
+        const result = await insertTransaction(dataForSupabase);
         
         if (!result.success) {
           toast.error("Failed to save transaction to cloud");
           setSyncNeeded(true);
-          setPendingSyncCount((prevCount: number) => prevCount + 1);
+          setPendingSyncCount(prevCount => prevCount + 1);
         } else {
           toast.success("Transaction added and saved to cloud");
         }
       } else {
-        // Fallback to local storage if no user
-        try {
-          const currentStateRaw = localStorage.getItem("transactionState");
-          const currentState = currentStateRaw 
-            ? JSON.parse(currentStateRaw) 
-            : { transactions: [], categories: allDefaultCategories };
-          
-          const updatedState = { 
-            ...currentState,
-            transactions: [...currentState.transactions, newTransaction]
-          };
-          
-          localStorage.setItem("transactionState", JSON.stringify(updatedState));
-          toast.success("Transaction saved locally");
-        } catch (error) {
-          console.error("Error saving to localStorage:", error);
-        }
+        toast.error("You must be logged in to save transactions");
+        return false;
       }
       
       return true;
@@ -311,7 +265,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  // Update transaction directly in Supabase
   const updateTransaction = async (transaction: Transaction) => {
     if (!user && !isOnline) {
       toast.error("You must be online to update transactions");
@@ -324,42 +277,21 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         updatedAt: new Date().toISOString()
       };
       
-      // First update local state for immediate UI feedback
       dispatch({ type: "UPDATE_TRANSACTION", payload: updatedTransaction });
       
-      // Then update in Supabase
       if (user) {
         const result = await updateTransactionInDb(updatedTransaction, user.email);
         
         if (!result.success) {
           toast.error("Failed to update transaction in cloud");
           setSyncNeeded(true);
-          setPendingSyncCount((prevCount: number) => prevCount + 1);
+          setPendingSyncCount(prevCount => prevCount + 1);
         } else {
           toast.success("Transaction updated and saved to cloud");
         }
       } else {
-        // Fallback to local storage if no user
-        try {
-          const currentStateRaw = localStorage.getItem("transactionState");
-          const currentState = currentStateRaw 
-            ? JSON.parse(currentStateRaw) 
-            : { transactions: [], categories: allDefaultCategories };
-          
-          const updatedTransactions = currentState.transactions.map((t: Transaction) => 
-            t.id === transaction.id ? updatedTransaction : t
-          );
-          
-          const updatedState = { 
-            ...currentState,
-            transactions: updatedTransactions
-          };
-          
-          localStorage.setItem("transactionState", JSON.stringify(updatedState));
-          toast.success("Transaction updated locally");
-        } catch (error) {
-          console.error("Error updating in localStorage:", error);
-        }
+        toast.error("You must be logged in to update transactions");
+        return false;
       }
       
       return true;
@@ -370,7 +302,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  // Delete transaction directly from Supabase
   const deleteTransaction = async (id: string) => {
     if (!user && !isOnline) {
       toast.error("You must be online to delete transactions");
@@ -378,10 +309,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
 
     try {
-      // First update local state for immediate UI feedback
       dispatch({ type: "DELETE_TRANSACTION", payload: id });
       
-      // Then delete from Supabase
       if (user) {
         const result = await deleteTransactionFromDb(id, user.email);
         
@@ -392,25 +321,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           toast.success("Transaction deleted from cloud");
         }
       } else {
-        // Fallback to local storage if no user
-        try {
-          const currentStateRaw = localStorage.getItem("transactionState");
-          const currentState = currentStateRaw 
-            ? JSON.parse(currentStateRaw) 
-            : { transactions: [], categories: allDefaultCategories };
-          
-          const updatedTransactions = currentState.transactions.filter((t: Transaction) => t.id !== id);
-          
-          const updatedState = { 
-            ...currentState,
-            transactions: updatedTransactions
-          };
-          
-          localStorage.setItem("transactionState", JSON.stringify(updatedState));
-          toast.success("Transaction deleted locally");
-        } catch (error) {
-          console.error("Error deleting from localStorage:", error);
-        }
+        toast.error("You must be logged in to delete transactions");
+        return false;
       }
       
       return true;
@@ -421,7 +333,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  // Add category directly to Supabase
   const addCategory = async (category: Omit<Category, "id">) => {
     if (!user && !isOnline) {
       toast.error("You must be online to add categories");
@@ -431,10 +342,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       const newCategory = { ...category, id: uuidv4() };
       
-      // First update local state for immediate UI feedback
       dispatch({ type: "ADD_CATEGORY", payload: newCategory });
       
-      // Then save to Supabase
       if (user) {
         const result = await insertCategory(newCategory, user.email);
         
@@ -445,23 +354,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           toast.success("Category added and saved to cloud");
         }
       } else {
-        // Fallback to local storage if no user
-        try {
-          const currentStateRaw = localStorage.getItem("transactionState");
-          const currentState = currentStateRaw 
-            ? JSON.parse(currentStateRaw) 
-            : { transactions: [], categories: allDefaultCategories };
-          
-          const updatedState = { 
-            ...currentState,
-            categories: [...currentState.categories, newCategory]
-          };
-          
-          localStorage.setItem("transactionState", JSON.stringify(updatedState));
-          toast.success("Category saved locally");
-        } catch (error) {
-          console.error("Error saving to localStorage:", error);
-        }
+        toast.error("You must be logged in to save categories");
+        return false;
       }
       
       return true;
@@ -472,14 +366,12 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  // Delete category directly from Supabase
   const deleteCategory = async (id: string) => {
     if (!user && !isOnline) {
       toast.error("You must be online to delete categories");
       return false;
     }
 
-    // Check if category is in use
     const hasTransactions = state.transactions.some(
       (transaction) => transaction.categoryId === id
     );
@@ -490,10 +382,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
 
     try {
-      // First update local state for immediate UI feedback
       dispatch({ type: "DELETE_CATEGORY", payload: id });
       
-      // Then delete from Supabase
       if (user) {
         const result = await deleteCategoryFromDb(id, user.email);
         
@@ -504,25 +394,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           toast.success("Category deleted from cloud");
         }
       } else {
-        // Fallback to local storage if no user
-        try {
-          const currentStateRaw = localStorage.getItem("transactionState");
-          const currentState = currentStateRaw 
-            ? JSON.parse(currentStateRaw) 
-            : { transactions: [], categories: allDefaultCategories };
-          
-          const updatedCategories = currentState.categories.filter((c: Category) => c.id !== id);
-          
-          const updatedState = { 
-            ...currentState,
-            categories: updatedCategories 
-          };
-          
-          localStorage.setItem("transactionState", JSON.stringify(updatedState));
-          toast.success("Category deleted locally");
-        } catch (error) {
-          console.error("Error deleting from localStorage:", error);
-        }
+        toast.error("You must be logged in to delete categories");
+        return false;
       }
       
       return true;

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Category, Transaction } from '@/types';
 
@@ -78,7 +77,7 @@ export const fetchCategories = async (userEmail: string): Promise<FetchCategorie
 /**
  * Inserts a transaction into Supabase
  */
-export const insertTransaction = async (transaction: Transaction) => {
+export const insertTransaction = async (transaction: Transaction & { user_email: string }) => {
   try {
     const { data, error } = await supabase
       .from('transactions')
@@ -90,7 +89,7 @@ export const insertTransaction = async (transaction: Transaction) => {
         description: transaction.description || '',
         type: transaction.type,
         emotional_state: transaction.emotionalState || 'neutral',
-        user_email: '' // This needs to be provided by the caller
+        user_email: transaction.user_email
       }]);
 
     if (error) {

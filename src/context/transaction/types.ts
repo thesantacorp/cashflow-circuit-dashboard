@@ -23,15 +23,21 @@ export type TransactionAction =
 export type TransactionContextType = {
   state: TransactionState;
   dispatch: Dispatch<TransactionAction>;
-  addTransaction: (transaction: Omit<Transaction, "id">) => boolean;
-  updateTransaction: (transaction: Transaction) => boolean;
-  deleteTransaction: (id: string) => boolean;
-  addCategory: (category: Omit<Category, "id">) => boolean;
-  deleteCategory: (id: string) => boolean;
+  addTransaction: (transaction: Omit<Transaction, "id">) => Promise<boolean>;
+  updateTransaction: (transaction: Transaction) => Promise<boolean>;
+  deleteTransaction: (id: string) => Promise<boolean>;
+  addCategory: (category: Omit<Category, "id">) => Promise<boolean>;
+  deleteCategory: (id: string) => Promise<boolean>;
   getTransactionsByType: (type: "income" | "expense") => Transaction[];
   getCategoriesByType: (type: "income" | "expense") => Category[];
   getCategoryById: (id: string) => Category | undefined;
   getTotalByType: (type: "income" | "expense") => number;
   importData: (data: Partial<TransactionState>) => void;
   replaceAllData: (data: TransactionState) => void;
+  lastSyncTime: Date | null;
+  refreshData?: () => Promise<boolean>;
+  deduplicate: () => void;
+  isOnline: boolean;
+  pendingSyncCount: number;
+  isLoading?: boolean;
 };
