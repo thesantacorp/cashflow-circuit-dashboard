@@ -1,4 +1,3 @@
-
 import React, { useReducer, useEffect, useState, useCallback } from "react";
 import { TransactionContext } from "./context";
 import { toast } from "sonner";
@@ -9,7 +8,9 @@ import { v4 as uuidv4 } from "uuid";
 
 const initialState: TransactionState = {
   transactions: [],
-  categories: []
+  categories: [],
+  nextTransactionId: 1,
+  nextCategoryId: 100 // Starting after default categories
 };
 
 const transactionReducer = (state: TransactionState, action: any): TransactionState => {
@@ -53,7 +54,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const { user } = useAuth();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Enhanced localStorage saving mechanism
   const saveToLocalStorage = useCallback((data: TransactionState) => {
     try {
       localStorage.setItem("transactionState", JSON.stringify({
@@ -66,7 +66,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, []);
 
-  // Load state from localStorage on initial render
   useEffect(() => {
     const savedState = localStorage.getItem("transactionState");
     if (savedState) {
@@ -85,12 +84,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, []);
 
-  // Save state to localStorage whenever it changes
   useEffect(() => {
     saveToLocalStorage(state);
   }, [state, saveToLocalStorage]);
 
-  // Online/Offline tracking
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
