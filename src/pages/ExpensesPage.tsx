@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Dashboard from "@/components/Dashboard";
@@ -19,9 +20,10 @@ const ExpensesPage: React.FC = () => {
   const [selectedEmotion, setSelectedEmotion] = useState<EmotionalState | 'all'>('all');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const isMobile = useIsMobile();
-  const { getTotalByType, state, refreshData, syncToSupabase } = useTransactions();
+  const { getTotalByType, state, refreshData, syncToSupabase, deduplicate } = useTransactions();
   const { currencySymbol } = useCurrency();
   const { user, isLoading } = useAuth();
+  const [isInitialLoadDone, setIsInitialLoadDone] = useState(false);
 
   // Filter transactions based on selected emotion
   const filteredTransactions = useMemo(() => {
@@ -57,28 +59,56 @@ const ExpensesPage: React.FC = () => {
     }
   }, [user, syncToSupabase]);
 
+  // Initial one-time setup on component mount
+  useEffect(() => {
+    const initializeApp = async () => {
+      if (isInitialLoadDone || !user || isLoading) return;
+      
+      console.log("ExpensesPage: Performing one-time initialization");
+      
+      try {
+        // First run deduplication to clean up any existing duplicates
+        deduplicate();
+        
+        // Then refresh data from cloud
+        if (refreshData) {
+          await refreshData(true);
+        }
+        
+        // Mark initialization as complete
+        setIsInitialLoadDone(true);
+        console.log("ExpensesPage: Initialization complete");
+      } catch (error) {
+        console.error("Error during ExpensesPage initialization:", error);
+      }
+    };
+    
+    initializeApp();
+  }, [user, isLoading, deduplicate, refreshData, isInitialLoadDone]);
+
   // Force sync data when page is loaded
   useEffect(() => {
     const loadAndSyncData = async () => {
+      if (!user || isLoading) return;
+      
       console.log("ExpensesPage mounted - ensuring data is synced");
       
-      // First try to refresh from cloud
-      if (refreshData) {
-        try {
+      try {
+        // First try to refresh from cloud
+        if (refreshData) {
           await refreshData(true);
-        } catch (error) {
-          console.error("Error refreshing data on page load:", error);
         }
-      }
-      
-      // Then sync local to cloud to ensure consistency
-      if (user && navigator.onLine && syncToSupabase) {
-        try {
+        
+        // Then sync local to cloud to ensure consistency
+        if (navigator.onLine && syncToSupabase) {
           console.log("Syncing data to Supabase on ExpensesPage load");
           await syncToSupabase();
-        } catch (error) {
-          console.error("Error syncing to Supabase on page load:", error);
         }
+        
+        // Finally run deduplication to clean up any duplicates that might have been created
+        deduplicate();
+      } catch (error) {
+        console.error("Error during data sync on ExpensesPage load:", error);
       }
     };
     
@@ -86,15 +116,15 @@ const ExpensesPage: React.FC = () => {
     
     // Set up polling to keep checking for changes
     const intervalId = setInterval(() => {
-      if (user && navigator.onLine) {
-        refreshData?.(true).catch(error => {
+      if (user && navigator.onLine && refreshData) {
+        refreshData(true).catch(error => {
           console.error("Error in polling refresh:", error);
         });
       }
-    }, 30000); // Check every 30 seconds
+    }, 60000); // Check every minute
     
     return () => clearInterval(intervalId);
-  }, [user, refreshData, syncToSupabase, isLoading]);
+  }, [user, refreshData, syncToSupabase, isLoading, deduplicate]);
 
   return (
     <div className="container py-4 md:py-6 max-w-7xl mx-auto px-3 sm:px-4 w-full overflow-hidden">

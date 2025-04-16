@@ -1,5 +1,5 @@
 
-import React, { useReducer, useEffect } from "react";
+import React, { useReducer, useEffect, useCallback } from "react";
 import { TransactionContext } from "./context";
 import { supabase } from "@/integrations/supabase/client";
 import { TransactionState } from "./types";
@@ -9,6 +9,7 @@ import { useSupabaseData } from "./hooks/useSupabaseData";
 import { useTransactionActions } from "./hooks/useTransactionActions";
 import { useTransactionUtils } from "./hooks/useTransactionUtils";
 import { Transaction, Category } from "@/types";
+import { toast } from "sonner";
 
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(transactionReducer, initialState);
@@ -42,7 +43,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getCategoriesByType,
     getCategoryById,
     getTotalByType,
-    deduplicate
+    deduplicate: deduplicateUtils
   } = useTransactionUtils(state);
 
   // Load initial data
@@ -51,11 +52,12 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const loadedData = await loadInitialData();
       if (loadedData) {
         console.log(`Initializing with ${loadedData.transactions.length} transactions and ${loadedData.categories.length} categories`);
+        
         // Always preserve local data if it has more transactions
-        if (state.transactions.length > loadedData.transactions.length && state.transactions.length > 0) {
-          console.log(`Keeping local state with ${state.transactions.length} transactions instead of loaded data with ${loadedData.transactions.length} transactions`);
+        if (state.transactions.length > 0) {
+          console.log(`Merging local state with ${state.transactions.length} transactions with cloud data with ${loadedData.transactions.length} transactions`);
           
-          // Instead of completely ignoring cloud data, merge it with local data
+          // Always merge data to avoid losing transactions
           const mergedTransactions = [...state.transactions];
           
           // Add any transactions from cloud that aren't in local state
@@ -73,7 +75,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           };
           
           console.log(`After merging, state now has ${mergedTransactions.length} transactions`);
-          dispatch({ type: "SET_STATE", payload: mergedState });
+          
+          // Apply deduplication to merged state
+          const dedupedState = deduplicateUtils();
+          dispatch({ type: "SET_STATE", payload: dedupedState });
         } else {
           dispatch({ type: "SET_STATE", payload: loadedData });
         }
@@ -85,8 +90,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Set up realtime subscription
   useEffect(() => {
-    const handleDataRefresh = () => {
-      refreshData(true); // ALWAYS use silent refresh for realtime updates
+    const handleDataRefresh = async () => {
+      // When realtime updates arrive, always deduplicate after refreshing
+      await refreshData(true);
+      handleDeduplicate();
     };
 
     const channel = setupRealtimeSubscription(handleDataRefresh);
@@ -101,11 +108,14 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Function to refresh data from Supabase with silent option
   const refreshData = async (silent = true): Promise<boolean> => {
     try {
+      if (!user || !navigator.onLine) {
+        return false;
+      }
+      
       const refreshedData = await refreshDataFromSupabase(state, silent);
       if (refreshedData) {
         if (state.transactions.length > 0) {
-          // Rather than comparing lengths, always merge cloud and local data
-          // This ensures we don't lose transactions that might be in either source
+          // Always merge cloud and local data
           const mergedTransactions = [...state.transactions];
           
           // Add any transactions from cloud that aren't in local state
@@ -118,12 +128,15 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           const mergedState = {
             ...state,
             transactions: mergedTransactions,
-            categories: state.categories.length > refreshedData.categories.length ? 
-              state.categories : refreshedData.categories
+            categories: refreshedData.categories.length > 0 ? refreshedData.categories : state.categories
           };
           
           console.log(`After merging local (${state.transactions.length}) and cloud (${refreshedData.transactions.length}), state now has ${mergedTransactions.length} transactions`);
+          
           dispatch({ type: "SET_STATE", payload: mergedState });
+          
+          // Always deduplicate after merging
+          handleDeduplicate();
           return true;
         } else {
           // If we don't have any transactions, update with cloud data
@@ -166,12 +179,22 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Import partial data into the state
   const importData = (data: Partial<TransactionState>) => {
+    // First run deduplication on both existing data and incoming data
+    const dedupedState = deduplicateUtils();
+    
+    // Prepare the incoming transactions, ensuring they have unique IDs
+    const incomingTransactions = data.transactions || [];
+    const existingIds = new Set(dedupedState.transactions.map(t => t.id));
+    const uniqueIncomingTransactions = incomingTransactions.filter(t => !existingIds.has(t.id));
+    
+    console.log(`Filtered ${incomingTransactions.length - uniqueIncomingTransactions.length} already existing transactions`);
+    
     const newState = {
-      ...state,
-      ...data,
-      transactions: [...(state.transactions || []), ...(data.transactions || [])]
+      ...dedupedState,
+      transactions: [...dedupedState.transactions, ...uniqueIncomingTransactions]
     };
-    console.log(`Importing partial data, resulting in ${newState.transactions.length} transactions and ${newState.categories.length} categories`);
+    
+    console.log(`Importing partial data, resulting in ${newState.transactions.length} transactions`);
     
     // Update the state
     dispatch({ type: "REPLACE_ALL_DATA", payload: newState });
@@ -181,6 +204,9 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       localStorage.setItem("transactionState", JSON.stringify(newState));
       localStorage.setItem("lastTransactionUpdate", new Date().toISOString());
       console.log("Saved imported data to localStorage");
+      
+      // Show success toast
+      toast.success(`Imported ${uniqueIncomingTransactions.length} new transactions`);
       
       // IMPORTANT: After importing data, always sync to Supabase
       if (user && isOnline) {
@@ -194,7 +220,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  // Function to directly sync current state to Supabase
+  // Function to directly sync current state to Supabase with retry logic
   const syncToSupabase = async (): Promise<boolean> => {
     if (!user || !isOnline) {
       console.log("Cannot sync to Supabase: user not logged in or offline");
@@ -204,6 +230,13 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     console.log(`Syncing ${state.transactions.length} transactions to Supabase`);
     
     try {
+      // First run deduplication before syncing to avoid duplicates in cloud
+      const dedupedState = deduplicateUtils();
+      if (dedupedState.transactions.length < state.transactions.length) {
+        console.log(`Found and removed ${state.transactions.length - dedupedState.transactions.length} duplicate transactions before sync`);
+        dispatch({ type: "SET_STATE", payload: dedupedState });
+      }
+      
       // Delete existing transactions for this user
       const { error: deleteTransactionsError } = await supabase
         .from('transactions')
@@ -227,14 +260,14 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       
       // Insert all transactions in batches
-      if (state.transactions.length > 0) {
+      if (dedupedState.transactions.length > 0) {
         const batchSize = 50;
-        const batches = Math.ceil(state.transactions.length / batchSize);
+        const batches = Math.ceil(dedupedState.transactions.length / batchSize);
         
         for (let i = 0; i < batches; i++) {
           const start = i * batchSize;
-          const end = Math.min(start + batchSize, state.transactions.length);
-          const batch = state.transactions.slice(start, end);
+          const end = Math.min(start + batchSize, dedupedState.transactions.length);
+          const batch = dedupedState.transactions.slice(start, end);
           
           const transactionRows = batch.map(transaction => ({
             user_email: user.email,
@@ -259,8 +292,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       
       // Insert all categories
-      if (state.categories.length > 0) {
-        const categoryRows = state.categories.map(category => ({
+      if (dedupedState.categories.length > 0) {
+        const categoryRows = dedupedState.categories.map(category => ({
           user_email: user.email,
           category_id: category.id,
           name: category.name,
@@ -288,7 +321,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Deduplicate transactions in the state
   const handleDeduplicate = () => {
-    const deduplicatedState = deduplicate();
+    const deduplicatedState = deduplicateUtils();
     dispatch({ type: "SET_STATE", payload: deduplicatedState });
   };
 

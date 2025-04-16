@@ -22,7 +22,7 @@ interface DataExportImportProps {
 }
 
 const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }) => {
-  const { state, importData, replaceAllData, refreshData, syncToSupabase } = useTransactions();
+  const { state, importData, replaceAllData, refreshData, syncToSupabase, deduplicate } = useTransactions();
   const { currency } = useCurrency();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -183,8 +183,13 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
             }
           }
           
+          // Generate a consistent ID that won't change on reimport
+          // Use a combination of date + amount + description to avoid duplicates
+          const idBase = `${rowData.date}-${rowData.amount}-${rowData.description || ''}`;
+          const id = rowData.id || `imported-${idBase.replace(/[^a-zA-Z0-9]/g, '')}`;
+          
           transactions.push({
-            id: rowData.id || `imported-${Date.now()}-${i}`,
+            id: id,
             type: rowData.type,
             amount: parseFloat(rowData.amount),
             description: rowData.description || '',
@@ -245,6 +250,9 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
           description: `${importedData.transactions.length} transactions have replaced your existing data.`
         });
       } else {
+        // First deduplicate to avoid importing duplicates
+        deduplicate();
+        
         // Add to existing data
         console.log("Adding to existing data:", importedData);
         importData(importedData);
@@ -255,29 +263,33 @@ const DataExportImport: React.FC<DataExportImportProps> = ({ showDialog = true }
         });
       }
       
-      // Immediately sync to Supabase after import
-      if (syncToSupabase) {
-        console.log("Immediately syncing to Supabase after import");
-        try {
-          await syncToSupabase();
-          console.log("Successfully synced imported data to Supabase");
-        } catch (syncError) {
-          console.error("Failed to sync immediately after import:", syncError);
+      // IMPORTANT: Wait a moment for state to update before syncing
+      setTimeout(async () => {
+        // Immediately sync to Supabase after import
+        if (syncToSupabase) {
+          console.log("Immediately syncing to Supabase after import");
+          try {
+            await syncToSupabase();
+            console.log("Successfully synced imported data to Supabase");
+            
+            // Force a deduplicate after sync
+            deduplicate();
+          } catch (syncError) {
+            console.error("Failed to sync immediately after import:", syncError);
+          }
         }
-      }
-      
-      // Force a sync with the cloud if online and refresh data is available
-      if (refreshData) {
-        console.log("Triggering data refresh after import");
-        await refreshData(true); // Silent refresh
-      }
-      
-      // Force local storage save
-      try {
-        localStorage.setItem("lastTransactionUpdate", new Date().toISOString());
-      } catch (e) {
-        console.error("Failed to update lastTransactionUpdate in localStorage:", e);
-      }
+        
+        // Force a full refresh after import and sync
+        if (refreshData) {
+          console.log("Triggering full data refresh after import");
+          try {
+            await refreshData(false); // Full refresh with UI feedback
+            console.log("Successfully refreshed data after import");
+          } catch (refreshError) {
+            console.error("Failed to refresh after import:", refreshError);
+          }
+        }
+      }, 500);
       
       setShowReplaceDialog(false);
       setImportedData({ transactions: [], categories: [] });
