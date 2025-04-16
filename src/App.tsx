@@ -21,6 +21,7 @@ const DashboardPage = lazy(() => import("./pages/OverviewPage")); // Changed to 
 const SettingsPage = lazy(() => import("./pages/ProfilePage")); // Using ProfilePage temporarily
 const CategoriesPage = lazy(() => import("./pages/ExpensesPage")); // Using ExpensesPage temporarily
 const ErrorPage = lazy(() => import("./pages/NotFound")); // Changed to NotFound
+const IdeasPage = lazy(() => import("./pages/IdeasPage")); // Added IdeasPage
 
 function App() {
   return (
@@ -55,6 +56,12 @@ function App() {
                     <Route path="/dashboard" element={
                       <ProtectedRoute>
                         <DashboardPage />
+                      </ProtectedRoute>
+                    } />
+                    
+                    <Route path="/ideas" element={
+                      <ProtectedRoute>
+                        <IdeasPage />
                       </ProtectedRoute>
                     } />
                     
