@@ -10,11 +10,11 @@ interface EmotionInsightsProps {
 
 const EmotionInsights: React.FC<EmotionInsightsProps> = ({ filteredTransactions }) => {
   return (
-    <Card className="w-full overflow-visible">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Emotional Insights</CardTitle>
       </CardHeader>
-      <CardContent className="overflow-visible">
+      <CardContent className="pb-6">
         <EmotionInsightsEnhanced filteredTransactions={filteredTransactions} />
       </CardContent>
     </Card>

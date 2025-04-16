@@ -25,19 +25,23 @@ const Dashboard: React.FC<DashboardProps> = ({ type, filteredTransactions }) => 
     : getTotalByType(type);
 
   return (
-    <div className="grid gap-6 w-full overflow-visible pb-6">
-      <Card className="bg-primary text-primary-foreground w-full max-w-full">
+    <div className="grid gap-6 w-full pb-6">
+      <Card className="bg-primary text-primary-foreground w-full">
         <CardHeader className="pb-2">
           <CardTitle>Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
         </CardHeader>
-        <CardContent className="break-words">
+        <CardContent>
           <div className="text-3xl font-bold">
             {currencySymbol}{total.toFixed(2)}
           </div>
         </CardContent>
       </Card>
 
-      {type === "expense" && <EmotionInsights filteredTransactions={filteredTransactions} />}
+      {type === "expense" && (
+        <div className="w-full">
+          <EmotionInsights filteredTransactions={filteredTransactions} />
+        </div>
+      )}
     </div>
   );
 };
