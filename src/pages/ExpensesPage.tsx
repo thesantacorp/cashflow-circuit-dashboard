@@ -28,7 +28,7 @@ const ExpensesPage: React.FC = () => {
   // Force data refresh when page loads and on network status change
   useEffect(() => {
     if (refreshData && isOnline) {
-      refreshData(true).then(success => {
+      refreshData().then(success => {
         if (success) {
           toast.success("Data synced successfully");
         }
