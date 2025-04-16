@@ -12,6 +12,8 @@ const RETRY_DELAY = 1000; // ms
 
 // Key for tracking if this is the first login on this device
 const FIRST_LOGIN_KEY = 'is_first_login_on_device';
+// Key for tracking notification status
+const NOTIFIED_THIS_SESSION_KEY = 'notified_this_session';
 
 /**
  * Utility function to wait for a specified delay
@@ -30,6 +32,18 @@ export function useSupabaseSync() {
     return localStorage.getItem(FIRST_LOGIN_KEY) === 'true';
   });
   const location = useLocation();
+  
+  // Track if we've already notified the user this session
+  const [hasNotifiedThisSession, setHasNotifiedThisSession] = useState<boolean>(() => {
+    return sessionStorage.getItem(NOTIFIED_THIS_SESSION_KEY) === 'true';
+  });
+
+  // Set notification session status
+  useEffect(() => {
+    if (hasNotifiedThisSession) {
+      sessionStorage.setItem(NOTIFIED_THIS_SESSION_KEY, 'true');
+    }
+  }, [hasNotifiedThisSession]);
 
   // Track if this is the first login on this device
   useEffect(() => {
@@ -211,12 +225,13 @@ export function useSupabaseSync() {
       setLastSyncDate(now);
       localStorage.setItem('lastTransactionUpdate', now.toISOString());
       
-      // Only show success toast on profile page
-      if (location.pathname === '/profile') {
+      // Only show success toast on profile page and if we haven't notified yet this session
+      if (location.pathname === '/profile' && !hasNotifiedThisSession) {
         toast({
           title: "Success",
           description: "Data synced successfully to cloud",
         });
+        setHasNotifiedThisSession(true);
       }
       return true;
     } catch (error: any) {
@@ -233,7 +248,7 @@ export function useSupabaseSync() {
     } finally {
       setIsSyncing(false);
     }
-  }, [user, state.transactions, state.categories, executeWithRetry, getBestClient, location.pathname]);
+  }, [user, state.transactions, state.categories, location.pathname, hasNotifiedThisSession]);
 
   // Function to restore data from Supabase
   const restoreFromSupabase = useCallback(async () => {
@@ -443,6 +458,8 @@ export function useSupabaseSync() {
     backupToSupabase: syncToSupabase, // Keep for backward compatibility
     syncToSupabase,                   // New, clearer naming
     restoreFromSupabase: handleManualRestore,
-    isFirstLogin
+    isFirstLogin,
+    hasNotifiedThisSession,
+    setHasNotifiedThisSession
   };
 }

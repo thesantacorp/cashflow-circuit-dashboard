@@ -70,8 +70,9 @@ export const useSupabaseData = () => {
 
   /**
    * Refresh data from Supabase
+   * @param silent If true, don't show success toast notifications
    */
-  const refreshData = useCallback(async (currentState: TransactionState): Promise<TransactionState | null> => {
+  const refreshData = useCallback(async (currentState: TransactionState, silent = false): Promise<TransactionState | null> => {
     if (!user || !navigator.onLine) {
       return null;
     }
@@ -99,10 +100,16 @@ export const useSupabaseData = () => {
       };
       
       setLastSyncTime(new Date());
-      toast.success("Data refreshed from cloud");
+      
+      // Only show toast notification if not silent
+      if (!silent) {
+        toast.success("Data refreshed from cloud");
+      }
+      
       return newState;
     } catch (error) {
       console.error('Error refreshing data from Supabase:', error);
+      // Always show error toasts, even in silent mode
       toast.error('Failed to refresh data from cloud');
       return null;
     }

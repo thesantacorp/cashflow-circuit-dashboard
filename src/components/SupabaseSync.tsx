@@ -23,6 +23,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
   const [realtimeEnabled, setRealtimeEnabled] = useState(false);
+  const [hasNotifiedThisSession, setHasNotifiedThisSession] = useState(false);
 
   // Check connection on mount
   useEffect(() => {
@@ -156,7 +157,14 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
   };
 
   const handleRefresh = async () => {
-    return handleOperation(refreshData);
+    return handleOperation(async () => {
+      const success = await refreshData();
+      if (success && !hasNotifiedThisSession) {
+        toast.success("Data refreshed from cloud");
+        setHasNotifiedThisSession(true);
+      }
+      return success;
+    });
   };
 
   if (minimal) {

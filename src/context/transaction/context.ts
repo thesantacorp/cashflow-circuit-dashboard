@@ -26,7 +26,7 @@ interface TransactionContextType {
   importData: (data: Partial<TransactionState>) => void;
   replaceAllData: (data: TransactionState) => void;
   lastSyncTime: Date | null;
-  refreshData?: () => Promise<boolean>;
+  refreshData: (silent?: boolean) => Promise<boolean>;
   deduplicate: () => void;
   isOnline: boolean;
   pendingSyncCount: number;

@@ -60,7 +60,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Set up realtime subscription
   useEffect(() => {
     const handleDataRefresh = () => {
-      refreshData();
+      refreshData(true); // Silent refresh for realtime updates
     };
 
     const channel = setupRealtimeSubscription(handleDataRefresh);
@@ -72,9 +72,9 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
   }, [user]);
 
-  // Function to refresh data from Supabase
-  const refreshData = async (): Promise<boolean> => {
-    const refreshedData = await refreshDataFromSupabase(state);
+  // Function to refresh data from Supabase with silent option
+  const refreshData = async (silent = false): Promise<boolean> => {
+    const refreshedData = await refreshDataFromSupabase(state, silent);
     if (refreshedData) {
       dispatch({ type: "SET_STATE", payload: refreshedData });
       return true;

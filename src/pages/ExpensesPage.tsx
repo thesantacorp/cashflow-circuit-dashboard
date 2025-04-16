@@ -40,15 +40,16 @@ const ExpensesPage: React.FC = () => {
       .reduce((sum, t) => sum + t.amount, 0);
   }, [filteredTransactions]);
 
-  // Handle successful transaction addition
+  // Handle successful transaction addition - silently refresh in background
   const handleTransactionSuccess = useCallback(async () => {
     // Trigger re-render immediately
     setRefreshTrigger(prev => prev + 1);
     
-    // If online, refresh data from Supabase but don't wait for it
+    // If online, refresh data from Supabase silently
     if (refreshData) {
       try {
-        refreshData().catch(err => console.error("Background refresh error:", err));
+        // Don't wait for it and don't notify
+        refreshData(true).catch(err => console.error("Background refresh error:", err));
       } catch (error) {
         console.error('Error refreshing data:', error);
       }
