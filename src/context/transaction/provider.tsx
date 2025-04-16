@@ -18,10 +18,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   // Track operations that need to be synced
-  const [pendingSync, setPendingSync] = useState<Set<string>>(() => {
-    const savedPending = localStorage.getItem("pendingSyncTransactions");
-    return savedPending ? new Set(JSON.parse(savedPending)) : new Set();
-  });
+  const [pendingSync, setPendingSync] = useState<Set<string>>(new Set());
   
   // Update online status
   useEffect(() => {
@@ -46,12 +43,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [pendingSync]);
-
-  // Save pending sync state to localStorage
-  useEffect(() => {
-    const pendingSyncArray = Array.from(pendingSync);
-    localStorage.setItem("pendingSyncTransactions", JSON.stringify(pendingSyncArray));
   }, [pendingSync]);
   
   const [state, dispatch] = useReducer(
@@ -133,12 +124,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Save state to localStorage whenever it changes
   useEffect(() => {
-    try {
-      localStorage.setItem("transactionState", JSON.stringify(state));
-      console.log("Saved transactions to localStorage", state.transactions.length);
-    } catch (error) {
-      console.error("Error saving to localStorage:", error);
-    }
+    localStorage.setItem("transactionState", JSON.stringify(state));
   }, [state]);
 
   // Use the data operations hook
@@ -294,7 +280,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       syncTransactionToSupabase(newTransaction);
     } else if (user) {
       // Store the ID to sync later when online
-      setPendingSync(prev => new Set([...prev, newTransaction.id]));
+      setPendingSync(prev => new Set(prev).add(newTransaction.id));
     }
     
     toast.success("Transaction added successfully");
@@ -312,7 +298,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       syncTransactionToSupabase(transaction);
     } else if (user) {
       // Store the ID to sync later when online
-      setPendingSync(prev => new Set([...prev, transaction.id]));
+      setPendingSync(prev => new Set(prev).add(transaction.id));
     }
     
     toast.success("Transaction updated successfully");
