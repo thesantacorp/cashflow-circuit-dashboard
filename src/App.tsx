@@ -2,6 +2,7 @@
 import { Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import Navbar from "./components/Navbar";
+import MobileNavbar from "./components/MobileNavbar";
 import { TransactionProvider } from "./context/transaction";
 import { AuthProvider } from "./context/AuthContext";
 import { CurrencyProvider } from "./context/CurrencyContext";
@@ -87,6 +88,9 @@ function App() {
                   </Routes>
                 </main>
               </Suspense>
+              
+              {/* Mobile Navigation Bar */}
+              <MobileNavbar />
               
               {/* PWA Install Prompt */}
               <PwaInstallPrompt />
