@@ -26,7 +26,7 @@ const Dashboard: React.FC<DashboardProps> = ({ type, filteredTransactions }) => 
 
   return (
     <div className="grid gap-6 w-full pb-6">
-      <Card className="bg-primary text-primary-foreground w-full overflow-hidden">
+      <Card className="bg-primary text-primary-foreground w-full overflow-hidden min-w-[250px]">
         <CardHeader className="pb-2">
           <CardTitle className="text-xl md:text-2xl">Total {type === "expense" ? "Expenses" : "Income"}</CardTitle>
         </CardHeader>

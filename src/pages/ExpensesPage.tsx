@@ -59,7 +59,7 @@ const ExpensesPage: React.FC = () => {
             />
             
             {selectedEmotion !== 'all' && (
-              <Card className="mb-6 overflow-hidden">
+              <Card className="mb-6 overflow-hidden min-w-[250px]">
                 <CardContent className="pt-6">
                   <div className="flex justify-between items-center">
                     <div>
@@ -80,7 +80,7 @@ const ExpensesPage: React.FC = () => {
             
             <div className="space-y-8 pb-6">
               <div className="w-full overflow-x-auto">
-                <div className={`min-w-[300px] ${isMobile ? 'w-[300px]' : 'w-full'}`}>
+                <div className={`${isMobile ? 'min-w-[250px]' : 'w-full'}`}>
                   <Dashboard 
                     type="expense" 
                     filteredTransactions={selectedEmotion === 'all' ? undefined : filteredTransactions} 
