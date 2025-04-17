@@ -1,3 +1,4 @@
+
 import { Transaction, Category } from "@/types";
 import { allDefaultCategories } from "./defaultCategories";
 import { toast } from "sonner";
@@ -16,6 +17,13 @@ export function transactionReducer(
 ): TransactionState {
   switch (action.type) {
     case "ADD_TRANSACTION":
+      // Check if a transaction with the same ID already exists
+      const existingTransaction = state.transactions.find(t => t.id === action.payload.id);
+      if (existingTransaction) {
+        toast.info("This transaction already exists");
+        return state;
+      }
+      
       return {
         ...state,
         transactions: [...state.transactions, action.payload],
@@ -83,9 +91,14 @@ export function transactionReducer(
         categories: state.categories.filter((category) => category.id !== action.payload),
       };
     case "IMPORT_TRANSACTIONS":
+      // Filter out duplicate transactions
+      const newTransactions = action.payload.filter(
+        newTx => !state.transactions.some(existingTx => existingTx.id === newTx.id)
+      );
+      
       return {
         ...state,
-        transactions: [...state.transactions, ...action.payload],
+        transactions: [...state.transactions, ...newTransactions],
       };
     case "IMPORT_CATEGORIES":
       // Merge categories, keeping existing ones intact
@@ -100,10 +113,25 @@ export function transactionReducer(
         categories: [...state.categories, ...newCategories],
       };
     case "REPLACE_ALL_DATA":
+      // Deduplicate transactions in the replacement data
+      const uniqueTransactions = Array.from(
+        new Map(action.payload.transactions?.map(t => [t.id, t]) || []).values()
+      );
+      
       return {
         ...state,
-        transactions: action.payload.transactions || [],
+        transactions: uniqueTransactions || [],
         categories: action.payload.categories || allDefaultCategories,
+      };
+    case "DEDUPLICATE_DATA":
+      // Remove duplicate transactions by ID
+      const dedupedTransactions = Array.from(
+        new Map(state.transactions.map(t => [t.id, t])).values()
+      );
+      
+      return {
+        ...state,
+        transactions: dedupedTransactions,
       };
     default:
       return state;

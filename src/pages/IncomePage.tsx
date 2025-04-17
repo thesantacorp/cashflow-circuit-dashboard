@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Dashboard from "@/components/Dashboard";
 import CategoryList from "@/components/CategoryList";
@@ -9,23 +9,54 @@ import CurrencySelector from "@/components/CurrencySelector";
 import { useIsMobile } from "@/hooks/use-mobile";
 import IncomeInsights from "@/components/IncomeInsights";
 import { useTransactions } from "@/context/transaction";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 
 const IncomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
   const isMobile = useIsMobile();
-  const { getCategoriesByType, state } = useTransactions();
+  const { getCategoriesByType, state, deduplicate } = useTransactions();
 
   // Debug: log the income categories on mount and when categories change
   useEffect(() => {
     const incomeCategories = getCategoriesByType("income");
     console.log("Income page mounted or categories changed, categories:", incomeCategories);
   }, [getCategoriesByType, state.categories]);
+  
+  // Check if there are duplicate transactions
+  const hasDuplicates = useMemo(() => {
+    const idSet = new Set();
+    let duplicatesFound = false;
+    
+    for (const tx of state.transactions) {
+      if (idSet.has(tx.id)) {
+        duplicatesFound = true;
+        break;
+      }
+      idSet.add(tx.id);
+    }
+    
+    return duplicatesFound;
+  }, [state.transactions]);
 
   return (
     <div className="container py-6 max-w-7xl">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Income</h1>
-        <CurrencySelector />
+        <div className="flex items-center gap-2">
+          {hasDuplicates && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={deduplicate}
+              className="flex items-center gap-1 text-orange-600 border-orange-300 hover:bg-orange-50"
+            >
+              <RefreshCw className="h-3 w-3" />
+              <span>Remove Duplicates</span>
+            </Button>
+          )}
+          <CurrencySelector />
+        </div>
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">

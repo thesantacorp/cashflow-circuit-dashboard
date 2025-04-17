@@ -14,16 +14,34 @@ import { useCurrency } from "@/context/CurrencyContext";
 import EmotionFilter from "@/components/EmotionFilter";
 import CategoryFilter from "@/components/CategoryFilter";
 import { EmotionalState, Transaction } from "@/types";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 
 const ExpensesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
   const [selectedEmotion, setSelectedEmotion] = useState<EmotionalState | 'all'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string | 'all'>('all');
   const isMobile = useIsMobile();
-  const { getTotalByType, state, getCategoriesByType } = useTransactions();
+  const { getTotalByType, state, getCategoriesByType, deduplicate } = useTransactions();
   const { currencySymbol } = useCurrency();
   const totalExpenses = getTotalByType("expense");
   const expenseCategories = getCategoriesByType("expense");
+  
+  // Check if there are duplicate transactions
+  const hasDuplicates = useMemo(() => {
+    const idSet = new Set();
+    let duplicatesFound = false;
+    
+    for (const tx of state.transactions) {
+      if (idSet.has(tx.id)) {
+        duplicatesFound = true;
+        break;
+      }
+      idSet.add(tx.id);
+    }
+    
+    return duplicatesFound;
+  }, [state.transactions]);
 
   // Filter transactions based on selected emotion and category
   const filteredTransactions = useMemo(() => {
@@ -61,7 +79,20 @@ const ExpensesPage: React.FC = () => {
 
   return (
     <div className="container py-6 max-w-7xl mx-auto px-4 w-full">
-      <h1 className="text-3xl font-bold mb-6 text-center sm:text-left">Expenses</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-center sm:text-left">Expenses</h1>
+        {hasDuplicates && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={deduplicate}
+            className="flex items-center gap-1 text-orange-600 border-orange-300 hover:bg-orange-50"
+          >
+            <RefreshCw className="h-3 w-3" />
+            <span>Remove Duplicates</span>
+          </Button>
+        )}
+      </div>
       
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="mb-8">
         <TabsList className="grid w-full grid-cols-3 mb-4">

@@ -1,4 +1,3 @@
-
 import React, { useReducer, useEffect, useState } from "react";
 import { TransactionContext } from "./context";
 import { useDataOperations } from "./hooks/useDataOperations";
@@ -6,12 +5,13 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { checkDatabaseConnection } from "@/utils/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
+import { transactionReducer, initialState } from "./reducer";
 
 // Create provider
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Load state from localStorage
   const savedState = localStorage.getItem("transactionState");
-  const initialState = savedState ? JSON.parse(savedState) : { transactions: [], categories: [] };
+  const loadedInitialState = savedState ? JSON.parse(savedState) : initialState;
   
   // Use try/catch to safely access auth context
   let authUser = null;
@@ -54,111 +54,38 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
   }, [pendingSync]);
   
-  const [state, dispatch] = useReducer(
-    (state, action) => {
-      let newState;
-      console.log('Reducer action:', action.type, action.payload);
-      
-      switch (action.type) {
-        case "ADD_TRANSACTION":
-          newState = { ...state, transactions: [...state.transactions, action.payload] };
-          break;
-        case "UPDATE_TRANSACTION":
-          newState = {
-            ...state,
-            transactions: state.transactions.map(t => 
-              t.id === action.payload.id ? action.payload : t
-            )
-          };
-          break;
-        case "DELETE_TRANSACTION":
-          newState = {
-            ...state,
-            transactions: state.transactions.filter(t => t.id !== action.payload)
-          };
-          break;
-        case "ADD_CATEGORY":
-          // Check if a category with the same name and type already exists
-          const existingCategory = state.categories.find(
-            c => c.name.toLowerCase() === action.payload.name.toLowerCase() && 
-                 c.type === action.payload.type
-          );
-          
-          if (existingCategory) {
-            toast.info(`Category "${action.payload.name}" already exists`);
-            return state;
-          }
-          
-          console.log('Adding category:', action.payload);
-          newState = { ...state, categories: [...state.categories, action.payload] };
-          break;
-        case "UPDATE_CATEGORY":
-          // Check for duplicates before updating
-          const duplicateCategory = state.categories.find(
-            c => c.id !== action.payload.id && 
-                 c.name.toLowerCase() === action.payload.name.toLowerCase() && 
-                 c.type === action.payload.type
-          );
-          
-          if (duplicateCategory) {
-            toast.error(`A category named "${action.payload.name}" already exists for ${action.payload.type}`);
-            return state;
-          }
-          
-          newState = {
-            ...state,
-            categories: state.categories.map(c => 
-              c.id === action.payload.id ? action.payload : c
-            )
-          };
-          break;
-        case "DELETE_CATEGORY":
-          newState = {
-            ...state,
-            categories: state.categories.filter(c => c.id !== action.payload)
-          };
-          break;
-        case "IMPORT_DATA":
-          newState = { ...state, ...action.payload };
-          break;
-        case "REPLACE_ALL_DATA":
-          newState = action.payload;
-          break;
-        case "DEDUPLICATE_DATA":
-          // Deduplicate transactions by id
-          const uniqueTransactions = Array.from(
-            new Map(state.transactions.map(item => [item.id, item])).values()
-          );
-          
-          // Deduplicate categories by name and type
-          const uniqueCategories = Array.from(
-            new Map(
-              state.categories.map(item => [`${item.name}-${item.type}`, item])
-            ).values()
-          );
-          
-          newState = {
-            ...state,
-            transactions: uniqueTransactions,
-            categories: uniqueCategories
-          };
-          break;
-        default:
-          return state;
-      }
-      
-      // Update lastUpdate timestamp for sync detection
-      localStorage.setItem("lastTransactionUpdate", new Date().toISOString());
-      return newState;
-    },
-    initialState
-  );
+  const [state, dispatch] = useReducer(transactionReducer, loadedInitialState);
 
   // Save state to localStorage whenever it changes
   useEffect(() => {
     console.log('Saving state to localStorage:', state);
     localStorage.setItem("transactionState", JSON.stringify(state));
   }, [state]);
+
+  // Run deduplication on initial load
+  useEffect(() => {
+    if (isInitialLoad && state.transactions.length > 0) {
+      // Check for duplicates
+      const idSet = new Set();
+      let duplicatesFound = false;
+      
+      for (const tx of state.transactions) {
+        if (idSet.has(tx.id)) {
+          duplicatesFound = true;
+          break;
+        }
+        idSet.add(tx.id);
+      }
+      
+      if (duplicatesFound) {
+        console.log('[TransactionProvider] Duplicate transactions found on startup, deduplicating...');
+        dispatch({ type: "DEDUPLICATE_DATA" });
+        toast.success("Removed duplicate transactions");
+      }
+      
+      setIsInitialLoad(false);
+    }
+  }, [isInitialLoad, state.transactions]);
 
   // Use the data operations hook
   const { 
@@ -167,7 +94,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getTransactionsByType, 
     getCategoriesByType, 
     getCategoryById, 
-    getTotalByType 
+    getTotalByType,
+    addCategory,
+    updateCategory,
+    deleteCategory
   } = useDataOperations(state, dispatch);
 
   // Setup real-time subscription for transactions - with improved error handling
@@ -318,25 +248,9 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Deduplicate data function
   const deduplicate = () => {
+    console.log('[TransactionProvider] Deduplicating data...');
     dispatch({ type: "DEDUPLICATE_DATA" });
-    
-    // Also sync the deduplicated data to Supabase if user is logged in
-    if (user && isOnline) {
-      // First, deduplicate in the state
-      setTimeout(() => {
-        // Then sync all transactions and categories to Supabase
-        state.transactions.forEach(transaction => {
-          syncTransactionToSupabase(transaction);
-        });
-        
-        state.categories.forEach(category => {
-          syncCategoryToSupabase(category);
-        });
-        
-        toast.success("Data synced to cloud");
-      }, 500);
-    }
-    
+    toast.success("Removed duplicate transactions");
     return true;
   };
 
