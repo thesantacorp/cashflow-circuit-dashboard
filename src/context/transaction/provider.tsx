@@ -1,3 +1,4 @@
+
 import React, { useReducer, useEffect, useState } from "react";
 import { TransactionContext } from "./context";
 import { useDataOperations } from "./hooks/useDataOperations";
@@ -83,7 +84,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (duplicatesFound || categoryDuplicatesFound) {
         console.log('[TransactionProvider] Duplicates found on startup, deduplicating...');
         dispatch({ type: "DEDUPLICATE_DATA" });
-        toast.success("Removed duplicate items");
+        toast("Removed duplicate items");
       }
       
       setIsInitialLoad(false);
@@ -166,6 +167,16 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     
     console.log(`Syncing ${pendingSync.size} pending changes`);
     
+    // First, sync all pending categories
+    const categoriesToSync = state.categories.filter(c => 
+      pendingSync.has(c.id)
+    );
+    
+    for (const category of categoriesToSync) {
+      await syncCategoryToSupabase(category);
+    }
+    
+    // Then sync all pending transactions
     const transactionsToSync = state.transactions.filter(t => 
       pendingSync.has(t.id)
     );
@@ -176,7 +187,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     
     setPendingSync(new Set());
     
-    toast.success(`Synced ${transactionsToSync.length} transaction(s) to cloud`);
+    toast(`Synced ${categoriesToSync.length + transactionsToSync.length} item(s) to cloud`);
   };
 
   const fetchLatestData = async (force = false) => {
@@ -234,7 +245,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const deduplicate = () => {
     console.log('[TransactionProvider] Deduplicating data...');
     dispatch({ type: "DEDUPLICATE_DATA" });
-    toast.success("Removed duplicate items");
+    toast("Removed duplicate items");
     return true;
   };
 
@@ -251,7 +262,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setPendingSync(prev => new Set(prev).add(newTransaction.id));
     }
     
-    toast.success("Transaction added successfully");
+    toast("Transaction added successfully");
     return true;
   };
 
@@ -267,7 +278,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setPendingSync(prev => new Set(prev).add(transaction.id));
     }
     
-    toast.success("Transaction updated successfully");
+    toast("Transaction updated successfully");
     return true;
   };
 
@@ -275,7 +286,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const transaction = state.transactions.find(t => t.id === id);
     
     if (!transaction) {
-      toast.error("Transaction not found");
+      toast("Transaction not found");
       return false;
     }
     
@@ -288,7 +299,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       deleteTransactionFromSupabase(transaction);
     }
     
-    toast.success("Transaction deleted successfully");
+    toast("Transaction deleted successfully");
     return true;
   };
 
@@ -299,7 +310,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     );
     
     if (existingCategory) {
-      toast.info(`Category "${category.name}" already exists`);
+      toast(`Category "${category.name}" already exists`);
       return false;
     }
     
@@ -313,9 +324,11 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     
     if (user && isOnline) {
       syncCategoryToSupabase(newCategory);
+    } else if (user) {
+      setPendingSync(prev => new Set(prev).add(newCategory.id));
     }
     
-    toast.success("Category added successfully");
+    toast("Category added successfully");
     return true;
   };
 
@@ -327,7 +340,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     );
     
     if (duplicateCategory) {
-      toast.error(`A category named "${category.name}" already exists for ${category.type}`);
+      toast(`A category named "${category.name}" already exists for ${category.type}`);
       return false;
     }
     
@@ -337,22 +350,30 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       payload: category 
     });
     
-    if (user && isOnline) {
-      syncCategoryToSupabase(category)
-        .then(success => {
-          if (!success) {
-            console.warn('Failed to sync category update to Supabase');
-          }
-        })
-        .catch(err => {
-          console.error('Error during category sync:', err);
-        });
-    } else if (user) {
-      console.log('Offline, adding category to pending sync:', category.id);
-      setPendingSync(prev => new Set(prev).add(category.id));
+    // Mark the category for sync and sync immediately if online
+    if (user) {
+      if (isOnline) {
+        console.log('Online, syncing category update immediately:', category);
+        syncCategoryToSupabase(category)
+          .then(success => {
+            if (!success) {
+              console.warn('Failed to sync category update to Supabase');
+              // Add to pending sync if immediate sync failed
+              setPendingSync(prev => new Set(prev).add(category.id));
+            }
+          })
+          .catch(err => {
+            console.error('Error during category sync:', err);
+            // Add to pending sync if immediate sync failed with error
+            setPendingSync(prev => new Set(prev).add(category.id));
+          });
+      } else {
+        console.log('Offline, adding category to pending sync:', category.id);
+        setPendingSync(prev => new Set(prev).add(category.id));
+      }
     }
     
-    toast.success("Category updated successfully");
+    toast("Category updated successfully");
     return true;
   };
 
@@ -362,7 +383,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     );
     
     if (hasTransactions) {
-      toast.error("Cannot delete a category that has transactions");
+      toast("Cannot delete a category that has transactions");
       return false;
     }
     
@@ -377,7 +398,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       deleteCategoryFromSupabase(category);
     }
     
-    toast.success("Category deleted successfully");
+    toast("Category deleted successfully");
     return true;
   };
 
@@ -456,12 +477,16 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!user || !isOnline) return false;
     
     try {
+      console.log('Syncing category to Supabase:', category);
+      
+      // First delete any existing category with this ID
       await supabase
         .from('categories')
         .delete()
         .eq('user_email', user.email)
         .eq('category_id', category.id);
       
+      // Then insert the updated category
       const { error } = await supabase
         .from('categories')
         .insert({
@@ -472,8 +497,14 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           color: category.color
         });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error inserting category:', error);
+        throw error;
+      }
       
+      console.log('Category synced successfully');
+      
+      // Update profile backup date
       if (user.id) {
         await supabase
           .from('profiles')
@@ -482,6 +513,13 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           })
           .eq('id', user.id);
       }
+      
+      // Remove from pending sync if it was there
+      setPendingSync(prev => {
+        const updated = new Set(prev);
+        updated.delete(category.id);
+        return updated;
+      });
       
       setLastSyncTime(new Date());
       return true;
