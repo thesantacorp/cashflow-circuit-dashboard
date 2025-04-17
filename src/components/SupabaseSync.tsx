@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 import { useAuth } from "@/context/AuthContext";
@@ -79,7 +80,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
 
   const handleOperation = async (operation: () => Promise<boolean>) => {
     if (!isOnline) {
-      toast("Offline", {
+      toast({
         description: "You are currently offline. Please connect to the internet to sync your data."
       });
       return;
