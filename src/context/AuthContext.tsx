@@ -122,9 +122,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!isValid) {
           console.log('Session invalidated by another login. Signing out.');
           await supabase.auth.signOut();
-          if (!isMobile) {
-            toast.info('You have been signed out because you signed in on another device');
-          }
           setSession(null);
           setUser(null);
         } else {
@@ -226,9 +223,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem(SESSION_KEY, data.session.access_token);
       }
       
-      if (!isMobile) {
-        toast.success('Signed in successfully');
-      }
       navigate('/expenses');
     } catch (error: any) {
       toast.error('Sign in failed', {
@@ -246,9 +240,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clear the current session
       clearCurrentSession();
       
-      if (!isMobile) {
-        toast.success('Signed out successfully');
-      }
       navigate('/auth');
     } catch (error: any) {
       toast.error('Sign out failed', {
@@ -287,9 +278,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
       
       await fetchUserProfile(user.id);
-      if (!isMobile) {
-        toast.success('Profile updated successfully');
-      }
     } catch (error: any) {
       toast.error('Profile update failed', {
         description: error.message

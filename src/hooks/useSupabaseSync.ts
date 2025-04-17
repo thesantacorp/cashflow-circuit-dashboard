@@ -14,6 +14,8 @@ const RETRY_DELAY = 1000; // ms
 
 // Key for tracking if this is the first login on this device
 const FIRST_LOGIN_KEY = 'is_first_login_on_device';
+// Flag to prevent auto-sync on new device login
+const DISABLE_AUTO_SYNC_KEY = 'disable_auto_sync';
 
 /**
  * Utility function to wait for a specified delay
@@ -39,6 +41,9 @@ export function useSupabaseSync() {
     if (user && !localStorage.getItem(FIRST_LOGIN_KEY)) {
       localStorage.setItem(FIRST_LOGIN_KEY, 'true');
       setIsFirstLogin(true);
+      
+      // Disable auto-sync on new device login
+      localStorage.setItem(DISABLE_AUTO_SYNC_KEY, 'true');
     }
   }, [user]);
 
@@ -214,24 +219,12 @@ export function useSupabaseSync() {
       setLastSyncDate(now);
       localStorage.setItem('lastTransactionUpdate', now.toISOString());
       
-      // Only show success toast on profile page AND only when not on mobile
-      if (location.pathname === '/profile' && !isMobile) {
-        toast({
-          title: "Success",
-          description: "Data synced successfully to cloud",
-        });
-      }
+      // After successful manual sync, we can now allow auto-sync in future
+      localStorage.removeItem(DISABLE_AUTO_SYNC_KEY);
+      
       return true;
     } catch (error: any) {
       console.error('Sync error:', error);
-      // Only show error toast on profile page AND only when not on mobile
-      if (location.pathname === '/profile' && !isMobile) {
-        toast({
-          title: "Error",
-          description: error.message || 'Network error occurred',
-          variant: "destructive",
-        });
-      }
       return false;
     } finally {
       setIsSyncing(false);
@@ -304,33 +297,30 @@ export function useSupabaseSync() {
       setLastSyncDate(now);
       localStorage.setItem('lastTransactionUpdate', now.toISOString());
       
-      // Only show success toast on profile page AND only when not on mobile
-      if (location.pathname === '/profile' && !isMobile) {
-        toast({
-          title: "Success",
-          description: "Data restored successfully from cloud",
-        });
-      }
+      // After successful manual restore, we can enable auto-sync in future
+      localStorage.removeItem(DISABLE_AUTO_SYNC_KEY);
+      
       return true;
     } catch (error: any) {
       console.error('Restore error:', error);
-      // Only show error toast on profile page AND only when not on mobile
-      if (location.pathname === '/profile' && !isMobile) {
-        toast({
-          title: "Error",
-          description: error.message || 'Network error occurred',
-          variant: "destructive",
-        });
-      }
       return false;
     } finally {
       setIsSyncing(false);
     }
   }, [user, executeWithRetry, replaceAllData, getBestClient, location.pathname, isMobile]);
 
-  // Auto-sync data when a user logs in - but with prevention for first login
+  // Auto-sync data when a user logs in - but only with strict conditions
   useEffect(() => {
     if (user && profile) {
+      // Check if auto-sync is disabled
+      const disableAutoSync = localStorage.getItem(DISABLE_AUTO_SYNC_KEY) === 'true';
+      
+      // If auto-sync is disabled, don't perform auto-sync
+      if (disableAutoSync) {
+        console.log('Auto-sync disabled for this device. User must manually sync or restore.');
+        return;
+      }
+      
       // Check if this is the first login on this device
       const isFirstLoginOnDevice = localStorage.getItem(FIRST_LOGIN_KEY) === 'true';
       
@@ -342,6 +332,8 @@ export function useSupabaseSync() {
       
       const syncData = async () => {
         try {
+          // This code won't execute if auto-sync is disabled or it's first login
+          
           // Get the best available client
           const client = await getBestClient();
           
@@ -408,13 +400,25 @@ export function useSupabaseSync() {
     }
   }, [user, profile, state.transactions.length, state.categories.length, syncToSupabase, restoreFromSupabase, getBestClient, location.pathname]);
 
-  // Clear first login flag on manual restore
+  // Clear first login flag on manual restore and enable future auto-sync
   const handleManualRestore = async () => {
     const success = await restoreFromSupabase();
     if (success) {
       // After successful manual restore, this is no longer considered first login
       localStorage.setItem(FIRST_LOGIN_KEY, 'false');
+      // Also enable auto-sync for future sessions
+      localStorage.removeItem(DISABLE_AUTO_SYNC_KEY);
       setIsFirstLogin(false);
+    }
+    return success;
+  };
+
+  // Enable auto-sync after manual sync
+  const handleManualSync = async () => {
+    const success = await syncToSupabase();
+    if (success) {
+      // Enable auto-sync for future sessions after manual sync
+      localStorage.removeItem(DISABLE_AUTO_SYNC_KEY);
     }
     return success;
   };
@@ -429,8 +433,8 @@ export function useSupabaseSync() {
   return {
     isSyncing,
     lastSyncDate,
-    backupToSupabase: syncToSupabase, // Keep for backward compatibility
-    syncToSupabase,                   // New, clearer naming
+    backupToSupabase: handleManualSync, // Keep for backward compatibility
+    syncToSupabase: handleManualSync,   // New, clearer naming with auto-sync enabling
     restoreFromSupabase: handleManualRestore,
     isFirstLogin
   };

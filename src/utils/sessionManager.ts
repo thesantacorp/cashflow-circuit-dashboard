@@ -50,12 +50,12 @@ export const deactivateOtherSessions = (userId: string, currentSessionId: string
   }
 };
 
-// Track a new session and enforce single device login
+// Strictly enforce single-device login by tracking session and deactivating others
 export const trackSession = (session: UserSession): void => {
   try {
     const sessions = getActiveSessions();
     
-    // Find and deactivate any existing active sessions for this user
+    // Find and deactivate ANY existing active sessions for this user
     const updatedSessions = sessions.map(s => 
       s.userId === session.userId ? { ...s, isActive: false } : s
     );
@@ -66,7 +66,7 @@ export const trackSession = (session: UserSession): void => {
     localStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(updatedSessions));
     localStorage.setItem(CURRENT_SESSION_KEY, session.sessionId);
     
-    // Optional: Set a periodic check to see if this session is still valid
+    // Set a periodic check to see if this session is still valid
     startSessionValidityCheck(session.userId, session.sessionId);
   } catch (error) {
     console.error('Error tracking session:', error);
@@ -81,16 +81,16 @@ export const isCurrentSessionValid = async (userId: string): Promise<boolean> =>
     
     const sessions = getActiveSessions();
     
-    // Get latest active session for this user
-    const latestSession = sessions
+    // Find latest active session for this user
+    const activeSession = sessions
       .filter(s => s.userId === userId && s.isActive)
       .sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime())[0];
     
-    // If there is no latest active session, this session is invalid
-    if (!latestSession) return false;
+    // No active sessions found
+    if (!activeSession) return false;
     
-    // If the latest active session is not the current one, it's invalid
-    return latestSession.sessionId === currentSessionId;
+    // If this device's session is not the active one, it's invalid
+    return activeSession.sessionId === currentSessionId;
   } catch (error) {
     console.error('Error checking session validity:', error);
     return false; // Default to false on error to enforce re-login
