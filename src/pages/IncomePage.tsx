@@ -13,13 +13,13 @@ import { useTransactions } from "@/context/transaction";
 const IncomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
   const isMobile = useIsMobile();
-  const { getCategoriesByType } = useTransactions();
+  const { getCategoriesByType, state } = useTransactions();
 
-  // Debug: log the income categories on mount
+  // Debug: log the income categories on mount and when categories change
   useEffect(() => {
     const incomeCategories = getCategoriesByType("income");
-    console.log("Income page mounted, categories:", incomeCategories);
-  }, [getCategoriesByType]);
+    console.log("Income page mounted or categories changed, categories:", incomeCategories);
+  }, [getCategoriesByType, state.categories]);
 
   return (
     <div className="container py-6 max-w-7xl">

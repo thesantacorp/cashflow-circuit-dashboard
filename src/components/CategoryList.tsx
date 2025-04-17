@@ -48,7 +48,7 @@ const CategoryList: React.FC<CategoryListProps> = ({ type, filteredTransactions 
     }
     
     // Add the new category
-    console.log(`Attempting to add category: ${newCategory} (${type})`);
+    console.log(`[CategoryList] Attempting to add category: ${newCategory} (${type})`);
     const success = addCategory({
       name: newCategory.trim(),
       type,
@@ -56,18 +56,32 @@ const CategoryList: React.FC<CategoryListProps> = ({ type, filteredTransactions 
     });
     
     if (success) {
-      console.log(`Successfully added category: ${newCategory}`);
+      console.log(`[CategoryList] Successfully added category: ${newCategory}`);
       setNewCategory("");
       setColor(type === "expense" ? "#e74c3c" : "#27ae60");
       setOpen(false);
+      
+      // Manually fetch updated categories
+      const updatedCategories = getCategoriesByType(type);
+      setCategories(updatedCategories);
+      
+      toast.success(`Added ${type} category: ${newCategory}`);
     } else {
-      console.error(`Failed to add category: ${newCategory}`);
+      console.error(`[CategoryList] Failed to add category: ${newCategory}`);
+      toast.error("Failed to add category. Please try again.");
     }
   };
 
   const handleDeleteCategory = (id: string) => {
-    console.log(`Attempting to delete category with ID: ${id}`);
-    deleteCategory(id);
+    console.log(`[CategoryList] Attempting to delete category with ID: ${id}`);
+    const success = deleteCategory(id);
+    
+    if (success) {
+      toast.success("Category deleted successfully");
+      
+      // Update local state to reflect deletion
+      setCategories(prev => prev.filter(c => c.id !== id));
+    }
   };
 
   return (
