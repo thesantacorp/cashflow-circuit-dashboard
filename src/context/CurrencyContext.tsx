@@ -26,7 +26,15 @@ const currencySymbols: Record<Currency, string> = {
 const CurrencyContext = createContext<CurrencyContextProps | undefined>(undefined);
 
 export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  // Use try/catch to safely access auth context during initialization
+  let authUser = null;
+  try {
+    const { user } = useAuth();
+    authUser = user;
+  } catch (error) {
+    console.warn("Auth context not available yet");
+  }
+
   const [currency, setCurrency] = useState<Currency>(() => {
     const saved = localStorage.getItem("currency");
     return (saved as Currency) || "USD";
@@ -36,7 +44,7 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Fetch currency preference from Supabase when user logs in
   useEffect(() => {
     const fetchCurrencyPreference = async () => {
-      if (!user) {
+      if (!authUser) {
         setIsLoading(false);
         return;
       }
@@ -46,7 +54,7 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const { data, error } = await supabase
           .from('profiles')
           .select('currency_preference')
-          .eq('id', user.id)
+          .eq('id', authUser.id)
           .single();
 
         if (error) {
@@ -62,11 +70,11 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         } else {
           // If no preference in Supabase but there is one in localStorage, sync it to Supabase
           const localCurrency = localStorage.getItem("currency");
-          if (localCurrency) {
+          if (localCurrency && authUser.id) {
             await supabase
               .from('profiles')
               .update({ currency_preference: localCurrency })
-              .eq('id', user.id);
+              .eq('id', authUser.id);
           }
         }
       } catch (error) {
@@ -77,7 +85,7 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
 
     fetchCurrencyPreference();
-  }, [user]);
+  }, [authUser]);
 
   // Update currency preference in Supabase when it changes
   const updateCurrency = async (newCurrency: Currency) => {
@@ -85,12 +93,12 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     localStorage.setItem("currency", newCurrency);
 
     // Also update in Supabase if user is logged in
-    if (user) {
+    if (authUser) {
       try {
         await supabase
           .from('profiles')
           .update({ currency_preference: newCurrency })
-          .eq('id', user.id);
+          .eq('id', authUser.id);
       } catch (error) {
         console.error('Error updating currency preference:', error);
       }
@@ -104,7 +112,7 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   // Show actual content only after loading is completed
-  if (isLoading && user) {
+  if (isLoading && authUser) {
     return <>{children}</>;
   }
 

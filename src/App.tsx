@@ -45,8 +45,8 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TransactionProvider>
-          <CurrencyProvider>
+        <CurrencyProvider>
+          <TransactionProvider>
             <BackupProvider>
               <NotificationProvider>
                 <TooltipProvider>
@@ -65,7 +65,7 @@ function App() {
                         <Route path="update-password" element={<UpdatePasswordPage />} />
                       </Route>
 
-                      {/* Add Index route here */}
+                      {/* Index route */}
                       <Route path="/" element={<Index />} />
 
                       {/* Admin routes */}
@@ -152,8 +152,8 @@ function App() {
                 </TooltipProvider>
               </NotificationProvider>
             </BackupProvider>
-          </CurrencyProvider>
-        </TransactionProvider>
+          </TransactionProvider>
+        </CurrencyProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
