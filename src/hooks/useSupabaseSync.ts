@@ -1,30 +1,20 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useTransactions } from '@/context/transaction';
 import { useAuth } from '@/context/AuthContext';
 import { getSupabaseClient } from '@/utils/supabase/client';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner'; // Changed from @/hooks/use-toast to sonner
+import { toast } from 'sonner';
 import { useLocation } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// Maximum number of retries for Supabase operations
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // ms
+const RETRY_DELAY = 1000;
 
-// Key for tracking if this is the first login on this device
 const FIRST_LOGIN_KEY = 'is_first_login_on_device';
-// Flag to prevent auto-sync on new device login
 const DISABLE_AUTO_SYNC_KEY = 'disable_auto_sync';
 
-/**
- * Utility function to wait for a specified delay
- */
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-/**
- * Hook for handling Supabase data synchronization
- */
 export function useSupabaseSync() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncDate, setLastSyncDate] = useState<Date | null>(null);
@@ -36,23 +26,18 @@ export function useSupabaseSync() {
   const location = useLocation();
   const isMobile = useIsMobile();
 
-  // Track if this is the first login on this device
   useEffect(() => {
     if (user && !localStorage.getItem(FIRST_LOGIN_KEY)) {
       localStorage.setItem(FIRST_LOGIN_KEY, 'true');
       setIsFirstLogin(true);
-      
-      // Disable auto-sync on new device login
       localStorage.setItem(DISABLE_AUTO_SYNC_KEY, 'true');
     }
   }, [user]);
 
-  // Enable real-time functionality for the tables
   useEffect(() => {
     if (user) {
       const enableRealtime = async () => {
         try {
-          // Check if realtime is already enabled by trying to subscribe to a test channel
           const testChannel = supabase.channel('test-realtime');
           await testChannel.subscribe();
           supabase.removeChannel(testChannel);
@@ -66,9 +51,6 @@ export function useSupabaseSync() {
     }
   }, [user]);
 
-  /**
-   * Execute a Supabase operation with retry logic
-   */
   const executeWithRetry = useCallback(async <T>(
     operation: () => Promise<T>,
     operationName: string
@@ -86,7 +68,6 @@ export function useSupabaseSync() {
           throw error;
         }
         
-        // Wait before retrying with exponential backoff
         await wait(RETRY_DELAY * Math.pow(2, retries - 1));
       }
     }
@@ -94,9 +75,7 @@ export function useSupabaseSync() {
     throw new Error(`${operationName} failed after ${MAX_RETRIES} attempts`);
   }, []);
 
-  // Function to get the best available Supabase client
   const getBestClient = useCallback(async () => {
-    // First try the integrated client
     try {
       const { data, error } = await supabase.from('user_uuids').select('count', { count: 'exact', head: true }).limit(1);
       if (!error) {
@@ -107,7 +86,6 @@ export function useSupabaseSync() {
       console.log('Integrated client failed, falling back to custom client');
     }
     
-    // If that fails, try the custom client
     const customClient = getSupabaseClient();
     if (!customClient) {
       throw new Error('Failed to initialize Supabase client');
@@ -116,14 +94,11 @@ export function useSupabaseSync() {
     return customClient;
   }, []);
 
-  // Function to sync data to Supabase (formerly backup)
   const syncToSupabase = useCallback(async () => {
     if (!user) {
       if (location.pathname === '/profile') {
-        toast({
-          title: "Error",
-          description: "You must be logged in to sync data",
-          variant: "destructive"
+        toast("Error", {
+          description: "You must be logged in to sync data"
         });
       }
       return false;
@@ -133,17 +108,14 @@ export function useSupabaseSync() {
     setIsSyncing(true);
     
     try {
-      // Get the best available client
       const client = await getBestClient();
       
-      // Check connection to Supabase before proceeding
       await executeWithRetry(async () => {
         const { data, error } = await client.from('user_uuids').select('count', { count: 'exact', head: true }).limit(1);
         if (error) throw error;
         return data;
       }, 'Connection check');
       
-      // Delete existing data for this user to prevent duplicates
       await executeWithRetry(async () => {
         const { error } = await (client.from('transactions') as any).delete().eq('user_email', user.email);
         if (error) throw error;
@@ -156,53 +128,46 @@ export function useSupabaseSync() {
         return true;
       }, 'Delete existing categories');
       
-      // Insert transactions in batches
-      if (state.transactions.length > 0) {
-        const batchSize = 50; // Process transactions in smaller batches
-        const batches = Math.ceil(state.transactions.length / batchSize);
-        
-        for (let i = 0; i < batches; i++) {
-          const start = i * batchSize;
-          const end = Math.min(start + batchSize, state.transactions.length);
-          const batch = state.transactions.slice(start, end);
-          
-          const transactionRows = batch.map(transaction => ({
-            user_email: user.email,
-            transaction_id: transaction.id,
-            type: transaction.type,
-            category_id: transaction.categoryId,
-            amount: transaction.amount,
-            description: transaction.description || '',
-            date: transaction.date,
-            emotional_state: transaction.emotionalState || 'neutral'
-          }));
-          
-          await executeWithRetry(async () => {
-            const { error } = await (client.from('transactions') as any).insert(transactionRows);
-            if (error) throw error;
-            return true;
-          }, `Insert transactions batch ${i + 1}/${batches}`);
-        }
-      }
+      const batchSize = 50;
+      const batches = Math.ceil(state.transactions.length / batchSize);
       
-      // Insert categories
-      if (state.categories.length > 0) {
-        const categoryRows = state.categories.map(category => ({
+      for (let i = 0; i < batches; i++) {
+        const start = i * batchSize;
+        const end = Math.min(start + batchSize, state.transactions.length);
+        const batch = state.transactions.slice(start, end);
+        
+        const transactionRows = batch.map(transaction => ({
           user_email: user.email,
-          category_id: category.id,
-          name: category.name,
-          type: category.type,
-          color: category.color
+          transaction_id: transaction.id,
+          type: transaction.type,
+          category_id: transaction.categoryId,
+          amount: transaction.amount,
+          description: transaction.description || '',
+          date: transaction.date,
+          emotional_state: transaction.emotionalState || 'neutral'
         }));
         
         await executeWithRetry(async () => {
-          const { error } = await (client.from('categories') as any).insert(categoryRows);
+          const { error } = await (client.from('transactions') as any).insert(transactionRows);
           if (error) throw error;
           return true;
-        }, 'Insert categories');
+        }, `Insert transactions batch ${i + 1}/${batches}`);
       }
       
-      // Update profile with last backup date
+      const categoryRows = state.categories.map(category => ({
+        user_email: user.email,
+        category_id: category.id,
+        name: category.name,
+        type: category.type,
+        color: category.color
+      }));
+      
+      await executeWithRetry(async () => {
+        const { error } = await (client.from('categories') as any).insert(categoryRows);
+        if (error) throw error;
+        return true;
+      }, 'Insert categories');
+      
       if (user.id) {
         await executeWithRetry(async () => {
           const { error } = await client
@@ -220,7 +185,6 @@ export function useSupabaseSync() {
       setLastSyncDate(now);
       localStorage.setItem('lastTransactionUpdate', now.toISOString());
       
-      // After successful manual sync, we can now allow auto-sync in future
       localStorage.removeItem(DISABLE_AUTO_SYNC_KEY);
       
       console.log("[useSupabaseSync] Manual sync completed successfully - Local data has been saved to cloud");
@@ -236,18 +200,14 @@ export function useSupabaseSync() {
     }
   }, [user, state.transactions, state.categories, executeWithRetry, getBestClient, location.pathname, isMobile]);
 
-  // Function to restore data from Supabase
   const restoreFromSupabase = useCallback(async () => {
     if (!user) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to restore data",
-        variant: "destructive"
+      toast("Error", {
+        description: "You must be logged in to restore data"
       });
       return false;
     }
 
-    // Confirm overwriting of local data
     if (!window.confirm('This will replace your current data with data from the cloud. Are you sure you want to continue?')) {
       return false;
     }
@@ -256,10 +216,8 @@ export function useSupabaseSync() {
     setIsSyncing(true);
     
     try {
-      // Get the best available client
       const client = await getBestClient();
       
-      // Fetch transactions
       const { data: transactionsData, error: transactionsError } = await executeWithRetry(async () => {
         return await (client.from('transactions') as any)
           .select('*')
@@ -268,7 +226,6 @@ export function useSupabaseSync() {
       
       if (transactionsError) throw transactionsError;
       
-      // Fetch categories
       const { data: categoriesData, error: categoriesError } = await executeWithRetry(async () => {
         return await (client.from('categories') as any)
           .select('*')
@@ -277,7 +234,6 @@ export function useSupabaseSync() {
       
       if (categoriesError) throw categoriesError;
       
-      // Transform data to match application state format
       const transformedData = {
         transactions: transactionsData.map((t: any) => ({
           id: t.transaction_id,
@@ -296,14 +252,12 @@ export function useSupabaseSync() {
         }))
       };
       
-      // Replace all data in the app
       replaceAllData(transformedData);
       
       const now = new Date();
       setLastSyncDate(now);
       localStorage.setItem('lastTransactionUpdate', now.toISOString());
       
-      // After successful manual restore, we can enable auto-sync in future
       localStorage.removeItem(DISABLE_AUTO_SYNC_KEY);
       
       console.log("[useSupabaseSync] Restore completed successfully - Cloud data has replaced local data");
@@ -319,22 +273,17 @@ export function useSupabaseSync() {
     }
   }, [user, executeWithRetry, replaceAllData, getBestClient, location.pathname, isMobile]);
 
-  // Auto-sync data when a user logs in - but only with strict conditions
   useEffect(() => {
     if (user && profile) {
-      // Check if auto-sync is disabled
       const disableAutoSync = localStorage.getItem(DISABLE_AUTO_SYNC_KEY) === 'true';
       
-      // If auto-sync is disabled, don't perform auto-sync
       if (disableAutoSync) {
         console.log('Auto-sync disabled for this device. User must manually sync or restore.');
         return;
       }
       
-      // Check if this is the first login on this device
       const isFirstLoginOnDevice = localStorage.getItem(FIRST_LOGIN_KEY) === 'true';
       
-      // If this is the first login, don't auto-sync to prevent data loss
       if (isFirstLoginOnDevice) {
         console.log('First login detected. Auto-sync disabled to prevent data loss.');
         return;
@@ -342,15 +291,10 @@ export function useSupabaseSync() {
       
       const syncData = async () => {
         try {
-          // This code won't execute if auto-sync is disabled or it's first login
-          
-          // Get the best available client
           const client = await getBestClient();
           
-          // Check if we have local data
           const hasLocalData = state.transactions.length > 0 || state.categories.length > 0;
           
-          // Check if we have remote data
           let remoteCount = 0;
           try {
             const { data } = await client
@@ -358,7 +302,6 @@ export function useSupabaseSync() {
               .select('count', { count: 'exact', head: true })
               .eq('user_email', user.email);
             
-            // Handle correctly when data is an array or an object with count property
             if (data) {
               if (Array.isArray(data) && data[0]?.count) {
                 remoteCount = data[0].count;
@@ -370,15 +313,11 @@ export function useSupabaseSync() {
             console.error('Error checking remote data count:', error);
           }
           
-          // Decision logic for syncing data
           if (remoteCount > 0 && !hasLocalData) {
-            // If remote data exists but no local data, restore from remote
             await restoreFromSupabase();
           } else if (hasLocalData && remoteCount === 0) {
-            // If local data exists but no remote data, backup to remote
             await syncToSupabase();
           } else if (hasLocalData && remoteCount > 0) {
-            // If both exist, check which is newer
             if (profile.backup_last_date) {
               const backupDate = new Date(profile.backup_last_date);
               const localStorageDate = localStorage.getItem('lastTransactionUpdate');
@@ -386,18 +325,14 @@ export function useSupabaseSync() {
               if (localStorageDate) {
                 const localDate = new Date(localStorageDate);
                 if (localDate > backupDate) {
-                  // Local is newer
                   await syncToSupabase();
                 } else {
-                  // Remote is newer
                   await restoreFromSupabase();
                 }
               } else {
-                // No local timestamp, use remote data
                 await restoreFromSupabase();
               }
             } else {
-              // No backup date in profile, assume local is newer
               await syncToSupabase();
             }
           }
@@ -410,30 +345,24 @@ export function useSupabaseSync() {
     }
   }, [user, profile, state.transactions.length, state.categories.length, syncToSupabase, restoreFromSupabase, getBestClient, location.pathname]);
 
-  // Clear first login flag on manual restore and enable future auto-sync
   const handleManualRestore = async () => {
     const success = await restoreFromSupabase();
     if (success) {
-      // After successful manual restore, this is no longer considered first login
       localStorage.setItem(FIRST_LOGIN_KEY, 'false');
-      // Also enable auto-sync for future sessions
       localStorage.removeItem(DISABLE_AUTO_SYNC_KEY);
       setIsFirstLogin(false);
     }
     return success;
   };
 
-  // Enable auto-sync after manual sync
   const handleManualSync = async () => {
     const success = await syncToSupabase();
     if (success) {
-      // Enable auto-sync for future sessions after manual sync
       localStorage.removeItem(DISABLE_AUTO_SYNC_KEY);
     }
     return success;
   };
 
-  // Update UI with latest sync time
   useEffect(() => {
     if (user && profile && profile.backup_last_date) {
       setLastSyncDate(new Date(profile.backup_last_date));
@@ -443,8 +372,8 @@ export function useSupabaseSync() {
   return {
     isSyncing,
     lastSyncDate,
-    backupToSupabase: handleManualSync, // Keep for backward compatibility
-    syncToSupabase: handleManualSync,   // New, clearer naming with auto-sync enabling
+    backupToSupabase: handleManualSync,
+    syncToSupabase: handleManualSync,
     restoreFromSupabase: handleManualRestore,
     isFirstLogin
   };

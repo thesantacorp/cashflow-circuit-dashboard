@@ -79,10 +79,8 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
 
   const handleOperation = async (operation: () => Promise<boolean>) => {
     if (!isOnline) {
-      toast({
-        title: "Offline",
-        description: "You are currently offline. Please connect to the internet to sync your data.",
-        variant: "destructive"
+      toast("Offline", {
+        description: "You are currently offline. Please connect to the internet to sync your data."
       });
       return;
     }
