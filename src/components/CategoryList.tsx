@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Category, Transaction, TransactionType } from "@/types";
 import { Plus, Trash2, Edit } from "lucide-react";
@@ -16,11 +16,18 @@ interface CategoryListProps {
 }
 
 const CategoryList: React.FC<CategoryListProps> = ({ type, filteredTransactions }) => {
-  const { state, getCategoriesByType, addCategory } = useTransactions();
-  const categories = getCategoriesByType(type);
+  const { state, getCategoriesByType, addCategory, deleteCategory } = useTransactions();
+  const [categories, setCategories] = useState<Category[]>([]);
   const [open, setOpen] = useState(false);
   const [newCategory, setNewCategory] = useState<string>("");
   const [color, setColor] = useState<string>(type === "expense" ? "#e74c3c" : "#27ae60");
+
+  // Update categories when the type or state changes
+  useEffect(() => {
+    const fetchedCategories = getCategoriesByType(type);
+    console.log(`[CategoryList] Fetched ${fetchedCategories.length} ${type} categories`, fetchedCategories);
+    setCategories(fetchedCategories);
+  }, [type, getCategoriesByType, state.categories]);
 
   const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +48,7 @@ const CategoryList: React.FC<CategoryListProps> = ({ type, filteredTransactions 
     }
     
     // Add the new category
+    console.log(`Attempting to add category: ${newCategory} (${type})`);
     const success = addCategory({
       name: newCategory.trim(),
       type,
@@ -48,15 +56,17 @@ const CategoryList: React.FC<CategoryListProps> = ({ type, filteredTransactions 
     });
     
     if (success) {
+      console.log(`Successfully added category: ${newCategory}`);
       setNewCategory("");
       setColor(type === "expense" ? "#e74c3c" : "#27ae60");
       setOpen(false);
+    } else {
+      console.error(`Failed to add category: ${newCategory}`);
     }
   };
 
   const handleDeleteCategory = (id: string) => {
-    // This function is already implemented and working correctly
-    const { deleteCategory } = useTransactions();
+    console.log(`Attempting to delete category with ID: ${id}`);
     deleteCategory(id);
   };
 

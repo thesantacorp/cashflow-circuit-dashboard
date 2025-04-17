@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Dashboard from "@/components/Dashboard";
 import CategoryList from "@/components/CategoryList";
@@ -8,10 +8,18 @@ import TransactionList from "@/components/TransactionList";
 import CurrencySelector from "@/components/CurrencySelector";
 import { useIsMobile } from "@/hooks/use-mobile";
 import IncomeInsights from "@/components/IncomeInsights";
+import { useTransactions } from "@/context/transaction";
 
 const IncomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
   const isMobile = useIsMobile();
+  const { getCategoriesByType } = useTransactions();
+
+  // Debug: log the income categories on mount
+  useEffect(() => {
+    const incomeCategories = getCategoriesByType("income");
+    console.log("Income page mounted, categories:", incomeCategories);
+  }, [getCategoriesByType]);
 
   return (
     <div className="container py-6 max-w-7xl">

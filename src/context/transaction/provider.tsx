@@ -1,3 +1,4 @@
+
 import React, { useReducer, useEffect, useState } from "react";
 import { TransactionContext } from "./context";
 import { useDataOperations } from "./hooks/useDataOperations";
@@ -56,6 +57,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [state, dispatch] = useReducer(
     (state, action) => {
       let newState;
+      console.log('Reducer action:', action.type, action.payload);
+      
       switch (action.type) {
         case "ADD_TRANSACTION":
           newState = { ...state, transactions: [...state.transactions, action.payload] };
@@ -86,6 +89,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             return state;
           }
           
+          console.log('Adding category:', action.payload);
           newState = { ...state, categories: [...state.categories, action.payload] };
           break;
         case "UPDATE_CATEGORY":
@@ -152,6 +156,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Save state to localStorage whenever it changes
   useEffect(() => {
+    console.log('Saving state to localStorage:', state);
     localStorage.setItem("transactionState", JSON.stringify(state));
   }, [state]);
 
@@ -409,6 +414,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
     
     const newCategory = { ...category, id: crypto.randomUUID() };
+    console.log('Adding new category:', newCategory);
+    
     dispatch({
       type: "ADD_CATEGORY",
       payload: newCategory,

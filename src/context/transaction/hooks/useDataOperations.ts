@@ -9,6 +9,7 @@ export function useDataOperations(state, dispatch) {
 
   // Replace all data
   const replaceAllData = (data) => {
+    console.log('Replacing all data:', data);
     dispatch({ type: "REPLACE_ALL_DATA", payload: data });
   };
 
@@ -20,7 +21,7 @@ export function useDataOperations(state, dispatch) {
   // Get categories by type
   const getCategoriesByType = (type) => {
     const filteredCategories = state.categories.filter(c => c.type === type);
-    console.log(`[getCategoriesByType] Found ${filteredCategories.length} ${type} categories`);
+    console.log(`[getCategoriesByType] Found ${filteredCategories.length} ${type} categories`, filteredCategories);
     return filteredCategories;
   };
 
