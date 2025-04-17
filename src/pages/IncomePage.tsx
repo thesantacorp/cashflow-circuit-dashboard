@@ -6,7 +6,6 @@ import CategoryList from "@/components/CategoryList";
 import TransactionForm from "@/components/TransactionForm";
 import TransactionList from "@/components/TransactionList";
 import CurrencySelector from "@/components/CurrencySelector";
-import LocalStorageInfo from "@/components/LocalStorageInfo";
 import { useIsMobile } from "@/hooks/use-mobile";
 import IncomeInsights from "@/components/IncomeInsights";
 import { useTransactions } from "@/context/transaction";
@@ -32,12 +31,10 @@ const IncomePage: React.FC = () => {
         <TabsContent value="dashboard" className="pt-4 space-y-4">
           <Dashboard type="income" />
           <IncomeInsights />
-          {!isMobile && <LocalStorageInfo />}
         </TabsContent>
         
         <TabsContent value="categories" className="pt-4">
           <CategoryList type="income" />
-          {!isMobile && <LocalStorageInfo />}
         </TabsContent>
         
         <TabsContent value="transactions" className="pt-4">
@@ -45,7 +42,6 @@ const IncomePage: React.FC = () => {
             <TransactionForm type="income" />
             <TransactionList type="income" />
           </div>
-          {!isMobile && <LocalStorageInfo />}
         </TabsContent>
       </Tabs>
     </div>

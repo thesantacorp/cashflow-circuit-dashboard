@@ -21,7 +21,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
 }) => {
   const [name, setName] = useState(category.name);
   const [color, setColor] = useState(category.color || "#cccccc");
-  const { getCategoriesByType, dispatch } = useTransactions();
+  const { getCategoriesByType, dispatch, updateCategory } = useTransactions();
   
   // Get all categories of the same type for duplicate checking
   const categoriesOfSameType = getCategoriesByType(category.type);
@@ -49,14 +49,13 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
       color,
     };
 
-    // Update the category in the state
-    dispatch({
-      type: "UPDATE_CATEGORY",
-      payload: updatedCategory,
-    });
-
-    toast.success("Category updated successfully");
-    onClose();
+    // Use the updateCategory function instead of directly dispatching
+    const success = updateCategory(updatedCategory);
+    
+    if (success) {
+      toast.success("Category updated successfully");
+      onClose();
+    }
   };
 
   return (

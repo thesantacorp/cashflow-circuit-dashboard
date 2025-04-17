@@ -28,6 +28,7 @@ export type TransactionContextType = {
   updateTransaction: (transaction: Transaction) => boolean;
   deleteTransaction: (id: string) => boolean;
   addCategory: (category: Omit<Category, "id">) => boolean;
+  updateCategory: (category: Category) => boolean;
   deleteCategory: (id: string) => boolean;
   getTransactionsByType: (type: "income" | "expense") => Transaction[];
   getCategoriesByType: (type: "income" | "expense") => Category[];
