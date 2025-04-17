@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 import { useAuth } from "@/context/AuthContext";
@@ -10,7 +9,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { checkDatabaseConnection } from "@/utils/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface SupabaseSyncProps {
   minimal?: boolean;
@@ -23,7 +22,6 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
 
-  // Check connection on mount
   useEffect(() => {
     if (user && isOnline) {
       verifyConnection();
@@ -44,7 +42,6 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
     setConnectionError(null);
     
     try {
-      // First try with the integrated client
       try {
         const { data, error } = await supabase
           .from('user_uuids')
@@ -52,7 +49,6 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
           .limit(1);
         
         if (!error) {
-          // Connection successful with integrated client
           setIsCheckingConnection(false);
           return true;
         }
@@ -60,7 +56,6 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
         console.log('Integrated client check failed, trying fallback client');
       }
       
-      // If that fails, try with the fallback client
       const isConnected = await checkDatabaseConnection();
       
       if (!isConnected) {
@@ -94,7 +89,6 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
     
     setConnectionError(null);
     
-    // First try with the integrated client
     try {
       const { data, error } = await supabase
         .from('user_uuids')
@@ -102,7 +96,6 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
         .limit(1);
       
       if (!error) {
-        // Connection successful with integrated client, proceed with operation
         await operation();
         return;
       }
@@ -110,7 +103,6 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
       console.log('Integrated client check failed, trying fallback client');
     }
     
-    // If that fails, try with the fallback client
     try {
       const isConnected = await checkDatabaseConnection();
       if (!isConnected) {
