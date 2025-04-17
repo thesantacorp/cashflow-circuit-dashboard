@@ -1,3 +1,4 @@
+
 import React, { useReducer, useEffect, useState } from "react";
 import { TransactionContext } from "./context";
 import { useDataOperations } from "./hooks/useDataOperations";
@@ -65,7 +66,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Run deduplication on initial load
   useEffect(() => {
     if (isInitialLoad && state.transactions.length > 0) {
-      // Check for duplicates
+      // Check for duplicates in transactions
       const idSet = new Set();
       let duplicatesFound = false;
       
@@ -77,17 +78,30 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         idSet.add(tx.id);
       }
       
-      if (duplicatesFound) {
-        console.log('[TransactionProvider] Duplicate transactions found on startup, deduplicating...');
+      // Check for duplicates in categories
+      const categoryMap = new Map();
+      let categoryDuplicatesFound = false;
+      
+      for (const category of state.categories) {
+        const key = `${category.type}-${category.name.toLowerCase()}`;
+        if (categoryMap.has(key)) {
+          categoryDuplicatesFound = true;
+          break;
+        }
+        categoryMap.set(key, category);
+      }
+      
+      if (duplicatesFound || categoryDuplicatesFound) {
+        console.log('[TransactionProvider] Duplicates found on startup, deduplicating...');
         dispatch({ type: "DEDUPLICATE_DATA" });
-        toast.success("Removed duplicate transactions");
+        toast.success("Removed duplicate items");
       }
       
       setIsInitialLoad(false);
     }
-  }, [isInitialLoad, state.transactions]);
+  }, [isInitialLoad, state.transactions, state.categories]);
 
-  // Use the data operations hook
+  // Use the data operations hook for read operations only
   const { 
     importData, 
     replaceAllData, 
@@ -247,7 +261,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const deduplicate = () => {
     console.log('[TransactionProvider] Deduplicating data...');
     dispatch({ type: "DEDUPLICATE_DATA" });
-    toast.success("Removed duplicate transactions");
+    toast.success("Removed duplicate items");
     return true;
   };
 

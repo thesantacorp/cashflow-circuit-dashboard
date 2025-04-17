@@ -1,4 +1,3 @@
-
 import { Transaction, Category } from "@/types";
 import { allDefaultCategories } from "./defaultCategories";
 import { toast } from "sonner";
@@ -118,10 +117,27 @@ export function transactionReducer(
         new Map(action.payload.transactions?.map(t => [t.id, t]) || []).values()
       );
       
+      // Deduplicate categories by name and type
+      const categoryMap = new Map();
+      
+      // First add default categories
+      for (const category of allDefaultCategories) {
+        const key = `${category.type}-${category.name.toLowerCase()}`;
+        categoryMap.set(key, category);
+      }
+      
+      // Then add provided categories, which will override defaults with same name/type
+      if (action.payload.categories) {
+        for (const category of action.payload.categories) {
+          const key = `${category.type}-${category.name.toLowerCase()}`;
+          categoryMap.set(key, category);
+        }
+      }
+      
       return {
         ...state,
         transactions: uniqueTransactions || [],
-        categories: action.payload.categories || allDefaultCategories,
+        categories: Array.from(categoryMap.values()),
       };
     case "DEDUPLICATE_DATA":
       // Remove duplicate transactions by ID
@@ -129,9 +145,23 @@ export function transactionReducer(
         new Map(state.transactions.map(t => [t.id, t])).values()
       );
       
+      // Remove duplicate categories by name and type
+      const dedupedCategoryMap = new Map();
+      
+      // Process categories to keep only one per name/type combination
+      for (const category of state.categories) {
+        const key = `${category.type}-${category.name.toLowerCase()}`;
+        // If we already have this category type/name combination,
+        // keep the first one we encountered
+        if (!dedupedCategoryMap.has(key)) {
+          dedupedCategoryMap.set(key, category);
+        }
+      }
+      
       return {
         ...state,
         transactions: dedupedTransactions,
+        categories: Array.from(dedupedCategoryMap.values()),
       };
     default:
       return state;
