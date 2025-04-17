@@ -21,7 +21,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
 }) => {
   const [name, setName] = useState(category.name);
   const [color, setColor] = useState(category.color || "#cccccc");
-  const { getCategoriesByType, dispatch, updateCategory } = useTransactions();
+  const { getCategoriesByType, updateCategory, isOnline } = useTransactions();
   
   // Get all categories of the same type for duplicate checking
   const categoriesOfSameType = getCategoriesByType(category.type);
@@ -54,6 +54,11 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
     
     if (success) {
       toast.success("Category updated successfully");
+      if (!isOnline) {
+        toast.info("You're offline. Changes will sync when you reconnect.", {
+          duration: 4000
+        });
+      }
       onClose();
     }
   };

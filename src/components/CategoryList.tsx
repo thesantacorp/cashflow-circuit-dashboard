@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Category, Transaction, TransactionType } from "@/types";
@@ -16,7 +15,7 @@ interface CategoryListProps {
 }
 
 const CategoryList: React.FC<CategoryListProps> = ({ type, filteredTransactions }) => {
-  const { state, getCategoriesByType, addCategory, deleteCategory } = useTransactions();
+  const { state, getCategoriesByType, addCategory, deleteCategory, isOnline } = useTransactions();
   const [categories, setCategories] = useState<Category[]>([]);
   const [open, setOpen] = useState(false);
   const [newCategory, setNewCategory] = useState<string>("");
@@ -66,6 +65,12 @@ const CategoryList: React.FC<CategoryListProps> = ({ type, filteredTransactions 
       setCategories(updatedCategories);
       
       toast.success(`Added ${type} category: ${newCategory}`);
+      
+      if (!isOnline) {
+        toast.info("You're offline. Changes will sync when you reconnect.", {
+          duration: 4000
+        });
+      }
     } else {
       console.error(`[CategoryList] Failed to add category: ${newCategory}`);
       toast.error("Failed to add category. Please try again.");
@@ -81,6 +86,12 @@ const CategoryList: React.FC<CategoryListProps> = ({ type, filteredTransactions 
       
       // Update local state to reflect deletion
       setCategories(prev => prev.filter(c => c.id !== id));
+      
+      if (!isOnline) {
+        toast.info("You're offline. Changes will sync when you reconnect.", {
+          duration: 4000
+        });
+      }
     }
   };
 

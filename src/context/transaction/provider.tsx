@@ -1,4 +1,3 @@
-
 import React, { useReducer, useEffect, useState } from "react";
 import { TransactionContext } from "./context";
 import { useDataOperations } from "./hooks/useDataOperations";
@@ -8,13 +7,10 @@ import { checkDatabaseConnection } from "@/utils/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 import { transactionReducer, initialState } from "./reducer";
 
-// Create provider
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load state from localStorage
   const savedState = localStorage.getItem("transactionState");
   const loadedInitialState = savedState ? JSON.parse(savedState) : initialState;
   
-  // Use try/catch to safely access auth context
   let authUser = null;
   try {
     const { user } = useAuth();
@@ -27,15 +23,12 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  // Track operations that need to be synced
   const [pendingSync, setPendingSync] = useState<Set<string>>(new Set());
-  
-  // Update online status
+
   useEffect(() => {
     const handleOnline = () => {
       console.log('Connection restored - online');
       setIsOnline(true);
-      // When coming back online, sync pending changes
       if (pendingSync.size > 0) {
         syncPendingChanges();
       }
@@ -54,19 +47,16 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       window.removeEventListener('offline', handleOffline);
     };
   }, [pendingSync]);
-  
+
   const [state, dispatch] = useReducer(transactionReducer, loadedInitialState);
 
-  // Save state to localStorage whenever it changes
   useEffect(() => {
     console.log('Saving state to localStorage:', state);
     localStorage.setItem("transactionState", JSON.stringify(state));
   }, [state]);
 
-  // Run deduplication on initial load
   useEffect(() => {
     if (isInitialLoad && state.transactions.length > 0) {
-      // Check for duplicates in transactions
       const idSet = new Set();
       let duplicatesFound = false;
       
@@ -78,7 +68,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         idSet.add(tx.id);
       }
       
-      // Check for duplicates in categories
       const categoryMap = new Map();
       let categoryDuplicatesFound = false;
       
@@ -101,7 +90,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [isInitialLoad, state.transactions, state.categories]);
 
-  // Use the data operations hook for read operations only
   const { 
     importData, 
     replaceAllData, 
@@ -111,12 +99,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getTotalByType,
   } = useDataOperations(state, dispatch);
 
-  // Setup real-time subscription for transactions - with improved error handling
   useEffect(() => {
     if (!user) return;
 
     try {
-      // Subscribe to real-time transactions updates
       const channel = supabase
         .channel('public:transactions')
         .on('postgres_changes', 
@@ -138,7 +124,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           console.log('Transaction channel status:', status);
         });
 
-      // Subscribe to real-time category updates
       const categoryChannel = supabase
         .channel('public:categories')
         .on('postgres_changes', 
@@ -160,11 +145,9 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           console.log('Category channel status:', status);
         });
 
-      // Fetch initial data with force flag to ensure update
       if (user && isOnline) {
         fetchLatestData(true).then(() => {
           setIsInitialLoad(false);
-          // Deduplicate data after initial load
           deduplicate();
         });
       }
@@ -178,36 +161,30 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [user, isOnline]);
 
-  // Sync pending changes when coming back online
   const syncPendingChanges = async () => {
     if (!user || pendingSync.size === 0 || !isOnline) return;
     
     console.log(`Syncing ${pendingSync.size} pending changes`);
     
-    // Get transactions that need to be synced
     const transactionsToSync = state.transactions.filter(t => 
       pendingSync.has(t.id)
     );
     
-    // Sync each transaction
     for (const transaction of transactionsToSync) {
       await syncTransactionToSupabase(transaction);
     }
     
-    // Clear pending sync after successful sync
     setPendingSync(new Set());
     
     toast.success(`Synced ${transactionsToSync.length} transaction(s) to cloud`);
   };
 
-  // Function to fetch latest data from Supabase
   const fetchLatestData = async (force = false) => {
     if (!user || !isOnline) return false;
     
     try {
       console.log('Fetching latest data from Supabase...');
       
-      // Fetch transactions
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
         .select('*')
@@ -215,7 +192,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       if (transactionsError) throw transactionsError;
       
-      // Fetch categories
       const { data: categoriesData, error: categoriesError } = await supabase
         .from('categories')
         .select('*')
@@ -223,7 +199,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       if (categoriesError) throw categoriesError;
       
-      // Transform data to match application state format
       const transformedData = {
         transactions: transactionsData.map((t) => ({
           id: t.transaction_id,
@@ -244,7 +219,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       console.log(`Fetched ${transformedData.transactions.length} transactions and ${transformedData.categories.length} categories`);
       
-      // Only replace all data if we have remote data or if force flag is set
       if (transformedData.transactions.length > 0 || transformedData.categories.length > 0 || force) {
         replaceAllData(transformedData);
         setLastSyncTime(new Date());
@@ -257,7 +231,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  // Deduplicate data function
   const deduplicate = () => {
     console.log('[TransactionProvider] Deduplicating data...');
     dispatch({ type: "DEDUPLICATE_DATA" });
@@ -265,7 +238,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return true;
   };
 
-  // Basic transaction operations
   const addTransaction = (transaction) => {
     const newTransaction = { ...transaction, id: crypto.randomUUID() };
     dispatch({
@@ -273,11 +245,9 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       payload: newTransaction,
     });
     
-    // Immediately sync to Supabase or mark for future sync
     if (user && isOnline) {
       syncTransactionToSupabase(newTransaction);
     } else if (user) {
-      // Store the ID to sync later when online
       setPendingSync(prev => new Set(prev).add(newTransaction.id));
     }
     
@@ -291,11 +261,9 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       payload: transaction 
     });
     
-    // Immediately sync to Supabase or mark for future sync
     if (user && isOnline) {
       syncTransactionToSupabase(transaction);
     } else if (user) {
-      // Store the ID to sync later when online
       setPendingSync(prev => new Set(prev).add(transaction.id));
     }
     
@@ -304,7 +272,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const deleteTransaction = (id) => {
-    // Find transaction before deleting it
     const transaction = state.transactions.find(t => t.id === id);
     
     if (!transaction) {
@@ -317,7 +284,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       payload: id
     });
     
-    // Immediately delete from Supabase
     if (user && transaction && isOnline) {
       deleteTransactionFromSupabase(transaction);
     }
@@ -326,9 +292,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return true;
   };
 
-  // Category management functions
   const addCategory = (category) => {
-    // Check for duplicates before adding
     const existingCategory = state.categories.find(
       c => c.name.toLowerCase() === category.name.toLowerCase() && 
            c.type === category.type
@@ -347,7 +311,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       payload: newCategory,
     });
     
-    // Immediately sync to Supabase
     if (user && isOnline) {
       syncCategoryToSupabase(newCategory);
     }
@@ -357,7 +320,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const updateCategory = (category) => {
-    // Check for duplicates before updating
     const duplicateCategory = state.categories.find(
       c => c.id !== category.id && 
            c.name.toLowerCase() === category.name.toLowerCase() && 
@@ -369,14 +331,25 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return false;
     }
     
+    console.log('Updating category in state:', category);
     dispatch({ 
       type: "UPDATE_CATEGORY", 
       payload: category 
     });
     
-    // Immediately sync to Supabase
     if (user && isOnline) {
-      syncCategoryToSupabase(category);
+      syncCategoryToSupabase(category)
+        .then(success => {
+          if (!success) {
+            console.warn('Failed to sync category update to Supabase');
+          }
+        })
+        .catch(err => {
+          console.error('Error during category sync:', err);
+        });
+    } else if (user) {
+      console.log('Offline, adding category to pending sync:', category.id);
+      setPendingSync(prev => new Set(prev).add(category.id));
     }
     
     toast.success("Category updated successfully");
@@ -393,7 +366,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return false;
     }
     
-    // Find category before deleting it
     const category = state.categories.find(c => c.id === id);
     
     dispatch({ 
@@ -401,7 +373,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       payload: id
     });
     
-    // Immediately delete from Supabase
     if (user && category && isOnline) {
       deleteCategoryFromSupabase(category);
     }
@@ -410,19 +381,16 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return true;
   };
 
-  // Functions to sync data to Supabase
   const syncTransactionToSupabase = async (transaction) => {
     if (!user || !isOnline) return false;
     
     try {
-      // First, delete any existing transaction with this ID (to avoid duplicates)
       await supabase
         .from('transactions')
         .delete()
         .eq('user_email', user.email)
         .eq('transaction_id', transaction.id);
       
-      // Then insert the new/updated transaction
       const { error } = await supabase
         .from('transactions')
         .insert({
@@ -438,7 +406,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       if (error) throw error;
       
-      // Update profile with last sync date
       if (user.id) {
         await supabase
           .from('profiles')
@@ -446,15 +413,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             backup_last_date: new Date().toISOString()
           })
           .eq('id', user.id);
-      }
-      
-      // Remove from pending sync if it was there
-      if (pendingSync.has(transaction.id)) {
-        setPendingSync(prev => {
-          const updated = new Set(prev);
-          updated.delete(transaction.id);
-          return updated;
-        });
       }
       
       setLastSyncTime(new Date());
@@ -477,7 +435,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       if (error) throw error;
       
-      // Update profile with last sync date
       if (user.id) {
         await supabase
           .from('profiles')
@@ -499,14 +456,12 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!user || !isOnline) return false;
     
     try {
-      // First, delete any existing category with this ID (to avoid duplicates)
       await supabase
         .from('categories')
         .delete()
         .eq('user_email', user.email)
         .eq('category_id', category.id);
       
-      // Then insert the new/updated category
       const { error } = await supabase
         .from('categories')
         .insert({
@@ -519,7 +474,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       if (error) throw error;
       
-      // Update profile with last sync date
       if (user.id) {
         await supabase
           .from('profiles')
@@ -549,7 +503,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       if (error) throw error;
       
-      // Update profile with last sync date
       if (user.id) {
         await supabase
           .from('profiles')
