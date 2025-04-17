@@ -98,9 +98,6 @@ const LoginPage: React.FC = () => {
             </Link>
           </p>
         </div>
-        <div className="text-xs text-center text-muted-foreground w-full pt-2 border-t">
-          © 2025 Stack'd by Fushure. All rights reserved.
-        </div>
       </CardFooter>
     </Card>
   );
