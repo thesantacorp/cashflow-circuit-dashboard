@@ -95,9 +95,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getCategoriesByType, 
     getCategoryById, 
     getTotalByType,
-    addCategory,
-    updateCategory,
-    deleteCategory
   } = useDataOperations(state, dispatch);
 
   // Setup real-time subscription for transactions - with improved error handling
@@ -315,6 +312,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return true;
   };
 
+  // Category management functions
   const addCategory = (category) => {
     // Check for duplicates before adding
     const existingCategory = state.categories.find(

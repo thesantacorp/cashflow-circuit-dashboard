@@ -19,7 +19,8 @@ export type TransactionAction =
   | { type: "DELETE_CATEGORY"; payload: string }
   | { type: "IMPORT_TRANSACTIONS"; payload: Transaction[] }
   | { type: "IMPORT_CATEGORIES"; payload: Category[] }
-  | { type: "REPLACE_ALL_DATA"; payload: { transactions?: Transaction[], categories?: Category[] } };
+  | { type: "REPLACE_ALL_DATA"; payload: { transactions?: Transaction[], categories?: Category[] } }
+  | { type: "DEDUPLICATE_DATA" };
 
 export type TransactionContextType = {
   state: TransactionState;
