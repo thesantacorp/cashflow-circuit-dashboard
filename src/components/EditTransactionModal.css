@@ -1,4 +1,3 @@
-
 /* Prevent zooming */
 .edit-transaction-modal {
   touch-action: pan-x pan-y;
@@ -34,6 +33,7 @@
 
 .category-select-trigger {
   border-color: rgb(254, 215, 170); /* orange-200 */
+  font-size: 0.95rem; /* Slightly larger font */
 }
 
 .category-select-trigger:focus {
@@ -44,4 +44,9 @@
 /* Style the category list to be more visible */
 .category-grid {
   padding: 0.5rem;
+}
+
+/* Increase scroll button sizes and improve touchability */
+.category-select-content [data-radix-scroll-area-scrollbar] {
+  width: 10px;
 }
