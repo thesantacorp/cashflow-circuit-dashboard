@@ -29,6 +29,7 @@ import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import UpdatePasswordPage from "./pages/auth/UpdatePasswordPage";
 import ProfilePage from "./pages/ProfilePage";
 import MobileNavbar from "./components/MobileNavbar";
+import Index from "./pages/Index";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -64,26 +65,15 @@ function App() {
                         <Route path="update-password" element={<UpdatePasswordPage />} />
                       </Route>
 
+                      {/* Add Index route here */}
+                      <Route path="/" element={<Index />} />
+
                       {/* Admin routes */}
                       <Route path="/admin/notifications" element={<AdminNotificationDashboard />} />
                       <Route path="/admin/dashboard" element={<AdminDashboard />} />
                       <Route path="/admin/ideas" element={<AdminIdeasDashboard />} />
 
                       {/* Protected routes */}
-                      <Route path="/" element={
-                        <ProtectedRoute>
-                          <>
-                            <Navbar />
-                            <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
-                              <div className="max-w-7xl mx-auto w-full">
-                                <Navigate to="/expenses" replace />
-                              </div>
-                            </main>
-                            <MobileNavbar />
-                            <CommunityLink />
-                          </>
-                        </ProtectedRoute>
-                      } />
                       <Route path="/expenses" element={
                         <ProtectedRoute>
                           <>

@@ -1,4 +1,3 @@
-
 import React, { useReducer, useEffect, useState } from "react";
 import { TransactionContext } from "./context";
 import { useDataOperations } from "./hooks/useDataOperations";
@@ -12,7 +11,17 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Load state from localStorage
   const savedState = localStorage.getItem("transactionState");
   const initialState = savedState ? JSON.parse(savedState) : { transactions: [], categories: [] };
-  const { user } = useAuth();
+  
+  // Use try/catch to safely access auth context
+  let authUser = null;
+  try {
+    const { user } = useAuth();
+    authUser = user;
+  } catch (error) {
+    console.warn("Auth context not available yet");
+  }
+  
+  const user = authUser;
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
