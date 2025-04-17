@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useTransactions } from '@/context/transaction';
 import { useAuth } from '@/context/AuthContext';
@@ -5,6 +6,7 @@ import { getSupabaseClient } from '@/utils/supabase/client';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useLocation } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Maximum number of retries for Supabase operations
 const MAX_RETRIES = 3;
@@ -30,6 +32,7 @@ export function useSupabaseSync() {
     return localStorage.getItem(FIRST_LOGIN_KEY) === 'true';
   });
   const location = useLocation();
+  const isMobile = useIsMobile();
 
   // Track if this is the first login on this device
   useEffect(() => {
@@ -211,8 +214,8 @@ export function useSupabaseSync() {
       setLastSyncDate(now);
       localStorage.setItem('lastTransactionUpdate', now.toISOString());
       
-      // Only show success toast on profile page
-      if (location.pathname === '/profile') {
+      // Only show success toast on profile page AND only when not on mobile
+      if (location.pathname === '/profile' && !isMobile) {
         toast({
           title: "Success",
           description: "Data synced successfully to cloud",
@@ -221,8 +224,8 @@ export function useSupabaseSync() {
       return true;
     } catch (error: any) {
       console.error('Sync error:', error);
-      // Only show error toast on profile page
-      if (location.pathname === '/profile') {
+      // Only show error toast on profile page AND only when not on mobile
+      if (location.pathname === '/profile' && !isMobile) {
         toast({
           title: "Error",
           description: error.message || 'Network error occurred',
@@ -233,7 +236,7 @@ export function useSupabaseSync() {
     } finally {
       setIsSyncing(false);
     }
-  }, [user, state.transactions, state.categories, executeWithRetry, getBestClient, location.pathname]);
+  }, [user, state.transactions, state.categories, executeWithRetry, getBestClient, location.pathname, isMobile]);
 
   // Function to restore data from Supabase
   const restoreFromSupabase = useCallback(async () => {
@@ -301,8 +304,8 @@ export function useSupabaseSync() {
       setLastSyncDate(now);
       localStorage.setItem('lastTransactionUpdate', now.toISOString());
       
-      // Only show success toast on profile page
-      if (location.pathname === '/profile') {
+      // Only show success toast on profile page AND only when not on mobile
+      if (location.pathname === '/profile' && !isMobile) {
         toast({
           title: "Success",
           description: "Data restored successfully from cloud",
@@ -311,8 +314,8 @@ export function useSupabaseSync() {
       return true;
     } catch (error: any) {
       console.error('Restore error:', error);
-      // Only show error toast on profile page
-      if (location.pathname === '/profile') {
+      // Only show error toast on profile page AND only when not on mobile
+      if (location.pathname === '/profile' && !isMobile) {
         toast({
           title: "Error",
           description: error.message || 'Network error occurred',
@@ -323,7 +326,7 @@ export function useSupabaseSync() {
     } finally {
       setIsSyncing(false);
     }
-  }, [user, executeWithRetry, replaceAllData, getBestClient, location.pathname]);
+  }, [user, executeWithRetry, replaceAllData, getBestClient, location.pathname, isMobile]);
 
   // Auto-sync data when a user logs in - but with prevention for first login
   useEffect(() => {
@@ -334,15 +337,6 @@ export function useSupabaseSync() {
       // If this is the first login, don't auto-sync to prevent data loss
       if (isFirstLoginOnDevice) {
         console.log('First login detected. Auto-sync disabled to prevent data loss.');
-        
-        // Only show the welcome back message on the profile page
-        if (location.pathname === '/profile') {
-          toast({
-            title: "Welcome back",
-            description: "Existing user just signing in on a new device? Restore data first!",
-            duration: 7000,
-          });
-        }
         return;
       }
       
@@ -407,11 +401,6 @@ export function useSupabaseSync() {
           }
         } catch (error) {
           console.error('Auto-sync error:', error);
-          toast({
-            title: "Error",
-            description: "We encountered an issue syncing your data. You can try again manually.",
-            variant: "destructive",
-          });
         }
       };
       
