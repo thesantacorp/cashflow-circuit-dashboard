@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { EmotionalState } from "@/types";
 import WarningAlert from "./form/WarningAlert";
 import { getPurchaseWarning } from "@/utils/emotionAnalysis";
+import "./EditTransactionModal.css";
 
 interface EditTransactionModalProps {
   transaction: Transaction | null;
@@ -102,17 +103,18 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
   };
   
   if (!transaction) return null;
-  
+
+  // Using the className for the DialogContent to prevent zooming
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] border-primary/20 bg-gradient-to-b from-background to-background/90 backdrop-blur-sm max-h-[95vh]">
+      <DialogContent className="sm:max-w-[500px] border-primary/20 bg-gradient-to-b from-background to-background/90 backdrop-blur-sm max-h-[95vh] edit-transaction-modal">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-orange-500">
             Edit {transaction.type === "expense" ? "Expense" : "Income"}
           </DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="max-h-[70vh] pr-4">
+        <ScrollArea className="max-h-[70vh] pr-4 edit-scrollarea">
           <form onSubmit={handleSubmit} className="space-y-4">
             <WarningAlert message={warning || ""} />
             

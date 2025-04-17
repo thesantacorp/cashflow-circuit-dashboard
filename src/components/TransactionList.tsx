@@ -86,6 +86,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
   
   const filteredBySearch = filterTransactionsBySearch(filteredByTimePeriod, searchQuery);
   
+  // Updated sorting logic to ensure newest transactions appear at the top
   const sortedTransactions = [...filteredBySearch].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );

@@ -1,0 +1,21 @@
+
+/* Prevent zooming */
+.edit-transaction-modal {
+  touch-action: pan-x pan-y;
+}
+
+/* Hide scrollbars but keep functionality */
+.edit-scrollarea [data-radix-scroll-area-viewport] {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.edit-scrollarea [data-radix-scroll-area-viewport]::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+/* Override ScrollBar styles to hide them */
+.edit-scrollarea [data-radix-scroll-area-scrollbar] {
+  opacity: 0 !important;
+  width: 0 !important;
+}
