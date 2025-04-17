@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -105,14 +104,14 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="min-w-[250px] max-w-[400px] w-[90%] border-primary/20 bg-gradient-to-b from-background to-background/90 backdrop-blur-sm max-h-[95vh] edit-transaction-modal">
+      <DialogContent className="min-w-[250px] max-w-[400px] w-[90%] border-primary/20 bg-gradient-to-b from-background to-background/90 backdrop-blur-sm max-h-[90vh] edit-transaction-modal">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-orange-500">
             Edit {transaction?.type === "expense" ? "Expense" : "Income"}
           </DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="max-h-[70vh] pr-4 edit-scrollarea">
+        <ScrollArea className="max-h-[60vh] pr-4 edit-scrollarea">
           <form onSubmit={handleSubmit} className="space-y-4">
             <WarningAlert message={warning || ""} />
             

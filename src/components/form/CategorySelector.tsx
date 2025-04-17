@@ -20,11 +20,11 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
     <div className="space-y-2">
       <Label htmlFor="category">Category</Label>
       <Select value={categoryId} onValueChange={onCategoryChange} required>
-        <SelectTrigger id="category">
+        <SelectTrigger id="category" className="category-select-trigger">
           <SelectValue placeholder="Select a category" />
         </SelectTrigger>
-        <SelectContent className="max-h-[200px]">
-          <ScrollArea className="h-[200px] edit-scrollarea">
+        <SelectContent position="popper" className="category-select-content max-h-[40vh] overflow-y-auto">
+          <div className="category-grid">
             {categories.map((category) => (
               <SelectItem key={category.id} value={category.id}>
                 <div className="flex items-center">
@@ -36,7 +36,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
                 </div>
               </SelectItem>
             ))}
-          </ScrollArea>
+          </div>
         </SelectContent>
       </Select>
     </div>

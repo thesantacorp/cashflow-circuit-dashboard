@@ -22,3 +22,26 @@
   opacity: 0 !important;
   width: 0 !important;
 }
+
+/* Make sure category selector dropdown is visible */
+.category-select-content {
+  background-color: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 100;
+}
+
+.category-select-trigger {
+  border-color: rgb(254, 215, 170); /* orange-200 */
+}
+
+.category-select-trigger:focus {
+  border-color: rgb(251, 146, 60); /* orange-400 */
+  box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.2); /* orange-400 with opacity */
+}
+
+/* Style the category list to be more visible */
+.category-grid {
+  padding: 0.5rem;
+}
