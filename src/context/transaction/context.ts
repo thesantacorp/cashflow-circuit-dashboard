@@ -18,6 +18,7 @@ interface TransactionContextType {
   updateTransaction: (transaction: Transaction) => boolean;
   deleteTransaction: (id: string) => boolean;
   addCategory: (category: Omit<Category, "id">) => boolean;
+  updateCategory: (category: Category) => boolean;
   deleteCategory: (id: string) => boolean;
   getTransactionsByType: (type: TransactionType) => Transaction[];
   getCategoriesByType: (type: TransactionType) => Category[];
