@@ -8,7 +8,6 @@ import TransactionList from "@/components/TransactionList";
 import CurrencySelector from "@/components/CurrencySelector";
 import { useIsMobile } from "@/hooks/use-mobile";
 import IncomeInsights from "@/components/IncomeInsights";
-import { useTransactions } from "@/context/transaction";
 
 const IncomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");

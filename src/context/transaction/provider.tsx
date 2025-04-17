@@ -88,6 +88,26 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           
           newState = { ...state, categories: [...state.categories, action.payload] };
           break;
+        case "UPDATE_CATEGORY":
+          // Check for duplicates before updating
+          const duplicateCategory = state.categories.find(
+            c => c.id !== action.payload.id && 
+                 c.name.toLowerCase() === action.payload.name.toLowerCase() && 
+                 c.type === action.payload.type
+          );
+          
+          if (duplicateCategory) {
+            toast.error(`A category named "${action.payload.name}" already exists for ${action.payload.type}`);
+            return state;
+          }
+          
+          newState = {
+            ...state,
+            categories: state.categories.map(c => 
+              c.id === action.payload.id ? action.payload : c
+            )
+          };
+          break;
         case "DELETE_CATEGORY":
           newState = {
             ...state,
@@ -403,6 +423,33 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return true;
   };
 
+  const updateCategory = (category) => {
+    // Check for duplicates before updating
+    const duplicateCategory = state.categories.find(
+      c => c.id !== category.id && 
+           c.name.toLowerCase() === category.name.toLowerCase() && 
+           c.type === category.type
+    );
+    
+    if (duplicateCategory) {
+      toast.error(`A category named "${category.name}" already exists for ${category.type}`);
+      return false;
+    }
+    
+    dispatch({ 
+      type: "UPDATE_CATEGORY", 
+      payload: category 
+    });
+    
+    // Immediately sync to Supabase
+    if (user && isOnline) {
+      syncCategoryToSupabase(category);
+    }
+    
+    toast.success("Category updated successfully");
+    return true;
+  };
+
   const deleteCategory = (id) => {
     const hasTransactions = state.transactions.some(
       (transaction) => transaction.categoryId === id
@@ -596,6 +643,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         updateTransaction,
         deleteTransaction,
         addCategory,
+        updateCategory,
         deleteCategory,
         getTransactionsByType,
         getCategoriesByType,
