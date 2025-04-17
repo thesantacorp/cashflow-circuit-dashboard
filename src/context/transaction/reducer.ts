@@ -1,4 +1,3 @@
-
 import { Transaction, Category } from "@/types";
 import { allDefaultCategories } from "./defaultCategories";
 import { toast } from "sonner";
@@ -88,10 +87,23 @@ export function transactionReducer(
         ...state,
         transactions: [...state.transactions, ...action.payload],
       };
+    case "IMPORT_CATEGORIES":
+      // Merge categories, keeping existing ones intact
+      const newCategories = action.payload.filter(
+        newCat => !state.categories.some(
+          existingCat => existingCat.id === newCat.id
+        )
+      );
+      
+      return {
+        ...state,
+        categories: [...state.categories, ...newCategories],
+      };
     case "REPLACE_ALL_DATA":
       return {
         ...state,
-        transactions: action.payload,
+        transactions: action.payload.transactions || [],
+        categories: action.payload.categories || allDefaultCategories,
       };
     default:
       return state;

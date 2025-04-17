@@ -12,26 +12,39 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import EmotionFilter from "@/components/EmotionFilter";
+import CategoryFilter from "@/components/CategoryFilter";
 import { EmotionalState, Transaction } from "@/types";
 
 const ExpensesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
   const [selectedEmotion, setSelectedEmotion] = useState<EmotionalState | 'all'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string | 'all'>('all');
   const isMobile = useIsMobile();
-  const { getTotalByType, state } = useTransactions();
+  const { getTotalByType, state, getCategoriesByType } = useTransactions();
   const { currencySymbol } = useCurrency();
   const totalExpenses = getTotalByType("expense");
+  const expenseCategories = getCategoriesByType("expense");
 
-  // Filter transactions based on selected emotion
+  // Filter transactions based on selected emotion and category
   const filteredTransactions = useMemo(() => {
-    if (selectedEmotion === 'all') {
-      return state.transactions;
+    let filtered = state.transactions;
+    
+    // Filter by emotion if not 'all'
+    if (selectedEmotion !== 'all') {
+      filtered = filtered.filter((transaction) => 
+        transaction.emotionalState === selectedEmotion
+      );
     }
     
-    return state.transactions.filter((transaction) => 
-      transaction.emotionalState === selectedEmotion
-    );
-  }, [state.transactions, selectedEmotion]);
+    // Filter by category if not 'all'
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter((transaction) => 
+        transaction.categoryId === selectedCategory
+      );
+    }
+    
+    return filtered;
+  }, [state.transactions, selectedEmotion, selectedCategory]);
 
   // Calculate filtered total
   const filteredTotal = useMemo(() => {
@@ -39,6 +52,12 @@ const ExpensesPage: React.FC = () => {
       .filter(t => t.type === "expense")
       .reduce((sum, t) => sum + t.amount, 0);
   }, [filteredTransactions]);
+
+  // Reset filters
+  const resetFilters = () => {
+    setSelectedEmotion('all');
+    setSelectedCategory('all');
+  };
 
   return (
     <div className="container py-6 max-w-7xl mx-auto px-4 w-full">
@@ -53,27 +72,43 @@ const ExpensesPage: React.FC = () => {
         
         <TabsContent value="dashboard" className="pt-4">
           <div className="max-w-full mx-auto overflow-x-auto">
-            <EmotionFilter 
-              selectedEmotion={selectedEmotion} 
-              onChange={setSelectedEmotion} 
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <EmotionFilter 
+                selectedEmotion={selectedEmotion} 
+                onChange={setSelectedEmotion} 
+              />
+              
+              <CategoryFilter 
+                selectedCategory={selectedCategory}
+                categories={expenseCategories}
+                onChange={setSelectedCategory}
+              />
+            </div>
             
-            {selectedEmotion !== 'all' && (
+            {(selectedEmotion !== 'all' || selectedCategory !== 'all') && (
               <Card className="mb-6 overflow-hidden min-w-[250px]">
                 <CardContent className="pt-6">
                   <div className="flex justify-between items-center">
                     <div>
-                      <h3 className="font-medium capitalize">
-                        {selectedEmotion} spending
+                      <h3 className="font-medium">
+                        Filtered spending
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        Showing only {selectedEmotion} transactions
+                        {selectedEmotion !== 'all' && selectedCategory !== 'all' && `Showing ${selectedEmotion} transactions in selected category`}
+                        {selectedEmotion !== 'all' && selectedCategory === 'all' && `Showing only ${selectedEmotion} transactions`}
+                        {selectedEmotion === 'all' && selectedCategory !== 'all' && 'Showing only selected category'}
                       </p>
                     </div>
                     <div className="text-2xl font-bold break-words">
                       {currencySymbol}{filteredTotal.toFixed(2)}
                     </div>
                   </div>
+                  <button 
+                    onClick={resetFilters}
+                    className="mt-2 text-xs text-orange-600 hover:text-orange-800 hover:underline"
+                  >
+                    Reset filters
+                  </button>
                 </CardContent>
               </Card>
             )}
@@ -83,7 +118,7 @@ const ExpensesPage: React.FC = () => {
                 <div className={`${isMobile ? 'min-w-[250px]' : 'w-full'}`}>
                   <Dashboard 
                     type="expense" 
-                    filteredTransactions={selectedEmotion === 'all' ? undefined : filteredTransactions} 
+                    filteredTransactions={selectedEmotion === 'all' && selectedCategory === 'all' ? undefined : filteredTransactions} 
                   />
                 </div>
               </div>
@@ -102,14 +137,22 @@ const ExpensesPage: React.FC = () => {
         </TabsContent>
         
         <TabsContent value="categories" className="pt-4">
-          <EmotionFilter 
-            selectedEmotion={selectedEmotion} 
-            onChange={setSelectedEmotion} 
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <EmotionFilter 
+              selectedEmotion={selectedEmotion} 
+              onChange={setSelectedEmotion} 
+            />
+            
+            <CategoryFilter 
+              selectedCategory={selectedCategory}
+              categories={expenseCategories}
+              onChange={setSelectedCategory}
+            />
+          </div>
           
           <CategoryList 
             type="expense" 
-            filteredTransactions={selectedEmotion === 'all' ? undefined : filteredTransactions} 
+            filteredTransactions={selectedEmotion === 'all' && selectedCategory === 'all' ? undefined : filteredTransactions} 
           />
           
           {!isMobile && (
@@ -120,10 +163,18 @@ const ExpensesPage: React.FC = () => {
         </TabsContent>
         
         <TabsContent value="transactions" className="pt-4">
-          <EmotionFilter 
-            selectedEmotion={selectedEmotion} 
-            onChange={setSelectedEmotion} 
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <EmotionFilter 
+              selectedEmotion={selectedEmotion} 
+              onChange={setSelectedEmotion} 
+            />
+            
+            <CategoryFilter 
+              selectedCategory={selectedCategory}
+              categories={expenseCategories}
+              onChange={setSelectedCategory}
+            />
+          </div>
           
           <div className={`grid ${isMobile ? 'grid-cols-1 gap-8' : 'md:grid-cols-2 gap-6'}`}>
             <div className="w-full max-w-lg mx-auto md:mx-0">
@@ -132,7 +183,7 @@ const ExpensesPage: React.FC = () => {
             <div className="w-full">
               <TransactionList 
                 type="expense" 
-                filteredTransactions={selectedEmotion === 'all' ? undefined : filteredTransactions} 
+                filteredTransactions={selectedEmotion === 'all' && selectedCategory === 'all' ? undefined : filteredTransactions} 
               />
             </div>
           </div>
