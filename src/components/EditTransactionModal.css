@@ -2,6 +2,9 @@
 /* Prevent zooming */
 .edit-transaction-modal {
   touch-action: pan-x pan-y;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* Hide scrollbars but keep functionality */
