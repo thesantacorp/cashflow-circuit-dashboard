@@ -129,6 +129,7 @@ export function useSupabaseSync() {
       return false;
     }
 
+    console.log("[useSupabaseSync] Starting manual sync to Supabase - Local data will overwrite cloud data");
     setIsSyncing(true);
     
     try {
@@ -222,9 +223,13 @@ export function useSupabaseSync() {
       // After successful manual sync, we can now allow auto-sync in future
       localStorage.removeItem(DISABLE_AUTO_SYNC_KEY);
       
+      console.log("[useSupabaseSync] Manual sync completed successfully - Local data has been saved to cloud");
+      toast.success("Your local data was successfully saved to the cloud");
+      
       return true;
     } catch (error: any) {
       console.error('Sync error:', error);
+      toast.error("Failed to sync data. Please try again.");
       return false;
     } finally {
       setIsSyncing(false);
@@ -247,6 +252,7 @@ export function useSupabaseSync() {
       return false;
     }
 
+    console.log("[useSupabaseSync] Starting data restore from Supabase - Cloud data will overwrite local data");
     setIsSyncing(true);
     
     try {
@@ -300,9 +306,13 @@ export function useSupabaseSync() {
       // After successful manual restore, we can enable auto-sync in future
       localStorage.removeItem(DISABLE_AUTO_SYNC_KEY);
       
+      console.log("[useSupabaseSync] Restore completed successfully - Cloud data has replaced local data");
+      toast.success("Data restored successfully from the cloud");
+      
       return true;
     } catch (error: any) {
       console.error('Restore error:', error);
+      toast.error("Failed to restore data. Please try again.");
       return false;
     } finally {
       setIsSyncing(false);

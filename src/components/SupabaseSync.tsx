@@ -4,7 +4,7 @@ import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 import { useAuth } from "@/context/AuthContext";
 import { useTransactions } from "@/context/transaction";
 import { Button } from "@/components/ui/button";
-import { CloudIcon, DownloadIcon, LoaderIcon, RefreshCw, AlertCircle, WifiOff, CloudOff } from "lucide-react";
+import { CloudIcon, DownloadIcon, LoaderIcon, RefreshCw, AlertCircle, WifiOff, CloudOff, UploadIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -145,14 +145,14 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
             ) : !isOnline ? (
               <WifiOff className="h-4 w-4" />
             ) : (
-              <CloudIcon className="h-4 w-4" />
+              <UploadIcon className="h-4 w-4" />
             )}
             <span className="ml-2">
               {!isOnline 
                 ? "Offline" 
                 : pendingSyncCount > 0
-                ? `Sync Data (${pendingSyncCount})` 
-                : "Sync Data"
+                ? `Save to Cloud (${pendingSyncCount})` 
+                : "Save to Cloud"
               }
             </span>
           </Button>
@@ -191,7 +191,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
         </CardTitle>
         <CardDescription>
           {isOnline 
-            ? "Your data is automatically synced in real-time to your account and available instantly on any device"
+            ? "Your data is saved locally on your device. Use the buttons below to manually save or restore from the cloud."
             : "Currently in offline mode. Your data is saved locally and will sync when you reconnect."
           }
         </CardDescription>
@@ -228,7 +228,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
           <div>
             <h4 className="text-sm font-medium">Manual Sync & Restore</h4>
             <p className="text-xs text-slate-500">
-              Sync to cloud or restore your data
+              Save to cloud or restore your data
             </p>
           </div>
           <div className="flex space-x-2">
@@ -236,7 +236,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
               size="sm"
               variant="outline"
               onClick={() => handleOperation(() => {
-                if (window.confirm('This will upload your current data to the cloud. Continue?')) {
+                if (window.confirm('This will upload your current data to the cloud, replacing any cloud data. Continue?')) {
                   return syncToSupabase();
                 }
                 return Promise.resolve(false);
@@ -249,14 +249,19 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
               ) : !isOnline ? (
                 <WifiOff className="mr-2 h-3 w-3" />
               ) : (
-                <CloudIcon className="mr-2 h-3 w-3" />
+                <UploadIcon className="mr-2 h-3 w-3" />
               )}
-              Sync {pendingSyncCount > 0 && `(${pendingSyncCount})`}
+              Save to Cloud {pendingSyncCount > 0 && `(${pendingSyncCount})`}
             </Button>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleOperation(restoreFromSupabase)}
+              onClick={() => handleOperation(() => {
+                if (window.confirm('This will download data from the cloud, replacing your local data. Continue?')) {
+                  return restoreFromSupabase();
+                }
+                return Promise.resolve(false);
+              })}
               disabled={isSyncing || isCheckingConnection || !isOnline}
               className="flex items-center"
             >
@@ -267,7 +272,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
               ) : (
                 <DownloadIcon className="mr-2 h-3 w-3" />
               )}
-              Restore
+              Restore from Cloud
             </Button>
           </div>
         </div>
@@ -275,7 +280,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
         {isSyncing && isOnline && (
           <div className="flex items-center justify-center py-2 text-sm text-orange-600">
             <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-            Syncing your data...
+            {syncToSupabase ? "Saving your data to cloud..." : "Restoring your data from cloud..."}
           </div>
         )}
         

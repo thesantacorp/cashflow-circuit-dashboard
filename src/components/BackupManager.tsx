@@ -78,9 +78,10 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const connectionValid = await verifyConnection();
     if (!connectionValid) return;
     
-    if (window.confirm("This will upload your current data to the cloud. Continue?")) {
+    if (window.confirm("This will save your current device data to the cloud, replacing any existing cloud data. Continue?")) {
       const success = await syncToSupabase();
       if (success && onClose) {
+        toast.success("Your data has been saved to the cloud");
         setTimeout(onClose, 1000);
       }
     }
@@ -90,10 +91,12 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const connectionValid = await verifyConnection();
     if (!connectionValid) return;
     
-    const success = await restoreFromSupabase();
-    if (success && onClose) {
-      toast.success("Your data has been restored successfully");
-      setTimeout(onClose, 1000);
+    if (window.confirm("This will replace your current device data with data from the cloud. Continue?")) {
+      const success = await restoreFromSupabase();
+      if (success && onClose) {
+        toast.success("Your data has been restored from the cloud");
+        setTimeout(onClose, 1000);
+      }
     }
   };
 
@@ -112,7 +115,7 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       </CardHeader>
       <CardContent>
         <p className="mb-4 text-sm text-slate-600">
-          Sync or restore your financial data to your cloud account.
+          Save your current device data to the cloud or restore previously saved data from the cloud.
         </p>
         
         <ConnectionStatus 

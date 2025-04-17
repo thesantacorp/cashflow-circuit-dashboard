@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { CloudIcon, RefreshCw, LoaderIcon } from "lucide-react";
+import { CloudIcon, DownloadIcon, LoaderIcon, UploadIcon } from "lucide-react";
 
 interface SyncActionButtonsProps {
   onSync: () => void;
@@ -28,9 +28,9 @@ const SyncActionButtons: React.FC<SyncActionButtonsProps> = ({
         {isSyncing || isCheckingConnection ? (
           <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
         ) : (
-          <CloudIcon className="mr-2 h-4 w-4" />
+          <UploadIcon className="mr-2 h-4 w-4" />
         )}
-        Sync to Cloud
+        Save to Cloud
       </Button>
       <Button
         variant="outline"
@@ -42,9 +42,9 @@ const SyncActionButtons: React.FC<SyncActionButtonsProps> = ({
         {isSyncing || isCheckingConnection ? (
           <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
         ) : (
-          <RefreshCw className="mr-2 h-4 w-4" />
+          <DownloadIcon className="mr-2 h-4 w-4" />
         )}
-        Restore Data
+        Restore from Cloud
       </Button>
     </div>
   );
