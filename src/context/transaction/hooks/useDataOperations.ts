@@ -19,7 +19,9 @@ export function useDataOperations(state, dispatch) {
 
   // Get categories by type
   const getCategoriesByType = (type) => {
-    return state.categories.filter(c => c.type === type);
+    const filteredCategories = state.categories.filter(c => c.type === type);
+    console.log(`[getCategoriesByType] Found ${filteredCategories.length} ${type} categories`);
+    return filteredCategories;
   };
 
   // Get category by ID
