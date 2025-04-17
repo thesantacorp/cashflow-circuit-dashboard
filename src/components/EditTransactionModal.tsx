@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -39,7 +38,6 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
   const [warning, setWarning] = useState<string | null>(null);
   const [type, setType] = useState<TransactionType>("expense");
   
-  // Load transaction data when the modal opens
   useEffect(() => {
     if (transaction) {
       setAmount(transaction.amount.toString());
@@ -104,13 +102,12 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
   
   if (!transaction) return null;
 
-  // Using the className for the DialogContent to prevent zooming
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px] border-primary/20 bg-gradient-to-b from-background to-background/90 backdrop-blur-sm max-h-[95vh] edit-transaction-modal">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-orange-500">
-            Edit {transaction.type === "expense" ? "Expense" : "Income"}
+            Edit {transaction?.type === "expense" ? "Expense" : "Income"}
           </DialogTitle>
         </DialogHeader>
         
