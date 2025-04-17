@@ -43,17 +43,6 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     }
   }, [user, isLoading, navigate]);
 
-  // Debug logging for auth state
-  useEffect(() => {
-    console.log('ProtectedRoute - Auth state:', { 
-      user: user?.email, 
-      isLoading,
-      isCheckingSession,
-      isSessionValid,
-      pathname: location.pathname
-    });
-  }, [user, isLoading, isCheckingSession, isSessionValid, location.pathname]);
-
   // Show loading screen while checking authentication or session validity
   if (isLoading || (user && isCheckingSession)) {
     return <LoadingScreen />;
@@ -66,7 +55,6 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
 
   // If authenticated with valid session, render children
-  console.log('User authenticated with valid session, rendering protected content');
   return <>{children}</>;
 };
 

@@ -1,5 +1,5 @@
 
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
 import { isCurrentSessionValid } from "@/utils/sessionManager";
@@ -7,8 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import LoadingScreen from "@/components/LoadingScreen";
 
 const Index = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const { user, isLoading } = useAuth();
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [isSessionValid, setIsSessionValid] = useState(true);
   
@@ -46,8 +45,8 @@ const Index = () => {
     }
   }, [user]);
   
-  // Show loading while checking session
-  if (user && isCheckingSession) {
+  // Show loading while checking session or when auth is loading
+  if (isLoading || (user && isCheckingSession)) {
     return <LoadingScreen />;
   }
   
