@@ -164,6 +164,6 @@ const startSessionValidityCheck = (userId: string, sessionId: string) => {
 // Add session check interval ID to Window interface
 declare global {
   interface Window {
-    sessionCheckIntervalId: number | undefined;
+    sessionCheckIntervalId: ReturnType<typeof setInterval> | undefined;
   }
 }
