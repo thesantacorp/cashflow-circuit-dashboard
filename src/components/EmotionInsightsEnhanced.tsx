@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTransactions } from "@/context/transaction";
@@ -323,7 +324,7 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = ({
             onValueChange={(value) => setTimelinePeriod(value as TimePeriod)}
             className="w-auto"
           >
-            <TabsList className="grid w-full grid-cols-3 h-6 sm:h-8">
+            <TabsList className="grid w-[180px] grid-cols-3 h-6 sm:h-8">
               <TabsTrigger value="month" className="text-[10px] sm:text-xs px-1 sm:px-2">Month</TabsTrigger>
               <TabsTrigger value="year" className="text-[10px] sm:text-xs px-1 sm:px-2">Year</TabsTrigger>
               <TabsTrigger value="all" className="text-[10px] sm:text-xs px-1 sm:px-2">All Time</TabsTrigger>

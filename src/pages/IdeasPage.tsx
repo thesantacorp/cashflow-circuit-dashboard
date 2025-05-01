@@ -56,8 +56,15 @@ const IdeasPage = () => {
         
         // Make sure both operations happen before setting loading to false
         if (data && Array.isArray(data)) {
-          updateIdeas(data as Idea[]);
-          setIdeas(data as Idea[]);
+          // Filter out expired ideas
+          const now = new Date();
+          const activeIdeas = (data as Idea[]).filter(idea => {
+            const countdownDate = new Date(idea.countdown_timer);
+            return countdownDate > now;
+          });
+          
+          updateIdeas(activeIdeas);
+          setIdeas(activeIdeas);
           
           // Delay setting loading to false to ensure votes are fetched
           setTimeout(() => {

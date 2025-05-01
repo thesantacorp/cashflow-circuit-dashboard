@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,12 +19,20 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
   isOpen, 
   onClose 
 }) => {
-  const [name, setName] = useState(category.name);
-  const [color, setColor] = useState(category.color || "#cccccc");
+  const [name, setName] = useState(category?.name || "");
+  const [color, setColor] = useState(category?.color || "#cccccc");
   const { getCategoriesByType, updateCategory, isOnline } = useTransactions();
   
+  // Update state when the category prop changes
+  useEffect(() => {
+    if (category) {
+      setName(category.name);
+      setColor(category.color || "#cccccc");
+    }
+  }, [category]);
+  
   // Get all categories of the same type for duplicate checking
-  const categoriesOfSameType = getCategoriesByType(category.type);
+  const categoriesOfSameType = getCategoriesByType(category?.type || "expense");
 
   const handleSave = () => {
     if (!name.trim()) {
@@ -49,6 +57,8 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
       color,
     };
 
+    console.log('Saving updated category:', updatedCategory);
+
     // Use the updateCategory function instead of directly dispatching
     const success = updateCategory(updatedCategory);
     
@@ -60,6 +70,8 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
         });
       }
       onClose();
+    } else {
+      toast.error("Failed to update category");
     }
   };
 

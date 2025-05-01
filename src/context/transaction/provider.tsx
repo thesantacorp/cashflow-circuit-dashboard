@@ -56,6 +56,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     localStorage.setItem("transactionState", JSON.stringify(state));
   }, [state]);
 
+  // Only run the deduplication once on initial load, without showing toast
   useEffect(() => {
     if (isInitialLoad && state.transactions.length > 0) {
       const idSet = new Set();
@@ -84,7 +85,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (duplicatesFound || categoryDuplicatesFound) {
         console.log('[TransactionProvider] Duplicates found on startup, deduplicating...');
         dispatch({ type: "DEDUPLICATE_DATA" });
-        toast("Removed duplicate items");
+        // Removed toast for duplicate removal on startup
       }
       
       setIsInitialLoad(false);
@@ -149,7 +150,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (user && isOnline) {
         fetchLatestData(true).then(() => {
           setIsInitialLoad(false);
-          deduplicate();
+          deduplicate(false);
         });
       }
       
@@ -242,10 +243,12 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  const deduplicate = () => {
+  const deduplicate = (showToast = true) => {
     console.log('[TransactionProvider] Deduplicating data...');
     dispatch({ type: "DEDUPLICATE_DATA" });
-    toast("Removed duplicate items");
+    if (showToast) {
+      toast("Removed duplicate items");
+    }
     return true;
   };
 
