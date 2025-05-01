@@ -336,13 +336,13 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const updateCategory = (category) => {
-    console.log('Update category initiated with data:', category);
+    console.log('Provider - Update category initiated with data:', category);
     
     // Check for duplicates before updating
     const duplicateCategory = state.categories.find(
       c => c.id !== category.id && 
-           c.name.toLowerCase() === category.name.toLowerCase() && 
-           c.type === category.type
+           c.type === category.type && 
+           c.name.toLowerCase() === category.name.toLowerCase()
     );
     
     if (duplicateCategory) {
@@ -359,8 +359,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return false;
     }
     
-    console.log('Updating category in state:', category);
-    console.log('Current category in state before update:', existingCategory);
+    console.log('Provider - Updating category in state:', category);
+    console.log('Provider - Current categories before update:', state.categories);
     
     // First update the local state
     dispatch({ 
@@ -371,24 +371,26 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // Then sync with Supabase if needed
     if (user) {
       if (isOnline) {
-        console.log('Online, syncing category update immediately to Supabase:', category);
+        console.log('Provider - Online, syncing category update immediately to Supabase:', category);
         syncCategoryToSupabase(category)
           .then(success => {
             if (success) {
-              console.log('Successfully synced category update to Supabase');
+              console.log('Provider - Successfully synced category update to Supabase');
+              // Run a thorough cleanup of potential duplicates in Supabase
+              cleanupDuplicateCategories(category);
             } else {
-              console.warn('Failed to sync category update to Supabase');
+              console.warn('Provider - Failed to sync category update to Supabase');
               // Add to pending sync if immediate sync failed
               setPendingSync(prev => new Set(prev).add(category.id));
             }
           })
           .catch(err => {
-            console.error('Error during category sync:', err);
+            console.error('Provider - Error during category sync:', err);
             // Add to pending sync if immediate sync failed with error
             setPendingSync(prev => new Set(prev).add(category.id));
           });
       } else {
-        console.log('Offline, adding category to pending sync:', category.id);
+        console.log('Provider - Offline, adding category to pending sync:', category.id);
         setPendingSync(prev => new Set(prev).add(category.id));
       }
     }
@@ -497,7 +499,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!user || !isOnline) return false;
     
     try {
-      console.log('Syncing category to Supabase:', category);
+      console.log('Provider - Syncing category to Supabase:', category);
       
       // First delete any existing category with this ID
       const { error: deleteError } = await supabase
@@ -507,7 +509,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         .eq('category_id', category.id);
       
       if (deleteError) {
-        console.error('Error deleting category before update:', deleteError);
+        console.error('Provider - Error deleting category before update:', deleteError);
       }
       
       // Then insert the updated category
@@ -522,43 +524,11 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         });
       
       if (insertError) {
-        console.error('Error inserting updated category:', insertError);
+        console.error('Provider - Error inserting updated category:', insertError);
         throw insertError;
       }
       
-      console.log('Category synced successfully to Supabase:', category.name);
-      
-      // Remove any categories with the same name but different IDs
-      // This ensures that when a category is renamed, any old entries with the previous name are removed
-      const { data: existingCategories, error: fetchError } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('user_email', user.email)
-        .eq('type', category.type)
-        .neq('category_id', category.id)
-        .ilike('name', category.name);
-      
-      if (fetchError) {
-        console.error('Error fetching potentially duplicate categories:', fetchError);
-      }
-      
-      if (existingCategories && existingCategories.length > 0) {
-        console.log('Found potentially duplicate categories to clean up:', existingCategories);
-        
-        for (const duplicateCategory of existingCategories) {
-          const { error: cleanupError } = await supabase
-            .from('categories')
-            .delete()
-            .eq('user_email', user.email)
-            .eq('category_id', duplicateCategory.category_id);
-          
-          if (cleanupError) {
-            console.error('Error removing duplicate category:', cleanupError);
-          } else {
-            console.log('Removed duplicate category:', duplicateCategory.name);
-          }
-        }
-      }
+      console.log('Provider - Category synced successfully to Supabase:', category.name);
       
       // Update profile backup date
       if (user.id) {
@@ -580,7 +550,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setLastSyncTime(new Date());
       return true;
     } catch (error) {
-      console.error('Sync category error:', error);
+      console.error('Provider - Sync category error:', error);
       return false;
     }
   };
@@ -611,6 +581,54 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } catch (error) {
       console.error('Delete category error:', error);
       return false;
+    }
+  };
+
+  const cleanupDuplicateCategories = async (category) => {
+    if (!user || !isOnline) return;
+    
+    try {
+      console.log('Provider - Looking for duplicate categories to clean up for:', category.name);
+      
+      // Find any categories with the same name and type but different IDs
+      const { data: duplicates, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_email', user.email)
+        .eq('type', category.type)
+        .ilike('name', category.name)
+        .neq('category_id', category.id);
+      
+      if (error) {
+        console.error('Provider - Error finding duplicate categories:', error);
+        return;
+      }
+      
+      if (duplicates && duplicates.length > 0) {
+        console.log(`Provider - Found ${duplicates.length} duplicate categories to clean up:`, duplicates);
+        
+        // Delete all duplicates
+        for (const dup of duplicates) {
+          const { error: deleteError } = await supabase
+            .from('categories')
+            .delete()
+            .eq('user_email', user.email)
+            .eq('category_id', dup.category_id);
+            
+          if (deleteError) {
+            console.error(`Provider - Error deleting duplicate category ${dup.category_id}:`, deleteError);
+          } else {
+            console.log(`Provider - Successfully deleted duplicate category: ${dup.name} (${dup.category_id})`);
+          }
+        }
+        
+        // Also deduplicate the local state
+        dispatch({ type: "DEDUPLICATE_DATA" });
+      } else {
+        console.log('Provider - No duplicate categories found');
+      }
+    } catch (err) {
+      console.error('Provider - Error in cleanupDuplicateCategories:', err);
     }
   };
 

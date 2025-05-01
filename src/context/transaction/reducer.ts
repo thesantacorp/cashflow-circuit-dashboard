@@ -62,23 +62,32 @@ export function transactionReducer(
       const updatedCategory = action.payload;
       
       // Check for duplicates (excluding the category being updated)
-      const duplicateAfterUpdate = state.categories.some(c => 
+      const duplicateCategory = state.categories.find(c => 
         c.id !== updatedCategory.id && 
         c.type === updatedCategory.type && 
         c.name.toLowerCase() === updatedCategory.name.toLowerCase()
       );
       
-      if (duplicateAfterUpdate) {
-        toast.error(`A category named "${updatedCategory.name}" already exists for type ${updatedCategory.type}`);
+      if (duplicateCategory) {
+        console.error(`Cannot update: A category named "${updatedCategory.name}" already exists for type ${updatedCategory.type}`);
+        toast.error(`A category named "${updatedCategory.name}" already exists for ${updatedCategory.type}`);
         return state;
       }
       
-      // Update the existing category
-      const updatedCategories = state.categories.map(c => 
-        c.id === updatedCategory.id ? updatedCategory : c
-      );
+      console.log('Reducer - Updating category with ID:', updatedCategory.id);
+      console.log('Reducer - Original categories:', state.categories);
       
-      console.log('Updated categories in reducer:', updatedCategories);
+      // Update the existing category - IMPORTANT: Preserve the same ID
+      const updatedCategories = state.categories.map(c => {
+        if (c.id === updatedCategory.id) {
+          console.log('Reducer - Found category to update:', c);
+          console.log('Reducer - Updating to:', updatedCategory);
+          return updatedCategory;
+        }
+        return c;
+      });
+      
+      console.log('Reducer - Updated categories:', updatedCategories);
       
       return {
         ...state,

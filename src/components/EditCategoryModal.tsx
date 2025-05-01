@@ -37,6 +37,8 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
       return;
     }
 
+    console.log('EditCategoryModal - Original category:', category);
+    
     // Create updated category with the same ID but updated name and color
     const updatedCategory: Category = {
       ...category,
@@ -44,7 +46,8 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
       color,
     };
 
-    console.log('Saving updated category:', updatedCategory);
+    console.log('EditCategoryModal - Preparing to save category with ID:', updatedCategory.id);
+    console.log('EditCategoryModal - Updated category:', updatedCategory);
 
     // Use the updateCategory function to update the existing category
     const success = updateCategory(updatedCategory);
