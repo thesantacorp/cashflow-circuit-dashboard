@@ -314,8 +314,8 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = ({
 
       {/* Emotion Timeline */}
       <Card className={`col-span-full overflow-visible ${isMobile ? 'min-w-[250px]' : ''}`}>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <div>
+        <CardHeader className="flex flex-col pb-2">
+          <div className="mb-2">
             <CardTitle className="text-xs sm:text-sm">Emotion Timeline</CardTitle>
             <CardDescription className="text-xs">Your emotional spending patterns over time</CardDescription>
           </div>

@@ -85,7 +85,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (duplicatesFound || categoryDuplicatesFound) {
         console.log('[TransactionProvider] Duplicates found on startup, deduplicating...');
         dispatch({ type: "DEDUPLICATE_DATA" });
-        // Removed toast for duplicate removal on startup
+        // No toast for duplicate removal on startup
       }
       
       setIsInitialLoad(false);
@@ -217,7 +217,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           type: t.type,
           categoryId: t.category_id,
           amount: t.amount,
-          description: t.description,
+          description: t.description || '',
           date: t.date,
           emotionalState: t.emotional_state
         })),
@@ -243,9 +243,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  const deduplicate = (showToast = true) => {
+  const deduplicate = (showToast = false) => {
     console.log('[TransactionProvider] Deduplicating data...');
     dispatch({ type: "DEDUPLICATE_DATA" });
+    // Only show toast when explicitly requested (not during silent background operations)
     if (showToast) {
       toast("Removed duplicate items");
     }
