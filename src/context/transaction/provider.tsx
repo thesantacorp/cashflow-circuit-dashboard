@@ -1,4 +1,3 @@
-
 import React, { useReducer, useEffect, useState } from "react";
 import { TransactionContext } from "./context";
 import { useDataOperations } from "./hooks/useDataOperations";
@@ -337,6 +336,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const updateCategory = (category) => {
+    // Check for duplicates before updating
     const duplicateCategory = state.categories.find(
       c => c.id !== category.id && 
            c.name.toLowerCase() === category.name.toLowerCase() && 
@@ -344,11 +344,13 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     );
     
     if (duplicateCategory) {
-      toast(`A category named "${category.name}" already exists for ${category.type}`);
+      toast.error(`A category named "${category.name}" already exists for ${category.type}`);
       return false;
     }
     
     console.log('Updating category in state:', category);
+    
+    // First update the local state
     dispatch({ 
       type: "UPDATE_CATEGORY", 
       payload: category 
@@ -357,27 +359,29 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // Mark the category for sync and sync immediately if online
     if (user) {
       if (isOnline) {
-        console.log('Online, syncing category update immediately:', category);
-        syncCategoryToSupabase(category)
-          .then(success => {
-            if (!success) {
-              console.warn('Failed to sync category update to Supabase');
-              // Add to pending sync if immediate sync failed
+        console.log('Online, syncing category update immediately to Supabase:', category);
+        // Wait a brief moment to ensure local state is updated
+        setTimeout(() => {
+          syncCategoryToSupabase(category)
+            .then(success => {
+              if (!success) {
+                console.warn('Failed to sync category update to Supabase');
+                // Add to pending sync if immediate sync failed
+                setPendingSync(prev => new Set(prev).add(category.id));
+              }
+            })
+            .catch(err => {
+              console.error('Error during category sync:', err);
+              // Add to pending sync if immediate sync failed with error
               setPendingSync(prev => new Set(prev).add(category.id));
-            }
-          })
-          .catch(err => {
-            console.error('Error during category sync:', err);
-            // Add to pending sync if immediate sync failed with error
-            setPendingSync(prev => new Set(prev).add(category.id));
-          });
+            });
+        }, 100);
       } else {
         console.log('Offline, adding category to pending sync:', category.id);
         setPendingSync(prev => new Set(prev).add(category.id));
       }
     }
     
-    toast("Category updated successfully");
     return true;
   };
 
@@ -484,14 +488,18 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.log('Syncing category to Supabase:', category);
       
       // First delete any existing category with this ID
-      await supabase
+      const { error: deleteError } = await supabase
         .from('categories')
         .delete()
         .eq('user_email', user.email)
         .eq('category_id', category.id);
       
+      if (deleteError) {
+        console.error('Error deleting category before update:', deleteError);
+      }
+      
       // Then insert the updated category
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from('categories')
         .insert({
           user_email: user.email,
@@ -501,12 +509,12 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           color: category.color
         });
       
-      if (error) {
-        console.error('Error inserting category:', error);
-        throw error;
+      if (insertError) {
+        console.error('Error inserting updated category:', insertError);
+        throw insertError;
       }
       
-      console.log('Category synced successfully');
+      console.log('Category synced successfully to Supabase:', category.name);
       
       // Update profile backup date
       if (user.id) {
