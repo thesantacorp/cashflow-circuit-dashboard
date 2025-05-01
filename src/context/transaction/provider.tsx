@@ -336,6 +336,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const updateCategory = (category) => {
+    console.log('Update category initiated with data:', category);
+    
     // Check for duplicates before updating
     const duplicateCategory = state.categories.find(
       c => c.id !== category.id && 
@@ -344,11 +346,21 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     );
     
     if (duplicateCategory) {
+      console.error(`Cannot update: A category named "${category.name}" already exists for type ${category.type}`);
       toast.error(`A category named "${category.name}" already exists for ${category.type}`);
       return false;
     }
     
+    // Ensure the category exists before trying to update it
+    const existingCategory = state.categories.find(c => c.id === category.id);
+    if (!existingCategory) {
+      console.error(`Cannot update: No category found with ID: ${category.id}`);
+      toast.error("Cannot update: Category not found");
+      return false;
+    }
+    
     console.log('Updating category in state:', category);
+    console.log('Current category in state before update:', existingCategory);
     
     // First update the local state
     dispatch({ 
@@ -356,32 +368,32 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       payload: category 
     });
     
-    // Mark the category for sync and sync immediately if online
+    // Then sync with Supabase if needed
     if (user) {
       if (isOnline) {
         console.log('Online, syncing category update immediately to Supabase:', category);
-        // Wait a brief moment to ensure local state is updated
-        setTimeout(() => {
-          syncCategoryToSupabase(category)
-            .then(success => {
-              if (!success) {
-                console.warn('Failed to sync category update to Supabase');
-                // Add to pending sync if immediate sync failed
-                setPendingSync(prev => new Set(prev).add(category.id));
-              }
-            })
-            .catch(err => {
-              console.error('Error during category sync:', err);
-              // Add to pending sync if immediate sync failed with error
+        syncCategoryToSupabase(category)
+          .then(success => {
+            if (success) {
+              console.log('Successfully synced category update to Supabase');
+            } else {
+              console.warn('Failed to sync category update to Supabase');
+              // Add to pending sync if immediate sync failed
               setPendingSync(prev => new Set(prev).add(category.id));
-            });
-        }, 100);
+            }
+          })
+          .catch(err => {
+            console.error('Error during category sync:', err);
+            // Add to pending sync if immediate sync failed with error
+            setPendingSync(prev => new Set(prev).add(category.id));
+          });
       } else {
         console.log('Offline, adding category to pending sync:', category.id);
         setPendingSync(prev => new Set(prev).add(category.id));
       }
     }
     
+    toast.success("Category updated successfully");
     return true;
   };
 
@@ -515,6 +527,38 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       
       console.log('Category synced successfully to Supabase:', category.name);
+      
+      // Remove any categories with the same name but different IDs
+      // This ensures that when a category is renamed, any old entries with the previous name are removed
+      const { data: existingCategories, error: fetchError } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_email', user.email)
+        .eq('type', category.type)
+        .neq('category_id', category.id)
+        .ilike('name', category.name);
+      
+      if (fetchError) {
+        console.error('Error fetching potentially duplicate categories:', fetchError);
+      }
+      
+      if (existingCategories && existingCategories.length > 0) {
+        console.log('Found potentially duplicate categories to clean up:', existingCategories);
+        
+        for (const duplicateCategory of existingCategories) {
+          const { error: cleanupError } = await supabase
+            .from('categories')
+            .delete()
+            .eq('user_email', user.email)
+            .eq('category_id', duplicateCategory.category_id);
+          
+          if (cleanupError) {
+            console.error('Error removing duplicate category:', cleanupError);
+          } else {
+            console.log('Removed duplicate category:', duplicateCategory.name);
+          }
+        }
+      }
       
       // Update profile backup date
       if (user.id) {

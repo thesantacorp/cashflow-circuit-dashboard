@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useTransactions } from "@/context/transaction";
 import { Category, Transaction, TransactionType } from "@/types";
@@ -60,9 +61,7 @@ const CategoryList: React.FC<CategoryListProps> = ({ type, filteredTransactions 
       setColor(type === "expense" ? "#e74c3c" : "#27ae60");
       setOpen(false);
       
-      // Manually fetch updated categories
-      const updatedCategories = getCategoriesByType(type);
-      setCategories(updatedCategories);
+      // Don't need to manually fetch categories anymore since we're observing state.categories
       
       toast.success(`Added ${type} category: ${newCategory}`);
       
@@ -83,9 +82,6 @@ const CategoryList: React.FC<CategoryListProps> = ({ type, filteredTransactions 
     
     if (success) {
       toast.success("Category deleted successfully");
-      
-      // Update local state to reflect deletion
-      setCategories(prev => prev.filter(c => c.id !== id));
       
       if (!isOnline) {
         toast.info("You're offline. Changes will sync when you reconnect.", {

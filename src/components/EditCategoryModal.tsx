@@ -21,7 +21,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
 }) => {
   const [name, setName] = useState(category?.name || "");
   const [color, setColor] = useState(category?.color || "#cccccc");
-  const { getCategoriesByType, updateCategory, isOnline } = useTransactions();
+  const { updateCategory, isOnline } = useTransactions();
   
   // Update state when the category prop changes
   useEffect(() => {
@@ -30,23 +30,10 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
       setColor(category.color || "#cccccc");
     }
   }, [category]);
-  
-  // Get all categories of the same type for duplicate checking
-  const categoriesOfSameType = getCategoriesByType(category?.type || "expense");
 
   const handleSave = () => {
     if (!name.trim()) {
       toast.error("Category name cannot be empty");
-      return;
-    }
-
-    // Check if another category with this name already exists (excluding the current one)
-    const nameExists = categoriesOfSameType.some(
-      cat => cat.id !== category.id && cat.name.toLowerCase() === name.trim().toLowerCase()
-    );
-    
-    if (nameExists) {
-      toast.error(`A ${category.type} category named "${name}" already exists.`);
       return;
     }
 
