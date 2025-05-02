@@ -39,7 +39,7 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({
   }, []);
 
   return (
-    <div className="mb-6">
+    <div className="mb-6 w-full">
       <h3 className="text-sm font-medium mb-2">Filter by Category</h3>
       <Select 
         value={selectedCategory} 
@@ -48,16 +48,23 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({
         <SelectTrigger className="w-full bg-white">
           <SelectValue placeholder="All Categories" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent 
+          position="popper"
+          className="w-full max-w-[90vw] md:max-w-[300px] max-h-[40vh] overflow-y-auto bg-white"
+        >
           <SelectItem value="all">All Categories</SelectItem>
           {uniqueCategories.map((category) => (
-            <SelectItem key={category.id} value={category.id}>
+            <SelectItem 
+              key={category.id} 
+              value={category.id} 
+              className="text-base py-2"
+            >
               <div className="flex items-center">
                 <span
-                  className="h-3 w-3 rounded-full mr-2"
+                  className="h-3 w-3 rounded-full mr-2 flex-shrink-0"
                   style={{ backgroundColor: category.color }}
                 />
-                {category.name}
+                <span className="truncate">{category.name}</span>
               </div>
             </SelectItem>
           ))}

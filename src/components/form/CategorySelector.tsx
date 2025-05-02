@@ -26,7 +26,10 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
         </SelectTrigger>
         <SelectContent 
           position="popper" 
-          className="category-select-content max-h-[40vh] overflow-y-auto"
+          className="category-select-content max-h-[40vh] overflow-y-auto max-w-[90vw] sm:max-w-[300px] bg-white"
+          sideOffset={5}
+          avoidCollisions={true}
+          collisionPadding={10}
         >
           <SelectScrollUpButton className="flex justify-center items-center py-2">
             <ChevronUp className="h-6 w-6 text-gray-500" />
@@ -40,10 +43,10 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
               >
                 <div className="flex items-center">
                   <span
-                    className="h-4 w-4 rounded-full mr-3"
+                    className="h-4 w-4 rounded-full mr-3 flex-shrink-0"
                     style={{ backgroundColor: category.color }}
                   />
-                  {category.name}
+                  <span className="truncate">{category.name}</span>
                 </div>
               </SelectItem>
             ))}

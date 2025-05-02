@@ -46,9 +46,9 @@ const IncomePage: React.FC = () => {
   };
 
   return (
-    <div className="container py-6 max-w-7xl">
+    <div className="container py-6 px-4 max-w-7xl w-full overflow-hidden">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Income</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Income</h1>
         <div className="flex items-center gap-2">
           {hasDuplicates && (
             <Button 
@@ -58,7 +58,8 @@ const IncomePage: React.FC = () => {
               className="flex items-center gap-1 text-orange-600 border-orange-300 hover:bg-orange-50"
             >
               <RefreshCw className="h-3 w-3" />
-              <span>Remove Duplicates</span>
+              <span className="hidden sm:inline">Remove Duplicates</span>
+              <span className="sm:hidden">Remove</span>
             </Button>
           )}
           <CurrencySelector />
