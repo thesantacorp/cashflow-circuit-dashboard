@@ -216,7 +216,11 @@ export function transactionReducer(
       // Update all transactions that use the fromCategoryId
       const reassignedTransactions = state.transactions.map(transaction => {
         if (transaction.categoryId === fromCategoryId) {
-          return { ...transaction, categoryId: toCategoryId };
+          return { 
+            ...transaction, 
+            categoryId: toCategoryId,
+            originalCategoryId: fromCategoryId // Track the original category ID
+          };
         }
         return transaction;
       });
