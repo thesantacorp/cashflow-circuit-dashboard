@@ -1,3 +1,4 @@
+
 import React, { useReducer, useEffect, useState } from "react";
 import { TransactionContext } from "./context";
 import { useDataOperations } from "./hooks/useDataOperations";
@@ -6,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { checkDatabaseConnection } from "@/utils/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 import { transactionReducer, initialState } from "./reducer";
+import { Category } from "@/types";
 
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const savedState = localStorage.getItem("transactionState");
@@ -249,6 +251,50 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (showToast) {
       toast("Removed duplicate items");
     }
+    return true;
+  };
+
+  const reassignTransactions = (fromCategoryId: string, toCategoryId: string) => {
+    // Validate the categories
+    const fromCategory = state.categories.find(c => c.id === fromCategoryId);
+    const toCategory = state.categories.find(c => c.id === toCategoryId);
+    
+    if (!fromCategory || !toCategory) {
+      toast.error("One or both categories not found");
+      return false;
+    }
+    
+    if (fromCategory.type !== toCategory.type) {
+      toast.error("Cannot move transactions between different types of categories");
+      return false;
+    }
+    
+    // Count affected transactions
+    const affectedCount = state.transactions.filter(t => t.categoryId === fromCategoryId).length;
+    
+    if (affectedCount === 0) {
+      toast.info("No transactions to reassign");
+      return true;
+    }
+    
+    // Dispatch the reassign action
+    dispatch({
+      type: "REASSIGN_TRANSACTIONS",
+      payload: { fromCategoryId, toCategoryId }
+    });
+    
+    // Sync changes if online
+    if (user && isOnline) {
+      // Update all affected transactions in Supabase
+      const affectedTransactions = state.transactions.filter(t => t.categoryId === toCategoryId && 
+                                                            t.originalCategoryId === fromCategoryId);
+      
+      for (const transaction of affectedTransactions) {
+        syncTransactionToSupabase(transaction);
+      }
+    }
+    
+    toast.success(`Moved ${affectedCount} transactions from "${fromCategory.name}" to "${toCategory.name}"`);
     return true;
   };
 
@@ -653,7 +699,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         refreshData: fetchLatestData,
         deduplicate,
         isOnline,
-        pendingSyncCount: pendingSync.size
+        pendingSyncCount: pendingSync.size,
+        reassignTransactions
       }}
     >
       {children}

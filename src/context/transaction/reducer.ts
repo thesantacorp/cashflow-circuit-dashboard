@@ -140,14 +140,14 @@ export function transactionReducer(
       
       // First add default categories
       for (const category of allDefaultCategories) {
-        const key = `${category.type}-${category.name.toLowerCase()}`;
+        const key = `${category.type}-${category.name.toLowerCase()}-${category.id}`;
         categoryMap.set(key, category);
       }
       
       // Then add provided categories, which will override defaults with same name/type
       if (action.payload.categories) {
         for (const category of action.payload.categories) {
-          const key = `${category.type}-${category.name.toLowerCase()}`;
+          const key = `${category.type}-${category.name.toLowerCase()}-${category.id}`;
           categoryMap.set(key, category);
         }
       }
@@ -163,23 +163,67 @@ export function transactionReducer(
         new Map(state.transactions.map(t => [t.id, t])).values()
       );
       
-      // Remove duplicate categories by name and type
+      // Remove duplicate categories by ID (not just by name/type)
       const dedupedCategoryMap = new Map();
       
-      // Process categories to keep only one per name/type combination
+      // Process categories to ensure uniqueness by ID
       for (const category of state.categories) {
-        const key = `${category.type}-${category.name.toLowerCase()}`;
-        // If we already have this category type/name combination,
-        // keep the first one we encountered
+        const key = category.id;
         if (!dedupedCategoryMap.has(key)) {
           dedupedCategoryMap.set(key, category);
         }
       }
       
+      // Extra step: ensure no duplicate names within same type
+      const finalCategoriesMap = new Map();
+      const processedNameTypeKeys = new Set();
+      
+      for (const category of dedupedCategoryMap.values()) {
+        const nameTypeKey = `${category.type}-${category.name.toLowerCase()}`;
+        
+        if (!processedNameTypeKeys.has(nameTypeKey)) {
+          finalCategoriesMap.set(category.id, category);
+          processedNameTypeKeys.add(nameTypeKey);
+        } else {
+          console.log(`Dropping duplicate category: ${category.name} (${category.id})`);
+        }
+      }
+      
+      // Update transactions that reference removed categories
+      const validCategoryIds = new Set(Array.from(finalCategoriesMap.keys()));
+      const updatedTransactions = dedupedTransactions.map(transaction => {
+        if (transaction.categoryId && !validCategoryIds.has(transaction.categoryId)) {
+          console.log(`Transaction ${transaction.id} references non-existent category ${transaction.categoryId}`);
+          // Find a default category of the same type
+          const defaultCategory = allDefaultCategories.find(c => c.type === transaction.type);
+          if (defaultCategory) {
+            console.log(`Reassigning to default category: ${defaultCategory.name} (${defaultCategory.id})`);
+            return { ...transaction, categoryId: defaultCategory.id };
+          }
+        }
+        return transaction;
+      });
+      
       return {
         ...state,
-        transactions: dedupedTransactions,
-        categories: Array.from(dedupedCategoryMap.values()),
+        transactions: updatedTransactions,
+        categories: Array.from(finalCategoriesMap.values()),
+      };
+    case "REASSIGN_TRANSACTIONS":
+      // Move transactions from one category to another
+      const { fromCategoryId, toCategoryId } = action.payload;
+      
+      // Update all transactions that use the fromCategoryId
+      const reassignedTransactions = state.transactions.map(transaction => {
+        if (transaction.categoryId === fromCategoryId) {
+          return { ...transaction, categoryId: toCategoryId };
+        }
+        return transaction;
+      });
+      
+      return {
+        ...state,
+        transactions: reassignedTransactions,
       };
     default:
       return state;

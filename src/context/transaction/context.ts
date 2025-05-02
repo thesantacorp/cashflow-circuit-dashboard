@@ -28,9 +28,10 @@ interface TransactionContextType {
   replaceAllData: (data: TransactionState) => void;
   lastSyncTime: Date | null;
   refreshData?: () => Promise<boolean>;
-  deduplicate: () => void;
+  deduplicate: () => boolean;
   isOnline: boolean;
   pendingSyncCount: number;
+  reassignTransactions: (fromCategoryId: string, toCategoryId: string) => boolean;
 }
 
 // Create the context
