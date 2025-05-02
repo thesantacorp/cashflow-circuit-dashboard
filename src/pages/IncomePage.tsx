@@ -39,6 +39,12 @@ const IncomePage: React.FC = () => {
     return duplicatesFound;
   }, [state.transactions]);
 
+  // Create a wrapper function that handles the MouseEvent properly
+  const handleDeduplicate = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    deduplicate(true); // Pass true to show toast notification
+  };
+
   return (
     <div className="container py-6 max-w-7xl">
       <div className="flex justify-between items-center mb-6">
@@ -48,7 +54,7 @@ const IncomePage: React.FC = () => {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={deduplicate}
+              onClick={handleDeduplicate}
               className="flex items-center gap-1 text-orange-600 border-orange-300 hover:bg-orange-50"
             >
               <RefreshCw className="h-3 w-3" />
