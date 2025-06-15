@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -11,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import EditTransactionModal from "./EditTransactionModal";
+import { formatNumberWithCommas } from "@/lib/utils";
 
 interface TransactionListProps {
   type: TransactionType;
@@ -202,7 +202,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
                           type === "expense" ? "text-red-600" : "text-green-600"
                         }`}
                       >
-                        {type === "expense" ? "-" : "+"}{currencySymbol}{transaction.amount.toFixed(2)}
+                        {type === "expense" ? "-" : "+"}
+                        {currencySymbol}
+                        {formatNumberWithCommas(transaction.amount)}
                       </span>
                       <div className="flex">
                         <Button
