@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTransactions } from "@/context/transaction";
@@ -24,6 +23,7 @@ import {
 } from 'chart.js';
 import { Doughnut, Line } from 'react-chartjs-2';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatNumberWithCommas } from "@/lib/utils";
 
 // Register ChartJS components
 ChartJS.register(
@@ -281,7 +281,7 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = ({
               Object.entries(emotionSpending).map(([emotion, amount]) => (
                 <div key={emotion} className="flex justify-between items-center">
                   <span className="capitalize text-xs sm:text-sm">{emotion}</span>
-                  <span className="font-semibold text-xs sm:text-sm">{currency}{amount.toFixed(2)}</span>
+                  <span className="font-semibold text-xs sm:text-sm">{currency}{formatNumberWithCommas(amount)}</span>
                 </div>
               ))
             ) : (
@@ -292,7 +292,7 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = ({
             <div className="pt-2 border-t">
               <div className="flex justify-between items-center">
                 <span className="font-medium text-xs sm:text-sm">Avg. per transaction</span>
-                <span className="font-semibold text-xs sm:text-sm">{currency}{averageSpending.toFixed(2)}</span>
+                <span className="font-semibold text-xs sm:text-sm">{currency}{formatNumberWithCommas(averageSpending)}</span>
               </div>
             </div>
           </div>
