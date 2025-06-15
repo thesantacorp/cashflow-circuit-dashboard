@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrency } from "@/context/CurrencyContext";
 import EmotionInsights from "./EmotionInsights";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { formatNumberWithCommas } from "@/lib/utils";
 
 interface DashboardProps {
   type: TransactionType;
@@ -32,7 +33,7 @@ const Dashboard: React.FC<DashboardProps> = ({ type, filteredTransactions }) => 
         </CardHeader>
         <CardContent>
           <div className="text-2xl md:text-3xl font-bold break-words">
-            {currencySymbol}{total.toFixed(2)}
+            {currencySymbol}{formatNumberWithCommas(total)}
           </div>
         </CardContent>
       </Card>
@@ -47,3 +48,4 @@ const Dashboard: React.FC<DashboardProps> = ({ type, filteredTransactions }) => 
 };
 
 export default Dashboard;
+
