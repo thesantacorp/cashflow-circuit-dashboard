@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Dashboard from "@/components/Dashboard";
@@ -75,6 +74,8 @@ const IncomePage: React.FC = () => {
         
         <TabsContent value="dashboard" className="pt-4 space-y-4">
           <Dashboard type="income" />
+          {/* If you render a TransactionList in Dashboard, add defaultTimePeriod="month" prop */}
+          {/* <TransactionList type="income" defaultTimePeriod="month" ... /> */}
           <IncomeInsights />
         </TabsContent>
         

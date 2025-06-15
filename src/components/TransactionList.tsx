@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Transaction, TransactionType } from "@/types";
@@ -17,18 +17,31 @@ interface TransactionListProps {
   limit?: number;
   showViewAll?: boolean;
   filteredTransactions?: Transaction[];
+  defaultTimePeriod?: TimePeriod; // NEW: force default filter when provided
 }
 
 type TimePeriod = "day" | "week" | "month" | "year" | "all";
 
-const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showViewAll = false, filteredTransactions }) => {
+const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showViewAll = false, filteredTransactions, defaultTimePeriod }) => {
   const { getTransactionsByType, deleteTransaction, getCategoryById, isOnline, pendingSyncCount } = useTransactions();
   const { currencySymbol } = useCurrency();
   const allTransactions = getTransactionsByType(type);
   const transactions = filteredTransactions || allTransactions;
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>("month"); // <-- default to "month"
+  
+  // The timePeriod state should reset when defaultTimePeriod changes
+  const initialTimePeriod = typeof defaultTimePeriod === 'string' ? defaultTimePeriod : "month";
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>(initialTimePeriod);
+  
+  React.useEffect(() => {
+    if (defaultTimePeriod && defaultTimePeriod !== timePeriod) {
+      setTimePeriod(defaultTimePeriod);
+    }
+    // if defaultTimePeriod is undefined, don't change anything
+    // eslint-disable-next-line
+  }, [defaultTimePeriod]);
+  
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const filterTransactionsByTimePeriod = (transactions: Transaction[], period: TimePeriod): Transaction[] => {

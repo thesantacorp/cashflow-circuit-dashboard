@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Dashboard from "@/components/Dashboard";
@@ -132,6 +131,9 @@ const ExpensesPage: React.FC = () => {
                     filteredTransactions={selectedEmotion === 'all' && selectedCategory === 'all' ? undefined : filteredTransactions} 
                   />
                 </div>
+                {/* (Optional) If you want to show TransactionList in dashboard tab, make sure to add defaultTimePeriod="month" prop! 
+                  <TransactionList type="expense" defaultTimePeriod="month" ... />
+                */}
               </div>
               
               <div className="mt-8">
