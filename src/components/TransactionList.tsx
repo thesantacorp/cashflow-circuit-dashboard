@@ -28,7 +28,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
   const transactions = filteredTransactions || allTransactions;
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>("month"); // <-- default to "month"
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const filterTransactionsByTimePeriod = (transactions: Transaction[], period: TimePeriod): Transaction[] => {
