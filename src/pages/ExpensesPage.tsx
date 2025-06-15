@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Dashboard from "@/components/Dashboard";
@@ -7,49 +8,41 @@ import TransactionList from "@/components/TransactionList";
 import LocalStorageInfo from "@/components/LocalStorageInfo";
 import SpendingRecommendations from "@/components/SpendingRecommendations";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import EmotionFilter from "@/components/EmotionFilter";
 import CategoryFilter from "@/components/CategoryFilter";
 import { EmotionalState, Transaction } from "@/types";
-import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import TimePeriodSelect, { TimePeriod } from "@/components/TimePeriodSelect";
 
 const ExpensesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("transactions");
   const [selectedEmotion, setSelectedEmotion] = useState<EmotionalState | 'all'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string | 'all'>('all');
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>("month");
   const isMobile = useIsMobile();
-  const { getTotalByType, state, getCategoriesByType, deduplicate } = useTransactions();
+  const { getTotalByType, state, getCategoriesByType } = useTransactions();
   const { currencySymbol } = useCurrency();
   const totalExpenses = getTotalByType("expense");
   const expenseCategories = getCategoriesByType("expense");
-  
-  // Check if there are duplicate transactions
-  const hasDuplicates = useMemo(() => {
-    // We'll skip this check as we're no longer showing the duplicate button
-    return false;
-  }, [state.transactions]);
 
   // Filter transactions based on selected emotion and category
   const filteredTransactions = useMemo(() => {
     let filtered = state.transactions;
-    
-    // Filter by emotion if not 'all'
+
     if (selectedEmotion !== 'all') {
-      filtered = filtered.filter((transaction) => 
+      filtered = filtered.filter((transaction) =>
         transaction.emotionalState === selectedEmotion
       );
     }
-    
-    // Filter by category if not 'all'
+
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter((transaction) => 
+      filtered = filtered.filter((transaction) =>
         transaction.categoryId === selectedCategory
       );
     }
-    
+
     return filtered;
   }, [state.transactions, selectedEmotion, selectedCategory]);
 
@@ -70,31 +63,35 @@ const ExpensesPage: React.FC = () => {
     <div className="container py-6 max-w-7xl mx-auto px-4 w-full">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-center sm:text-left">Expenses</h1>
-        {/* We've removed the duplicate removal button as requested */}
       </div>
-      
+
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="mb-8">
         <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="dashboard" className="pt-4">
           <div className="max-w-full mx-auto overflow-x-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <EmotionFilter 
-                selectedEmotion={selectedEmotion} 
-                onChange={setSelectedEmotion} 
-              />
-              
-              <CategoryFilter 
-                selectedCategory={selectedCategory}
-                categories={expenseCategories}
-                onChange={setSelectedCategory}
-              />
+            <div className="flex flex-wrap justify-between items-center gap-2 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-w-[250px]">
+                <EmotionFilter
+                  selectedEmotion={selectedEmotion}
+                  onChange={setSelectedEmotion}
+                />
+                <CategoryFilter
+                  selectedCategory={selectedCategory}
+                  categories={expenseCategories}
+                  onChange={setSelectedCategory}
+                />
+              </div>
+              <div className="mt-2 md:mt-0 flex-shrink-0">
+                {/* Time period selector for Dashboard */}
+                <TimePeriodSelect value={timePeriod} onChange={setTimePeriod} />
+              </div>
             </div>
-            
+
             {(selectedEmotion !== 'all' || selectedCategory !== 'all') && (
               <Card className="mb-6 overflow-hidden min-w-[250px]">
                 <CardContent className="pt-6">
@@ -113,7 +110,7 @@ const ExpensesPage: React.FC = () => {
                       {currencySymbol}{filteredTotal.toFixed(2)}
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={resetFilters}
                     className="mt-2 text-xs text-orange-600 hover:text-orange-800 hover:underline"
                   >
@@ -122,24 +119,20 @@ const ExpensesPage: React.FC = () => {
                 </CardContent>
               </Card>
             )}
-            
+
             <div className="space-y-8 pb-6">
               <div className="w-full overflow-x-auto">
                 <div className={`${isMobile ? 'min-w-[250px]' : 'w-full'}`}>
-                  <Dashboard 
-                    type="expense" 
-                    filteredTransactions={selectedEmotion === 'all' && selectedCategory === 'all' ? undefined : filteredTransactions} 
+                  <Dashboard
+                    type="expense"
+                    filteredTransactions={selectedEmotion === 'all' && selectedCategory === 'all' ? undefined : filteredTransactions}
+                    timePeriod={timePeriod}
                   />
                 </div>
-                {/* (Optional) If you want to show TransactionList in dashboard tab, make sure to add defaultTimePeriod="month" prop! 
-                  <TransactionList type="expense" defaultTimePeriod="month" ... />
-                */}
               </div>
-              
               <div className="mt-8">
                 <SpendingRecommendations />
               </div>
-              
               {!isMobile && (
                 <div className="mt-8">
                   <LocalStorageInfo />
@@ -148,59 +141,54 @@ const ExpensesPage: React.FC = () => {
             </div>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="categories" className="pt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <EmotionFilter 
-              selectedEmotion={selectedEmotion} 
-              onChange={setSelectedEmotion} 
+            <EmotionFilter
+              selectedEmotion={selectedEmotion}
+              onChange={setSelectedEmotion}
             />
-            
-            <CategoryFilter 
+            <CategoryFilter
               selectedCategory={selectedCategory}
               categories={expenseCategories}
               onChange={setSelectedCategory}
             />
           </div>
-          
-          <CategoryList 
-            type="expense" 
-            filteredTransactions={selectedEmotion === 'all' && selectedCategory === 'all' ? undefined : filteredTransactions} 
+          <CategoryList
+            type="expense"
+            filteredTransactions={selectedEmotion === 'all' && selectedCategory === 'all' ? undefined : filteredTransactions}
           />
-          
           {!isMobile && (
             <div className="mt-6">
               <LocalStorageInfo />
             </div>
           )}
         </TabsContent>
-        
+
         <TabsContent value="transactions" className="pt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <EmotionFilter 
-              selectedEmotion={selectedEmotion} 
-              onChange={setSelectedEmotion} 
+            <EmotionFilter
+              selectedEmotion={selectedEmotion}
+              onChange={setSelectedEmotion}
             />
-            
-            <CategoryFilter 
+            <CategoryFilter
               selectedCategory={selectedCategory}
               categories={expenseCategories}
               onChange={setSelectedCategory}
             />
           </div>
-          
+
           <div className={`grid ${isMobile ? 'grid-cols-1 gap-8' : 'md:grid-cols-2 gap-6'}`}>
             <div className="w-full max-w-lg mx-auto md:mx-0">
               <TransactionForm type="expense" />
             </div>
             <div className="w-full">
-              <TransactionList 
-                type="expense" 
-                filteredTransactions={selectedEmotion === 'all' && selectedCategory === 'all' ? undefined : filteredTransactions} 
+              <TransactionList
+                type="expense"
+                filteredTransactions={selectedEmotion === 'all' && selectedCategory === 'all' ? undefined : filteredTransactions}
               />
             </div>
           </div>
-          
           {!isMobile && (
             <div className="mt-6">
               <LocalStorageInfo />
