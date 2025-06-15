@@ -25,8 +25,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
   const [targetCategory, setTargetCategory] = useState<string | null>(null);
   const [showMoveOption, setShowMoveOption] = useState(false);
   const { updateCategory, isOnline, state, getCategoriesByType, reassignTransactions } = useTransactions();
-  
-  // Update state when the category prop changes
+
   useEffect(() => {
     if (category) {
       setName(category.name);
@@ -36,7 +35,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
     }
   }, [category]);
 
-  // Get other categories of the same type
+  // Get other categories of the same type, EXCLUDING this category.
   const otherCategories = getCategoriesByType(category?.type || "expense")
     .filter(c => c.id !== category?.id);
 
@@ -46,38 +45,44 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
       return;
     }
 
-    console.log('EditCategoryModal - Original category:', category);
-    
-    // Create updated category with the same ID but updated name and color
+    // Defensive: don't allow same name as another category (case-insensitive, except this id)
+    const duplicate = state.categories.find(c =>
+      c.id !== category.id &&
+      c.type === category.type &&
+      c.name.trim().toLowerCase() === name.trim().toLowerCase()
+    );
+    if (duplicate) {
+      toast.error(`A category named "${name}" already exists for this type.`);
+      return;
+    }
+
+    console.log('[EditCategoryModal] Attempting to update category:', name, color, 'ID:', category.id);
+
+    // Only add the move if explicit
+    let updated = false;
     const updatedCategory: Category = {
       ...category,
       name: name.trim(),
       color,
     };
-
-    console.log('EditCategoryModal - Preparing to save category with ID:', updatedCategory.id);
-    console.log('EditCategoryModal - Updated category:', updatedCategory);
-
-    // Use the updateCategory function to update the existing category
-    const success = updateCategory(updatedCategory);
-    
-    if (success) {
-      toast.success("Category updated successfully");
-      if (!isOnline) {
-        toast.info("You're offline. Changes will sync when you reconnect.", {
-          duration: 4000
-        });
-      }
-      
-      // Handle transaction reassignment if needed
+    const result = updateCategory(updatedCategory);
+    if (result) {
+      updated = true;
+      // Only move transactions if explicitly selected
       if (showMoveOption && targetCategory) {
         reassignTransactions(category.id, targetCategory);
       }
-      
+      toast.success("Category updated successfully");
+      if (!isOnline) {
+        toast.info("You're offline. Changes will sync when you reconnect.", { duration: 4000 });
+      }
       onClose();
     } else {
-      toast.error("Failed to update category");
+      toast.error("Failed to update category. It may duplicate another, or an error occurred.");
+      // Return early: do NOT close on error
     }
+    // Log flow for debugging
+    console.log('[EditCategoryModal] Updated:', updatedCategory, 'Result:', result, 'Moved transactions:', showMoveOption && targetCategory);
   };
 
   const toggleMoveTransactions = () => {
@@ -121,8 +126,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
               />
             </div>
           </div>
-          
-          {/* Option to move transactions from this category to another */}
+
           <div className="pt-2">
             <div className="flex items-center space-x-2">
               <input
@@ -136,7 +140,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
                 Move transactions to another category
               </label>
             </div>
-            
+
             {showMoveOption && (
               <div className="mt-3 space-y-2">
                 <Label htmlFor="target-category">Target Category</Label>
@@ -164,7 +168,7 @@ const EditCategoryModal: React.FC<EditCategoryModalProps> = ({
               </div>
             )}
           </div>
-          
+
           <div className="flex justify-end space-x-2 pt-4">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSave}>Save Changes</Button>

@@ -1,4 +1,3 @@
-
 import React, { useReducer, useEffect, useState } from "react";
 import { TransactionContext } from "./context";
 import { useDataOperations } from "./hooks/useDataOperations";
@@ -383,64 +382,50 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const updateCategory = (category) => {
     console.log('Provider - Update category initiated with data:', category);
-    
-    // Check for duplicates before updating
+
+    // Defensive: don't allow duplicate within same type except for current id.
     const duplicateCategory = state.categories.find(
-      c => c.id !== category.id && 
-           c.type === category.type && 
-           c.name.toLowerCase() === category.name.toLowerCase()
+      c => c.id !== category.id &&
+        c.type === category.type &&
+        c.name.trim().toLowerCase() === category.name.trim().toLowerCase()
     );
-    
+
     if (duplicateCategory) {
-      console.error(`Cannot update: A category named "${category.name}" already exists for type ${category.type}`);
+      console.error(`[TransactionProvider] Cannot update: Duplicate name "${category.name}" for type ${category.type}. Existing:`, duplicateCategory);
       toast.error(`A category named "${category.name}" already exists for ${category.type}`);
       return false;
     }
-    
-    // Ensure the category exists before trying to update it
+
+    // Ensure actual category exists
     const existingCategory = state.categories.find(c => c.id === category.id);
     if (!existingCategory) {
-      console.error(`Cannot update: No category found with ID: ${category.id}`);
+      console.error(`[TransactionProvider] Cannot update: No category with ID ${category.id}`);
       toast.error("Cannot update: Category not found");
       return false;
     }
-    
-    console.log('Provider - Updating category in state:', category);
-    console.log('Provider - Current categories before update:', state.categories);
-    
-    // First update the local state
-    dispatch({ 
-      type: "UPDATE_CATEGORY", 
-      payload: category 
-    });
-    
-    // Then sync with Supabase if needed
+
+    // Updating name/color ONLY - never link to another category except via explicit move (handled in modal)
+    dispatch({ type: "UPDATE_CATEGORY", payload: category });
+
+    // Sync with supabase if needed (unchanged):
     if (user) {
       if (isOnline) {
-        console.log('Provider - Online, syncing category update immediately to Supabase:', category);
         syncCategoryToSupabase(category)
           .then(success => {
             if (success) {
-              console.log('Provider - Successfully synced category update to Supabase');
-              // Run a thorough cleanup of potential duplicates in Supabase
               cleanupDuplicateCategories(category);
             } else {
-              console.warn('Provider - Failed to sync category update to Supabase');
-              // Add to pending sync if immediate sync failed
               setPendingSync(prev => new Set(prev).add(category.id));
             }
           })
           .catch(err => {
-            console.error('Provider - Error during category sync:', err);
-            // Add to pending sync if immediate sync failed with error
             setPendingSync(prev => new Set(prev).add(category.id));
           });
       } else {
-        console.log('Provider - Offline, adding category to pending sync:', category.id);
         setPendingSync(prev => new Set(prev).add(category.id));
       }
     }
-    
+
     toast.success("Category updated successfully");
     return true;
   };
