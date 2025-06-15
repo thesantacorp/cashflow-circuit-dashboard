@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -34,6 +33,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { formatNumberWithCommas } from "@/lib/utils";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -129,7 +129,7 @@ const Navbar: React.FC = () => {
               <span className="text-sm text-white/70">Expenses</span>
               <span className="font-medium text-white flex items-center">
                 <ArrowDownIcon className="h-3 w-3 mr-1" />
-                {currencySymbol}{totalExpenses.toFixed(2)}
+                {currencySymbol}{formatNumberWithCommas(totalExpenses)}
               </span>
             </div>
             
@@ -137,14 +137,14 @@ const Navbar: React.FC = () => {
               <span className="text-sm text-white/70">Income</span>
               <span className="font-medium text-white flex items-center">
                 <ArrowUpIcon className="h-3 w-3 mr-1" />
-                {currencySymbol}{totalIncome.toFixed(2)}
+                {currencySymbol}{formatNumberWithCommas(totalIncome)}
               </span>
             </div>
             
             <div className="flex flex-col items-end">
               <span className="text-sm text-white/70">Balance</span>
-              <span className={`font-medium text-white`}>
-                {currencySymbol}{balance.toFixed(2)}
+              <span className="font-medium text-white">
+                {currencySymbol}{formatNumberWithCommas(balance)}
               </span>
             </div>
           </div>
