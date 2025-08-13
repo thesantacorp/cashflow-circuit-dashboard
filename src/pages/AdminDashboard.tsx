@@ -7,22 +7,18 @@ import { useCurrency } from "@/context/CurrencyContext";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DatabaseIcon, DatabaseBackupIcon, UsersIcon, BarChartIcon, Loader2, FilterIcon } from "lucide-react";
-import AdminLogin from "@/components/admin/AdminLogin";
 import StatCards from "@/components/admin/StatCards";
 import DashboardCharts from "@/components/admin/DashboardCharts";
 import FinancialInsights from "@/components/admin/FinancialInsights";
 import UserSessionsCard from "@/components/admin/UserSessionsCard";
 import AdminOverviewTab from "@/components/admin/AdminOverviewTab";
 import { fetchDashboardStats, getLocalDataStats } from "@/utils/admin/dashboardStats";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { Transaction } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 const AdminDashboard: React.FC = () => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
@@ -31,6 +27,7 @@ const AdminDashboard: React.FC = () => {
   const { transactions, categories } = state;
   const { currencySymbol } = useCurrency();
   const { user } = useAuth();
+  const { isAdmin, loading: adminLoading } = useAdminAuth();
   
   const [usageStats, setUsageStats] = useState({
     totalSessions: 0,
@@ -42,7 +39,7 @@ const AdminDashboard: React.FC = () => {
   });
   
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAdmin && !adminLoading) {
       setIsLoading(true);
       
       const loadStats = async () => {
@@ -88,7 +85,7 @@ const AdminDashboard: React.FC = () => {
       
       loadStats();
     }
-  }, [isAuthenticated, transactions.length, categories.length, user]);
+  }, [isAdmin, adminLoading, transactions.length, categories.length, user]);
 
   useEffect(() => {
     if (selectedCategory) {
@@ -105,25 +102,8 @@ const AdminDashboard: React.FC = () => {
     }
   }, [selectedCategory, transactions, categories]);
   
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (username === "SupErAdmIn" && password === "K9$PzW2e&xL!mG7@sV3#nQ8*tD5^jF6") {
-      setIsAuthenticated(true);
-      toast.success("Logged in successfully");
-      
-      sessionStorage.setItem('adminAuthenticated', 'true');
-    } else {
-      toast.error("Invalid username or password");
-    }
-  };
-
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    setUsername("");
-    setPassword("");
-    
-    sessionStorage.removeItem('adminAuthenticated');
+    navigate("/");
   };
 
   const handleBackToApp = () => {
@@ -138,12 +118,13 @@ const AdminDashboard: React.FC = () => {
     navigate("/admin/ideas");
   };
   
+  // Redirect non-admin users
   useEffect(() => {
-    const adminAuth = sessionStorage.getItem('adminAuthenticated');
-    if (adminAuth === 'true') {
-      setIsAuthenticated(true);
+    if (!adminLoading && !isAdmin && user) {
+      toast.error("Admin access required");
+      navigate("/");
     }
-  }, []);
+  }, [isAdmin, adminLoading, user, navigate]);
   
   const getMonthlyTransactionData = () => {
     const monthlyData: { [key: string]: { expenses: number, income: number } } = {};
@@ -226,17 +207,19 @@ const AdminDashboard: React.FC = () => {
     (transactions.length / usageStats.uniqueUsers) : 0;
   const hasTransactions = transactions.length > 0;
 
-  if (!isAuthenticated) {
+  // Show loading while checking admin status
+  if (adminLoading) {
     return (
-      <AdminLogin 
-        username={username}
-        setUsername={setUsername}
-        password={password}
-        setPassword={setPassword}
-        handleLogin={handleLogin}
-        handleBackToApp={handleBackToApp}
-      />
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-lg">Checking admin access...</span>
+      </div>
     );
+  }
+
+  // Redirect if not admin
+  if (!isAdmin) {
+    return null;
   }
 
   return (

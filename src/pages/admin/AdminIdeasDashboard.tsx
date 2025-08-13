@@ -29,29 +29,26 @@ import { AdminIdeaForm } from '@/components/admin/ideas/AdminIdeaForm';
 import { AdminVotesStatsGrid } from '@/components/admin/ideas/AdminVotesStatsGrid';
 import { AdminIdeasLoading } from '@/components/admin/ideas/AdminIdeasLoading';
 import { useIdeasManagement } from '@/hooks/admin/useIdeasManagement';
-import { useEffect, useState } from 'react';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { useEffect } from 'react';
 import { toast } from 'sonner';
 
 const AdminIdeasDashboard = () => {
   const navigate = useNavigate();
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const { isAdmin, loading: adminLoading } = useAdminAuth();
 
-  // Check for admin authentication
+  // Redirect non-admin users
   useEffect(() => {
-    const adminAuth = sessionStorage.getItem('adminAuthenticated');
-    if (adminAuth !== 'true') {
+    if (!adminLoading && !isAdmin) {
       toast.error('Admin authentication required');
       navigate('/admin/dashboard');
-      return;
     }
-    setIsAdminAuthenticated(true);
-  }, [navigate]);
+  }, [isAdmin, adminLoading, navigate]);
 
   const { 
     ideas,
     voteSummary,
     loading,
-    isAdmin,
     dialogOpen,
     setDialogOpen,
     isUploading,
@@ -62,7 +59,7 @@ const AdminIdeasDashboard = () => {
     handleNewIdea
   } = useIdeasManagement();
 
-  if (!isAdminAuthenticated) {
+  if (adminLoading || !isAdmin) {
     return null;
   }
 

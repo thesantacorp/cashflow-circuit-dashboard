@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { secureStorage, sessionUtils } from './secureStorage';
 
 // Interface for tracking user sessions
 export interface UserSession {
@@ -10,15 +11,15 @@ export interface UserSession {
   isActive: boolean;
 }
 
-// Local storage key for active sessions
+// Secure storage keys for active sessions
 const ACTIVE_SESSIONS_KEY = 'active_sessions';
 const CURRENT_SESSION_KEY = 'current_auth_session_id';
 const SESSION_CHECK_INTERVAL = 30000; // 30 seconds
 
-// Get all active sessions from localStorage
+// Get all active sessions from secure storage
 export const getActiveSessions = (): UserSession[] => {
   try {
-    const sessionsRaw = localStorage.getItem(ACTIVE_SESSIONS_KEY) || '[]';
+    const sessionsRaw = secureStorage.getItem(ACTIVE_SESSIONS_KEY) || '[]';
     return JSON.parse(sessionsRaw);
   } catch (error) {
     console.error('Error getting active sessions:', error);
@@ -28,7 +29,7 @@ export const getActiveSessions = (): UserSession[] => {
 
 // Get the current session
 export const getCurrentSession = (): string | null => {
-  return localStorage.getItem(CURRENT_SESSION_KEY);
+  return secureStorage.getItem(CURRENT_SESSION_KEY);
 };
 
 // Mark all other sessions as inactive
@@ -44,7 +45,7 @@ export const deactivateOtherSessions = (userId: string, currentSessionId: string
       return session;
     });
     
-    localStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(sessions));
+    secureStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(sessions));
   } catch (error) {
     console.error('Error deactivating other sessions:', error);
   }
@@ -63,8 +64,8 @@ export const trackSession = (session: UserSession): void => {
     // Add the new session
     updatedSessions.push(session);
     
-    localStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(updatedSessions));
-    localStorage.setItem(CURRENT_SESSION_KEY, session.sessionId);
+    secureStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(updatedSessions));
+    secureStorage.setItem(CURRENT_SESSION_KEY, session.sessionId);
     
     // Set a periodic check to see if this session is still valid
     startSessionValidityCheck(session.userId, session.sessionId);
@@ -108,7 +109,7 @@ export const updateSessionLastSeen = (sessionId: string): void => {
       return session;
     });
     
-    localStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(updatedSessions));
+    secureStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(updatedSessions));
   } catch (error) {
     console.error('Error updating session last seen:', error);
   }
@@ -128,8 +129,8 @@ export const clearCurrentSession = (): void => {
       return session;
     });
     
-    localStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(updatedSessions));
-    localStorage.removeItem(CURRENT_SESSION_KEY);
+    secureStorage.setItem(ACTIVE_SESSIONS_KEY, JSON.stringify(updatedSessions));
+    secureStorage.removeItem(CURRENT_SESSION_KEY);
   } catch (error) {
     console.error('Error clearing session:', error);
   }
