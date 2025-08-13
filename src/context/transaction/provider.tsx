@@ -6,12 +6,12 @@ import { useAuth } from "@/context/AuthContext";
 import { checkDatabaseConnection } from "@/utils/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 import { transactionReducer, initialState } from "./reducer";
+import { useOfflineStorage } from "@/hooks/useOfflineStorage";
+import { useOfflineQueue } from "@/hooks/useOfflineQueue";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { Category } from "@/types";
 
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const savedState = localStorage.getItem("transactionState");
-  const loadedInitialState = savedState ? JSON.parse(savedState) : initialState;
-  
   let authUser = null;
   try {
     const { user } = useAuth();
@@ -23,38 +23,45 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const user = authUser;
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [pendingSync, setPendingSync] = useState<Set<string>>(new Set());
+  const isOnline = useNetworkStatus();
+  const offlineStorage = useOfflineStorage();
+  const offlineQueue = useOfflineQueue();
+  
+  // Use offline storage data as the source of truth
+  const [state, dispatch] = useReducer(transactionReducer, {
+    transactions: offlineStorage.data.transactions,
+    categories: offlineStorage.data.categories,
+    nextTransactionId: 1,
+    nextCategoryId: 100
+  });
 
+  // Sync state changes to offline storage
   useEffect(() => {
-    const handleOnline = () => {
-      console.log('Connection restored - online');
-      setIsOnline(true);
-      if (pendingSync.size > 0) {
-        syncPendingChanges();
-      }
-    };
-    
-    const handleOffline = () => {
-      console.log('Connection lost - offline');
-      setIsOnline(false);
-    };
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [pendingSync]);
+    offlineStorage.updateData({
+      transactions: state.transactions,
+      categories: state.categories
+    });
+  }, [state.transactions, state.categories, offlineStorage]);
 
-  const [state, dispatch] = useReducer(transactionReducer, loadedInitialState);
-
+  // Process offline queue when coming online
   useEffect(() => {
-    console.log('Saving state to localStorage:', state);
-    localStorage.setItem("transactionState", JSON.stringify(state));
-  }, [state]);
+    if (isOnline && offlineQueue.queueLength > 0) {
+      console.log(`Processing ${offlineQueue.queueLength} queued items`);
+      offlineQueue.processQueue(async (item) => {
+        try {
+          if (item.type === 'transaction') {
+            return await syncTransactionToSupabase(item.data);
+          } else if (item.type === 'category') {
+            return await syncCategoryToSupabase(item.data);
+          }
+          return false;
+        } catch (error) {
+          console.error('Queue processing error:', error);
+          return false;
+        }
+      });
+    }
+  }, [isOnline, offlineQueue.queueLength]);
 
   // Only run the deduplication once on initial load, without showing toast
   useEffect(() => {
@@ -147,11 +154,19 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           console.log('Category channel status:', status);
         });
 
+      // Auto-fetch data on login if online
       if (user && isOnline) {
-        fetchLatestData(true).then(() => {
+        fetchLatestData(true).then((success) => {
           setIsInitialLoad(false);
-          deduplicate(false);
+          if (success) {
+            console.log('Initial sync completed successfully');
+          } else {
+            console.log('Initial sync failed, using offline data');
+          }
         });
+      } else {
+        setIsInitialLoad(false);
+        console.log('User logged in - working offline with local data');
       }
       
       return () => {
@@ -163,33 +178,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [user, isOnline]);
 
-  const syncPendingChanges = async () => {
-    if (!user || pendingSync.size === 0 || !isOnline) return;
-    
-    console.log(`Syncing ${pendingSync.size} pending changes`);
-    
-    // First, sync all pending categories
-    const categoriesToSync = state.categories.filter(c => 
-      pendingSync.has(c.id)
-    );
-    
-    for (const category of categoriesToSync) {
-      await syncCategoryToSupabase(category);
-    }
-    
-    // Then sync all pending transactions
-    const transactionsToSync = state.transactions.filter(t => 
-      pendingSync.has(t.id)
-    );
-    
-    for (const transaction of transactionsToSync) {
-      await syncTransactionToSupabase(transaction);
-    }
-    
-    setPendingSync(new Set());
-    
-    toast(`Synced ${categoriesToSync.length + transactionsToSync.length} item(s) to cloud`);
-  };
+  // Remove the old syncPendingChanges function as it's replaced by the offline queue system
 
   const fetchLatestData = async (force = false) => {
     if (!user || !isOnline) return false;
@@ -231,9 +220,11 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       console.log(`Fetched ${transformedData.transactions.length} transactions and ${transformedData.categories.length} categories`);
       
-      if (transformedData.transactions.length > 0 || transformedData.categories.length > 0 || force) {
+      // Always replace data when fetching from Supabase, even if empty (user might have deleted everything)
+      if (force || transformedData.transactions.length > 0 || transformedData.categories.length > 0) {
         replaceAllData(transformedData);
         setLastSyncTime(new Date());
+        console.log('Data replaced with Supabase data');
       }
       
       return true;
@@ -304,10 +295,20 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       payload: newTransaction,
     });
     
-    if (user && isOnline) {
-      syncTransactionToSupabase(newTransaction);
-    } else if (user) {
-      setPendingSync(prev => new Set(prev).add(newTransaction.id));
+    if (user) {
+      if (isOnline) {
+        syncTransactionToSupabase(newTransaction);
+      } else {
+        // Add to offline queue for later sync
+        offlineQueue.addToQueue({
+          id: newTransaction.id,
+          type: 'transaction',
+          action: 'create',
+          data: newTransaction
+        });
+        toast("Transaction saved offline - will sync when online");
+        return true;
+      }
     }
     
     toast("Transaction added successfully");
@@ -320,10 +321,20 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       payload: transaction 
     });
     
-    if (user && isOnline) {
-      syncTransactionToSupabase(transaction);
-    } else if (user) {
-      setPendingSync(prev => new Set(prev).add(transaction.id));
+    if (user) {
+      if (isOnline) {
+        syncTransactionToSupabase(transaction);
+      } else {
+        // Add to offline queue for later sync
+        offlineQueue.addToQueue({
+          id: transaction.id,
+          type: 'transaction',
+          action: 'update',
+          data: transaction
+        });
+        toast("Transaction updated offline - will sync when online");
+        return true;
+      }
     }
     
     toast("Transaction updated successfully");
@@ -370,10 +381,20 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       payload: newCategory,
     });
     
-    if (user && isOnline) {
-      syncCategoryToSupabase(newCategory);
-    } else if (user) {
-      setPendingSync(prev => new Set(prev).add(newCategory.id));
+    if (user) {
+      if (isOnline) {
+        syncCategoryToSupabase(newCategory);
+      } else {
+        // Add to offline queue for later sync
+        offlineQueue.addToQueue({
+          id: newCategory.id,
+          type: 'category',
+          action: 'create',
+          data: newCategory
+        });
+        toast("Category saved offline - will sync when online");
+        return true;
+      }
     }
     
     toast("Category added successfully");
@@ -407,7 +428,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // Updating name/color ONLY - never link to another category except via explicit move (handled in modal)
     dispatch({ type: "UPDATE_CATEGORY", payload: category });
 
-    // Sync with supabase if needed (unchanged):
+    // Sync with supabase if needed:
     if (user) {
       if (isOnline) {
         syncCategoryToSupabase(category)
@@ -415,14 +436,29 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
             if (success) {
               cleanupDuplicateCategories(category);
             } else {
-              setPendingSync(prev => new Set(prev).add(category.id));
+              offlineQueue.addToQueue({
+                id: category.id,
+                type: 'category',
+                action: 'update',
+                data: category
+              });
             }
           })
           .catch(err => {
-            setPendingSync(prev => new Set(prev).add(category.id));
+            offlineQueue.addToQueue({
+              id: category.id,
+              type: 'category',
+              action: 'update',
+              data: category
+            });
           });
       } else {
-        setPendingSync(prev => new Set(prev).add(category.id));
+        offlineQueue.addToQueue({
+          id: category.id,
+          type: 'category',
+          action: 'update',
+          data: category
+        });
       }
     }
 
@@ -571,12 +607,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           .eq('id', user.id);
       }
       
-      // Remove from pending sync if it was there
-      setPendingSync(prev => {
-        const updated = new Set(prev);
-        updated.delete(category.id);
-        return updated;
-      });
+      // Remove from offline queue if it was there
+      offlineQueue.removeFromQueue(category.id, 'category');
       
       setLastSyncTime(new Date());
       return true;
@@ -684,7 +716,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         refreshData: fetchLatestData,
         deduplicate,
         isOnline,
-        pendingSyncCount: pendingSync.size,
+        pendingSyncCount: offlineQueue.queueLength,
         reassignTransactions
       }}
     >

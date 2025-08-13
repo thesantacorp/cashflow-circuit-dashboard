@@ -34,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatNumberWithCommas } from "@/lib/utils";
+import { OfflineIndicator } from "./OfflineIndicator";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -123,6 +124,8 @@ const Navbar: React.FC = () => {
               <CurrencySelector />
             </>
           )}
+          
+          {user && <OfflineIndicator />}
           
           <div className="hidden md:flex items-center gap-6">
             <div className="flex flex-col items-end">

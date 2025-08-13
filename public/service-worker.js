@@ -2,24 +2,29 @@
 /* eslint-disable no-restricted-globals */
 
 // Improved service worker with better caching strategies and offline expense page support
-const CACHE_NAME = 'cashflow-circuit-v3';
+const CACHE_NAME = 'cashflow-circuit-v4';
 const APP_SHELL_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/favicon.ico',
   '/app-icon.png',
-  // Include expense page in the core cached assets
+  // Include all main routes for offline access
   '/expenses',
-  // Static assets
-  '/static/js/main.chunk.js',
-  '/static/js/bundle.js',
-  '/static/css/main.chunk.css',
+  '/income',
+  '/overview',
+  '/profile',
+  '/auth/login',
+  '/auth/signup',
+  // Static assets will be cached as they're requested
 ];
 
 // Additional routes that should be available offline
 const OFFLINE_ROUTES = [
   '/expenses',
+  '/income', 
+  '/overview',
+  '/profile',
   '/'
 ];
 
@@ -44,43 +49,74 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For navigation requests (HTML pages), use cache-first for critical routes
+  // For navigation requests (HTML pages), use network-first but fallback gracefully
   if (event.request.mode === 'navigate') {
     event.respondWith(
       (async () => {
-        // Try to get a fresh version from the network
+        const cache = await caches.open(CACHE_NAME);
+        
         try {
-          const networkResponse = await fetch(event.request);
+          // Try network first for fresh content
+          const networkResponse = await fetch(event.request, {
+            // Add a timeout to prevent hanging
+            signal: AbortSignal.timeout(5000)
+          });
           
-          // Cache successful responses for later offline use
-          const cache = await caches.open(CACHE_NAME);
-          cache.put(event.request, networkResponse.clone());
-          
-          return networkResponse;
+          if (networkResponse.ok) {
+            // Cache successful responses for later offline use
+            cache.put(event.request, networkResponse.clone());
+            return networkResponse;
+          }
         } catch (error) {
-          console.log('Fetch failed; returning offline page instead.', error);
-          
-          // If network fails, try to serve from cache
-          const cache = await caches.open(CACHE_NAME);
-          const cachedResponse = await cache.match(event.request);
-          
-          // If we have a cached version of this page, serve it
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          
-          // If we don't have this specific URL cached, check if it's one of our offline routes
-          const url = new URL(event.request.url);
-          const offlinePath = OFFLINE_ROUTES.find(route => url.pathname.endsWith(route));
-          
-          if (offlinePath) {
-            // If it's an offline route, serve the index.html as a fallback
-            return cache.match('/index.html');
-          }
-          
-          // Last resort fallback
-          return cache.match('/index.html');
+          console.log('Network failed, serving from cache:', error.message);
         }
+        
+        // Network failed or timed out, try cache
+        const cachedResponse = await cache.match(event.request);
+        if (cachedResponse) {
+          console.log('Serving cached version');
+          return cachedResponse;
+        }
+        
+        // Check if this is an offline-supported route
+        const url = new URL(event.request.url);
+        const isOfflineRoute = OFFLINE_ROUTES.some(route => 
+          url.pathname === route || url.pathname.endsWith(route)
+        );
+        
+        if (isOfflineRoute) {
+          // Serve the main app shell for SPA routes
+          const indexResponse = await cache.match('/index.html') || await cache.match('/');
+          if (indexResponse) {
+            console.log('Serving app shell for offline route');
+            return indexResponse;
+          }
+        }
+        
+        // Last resort - create a simple offline page
+        return new Response(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Offline - Cashflow Circuit</title>
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <style>
+                body { font-family: system-ui; text-align: center; padding: 2rem; }
+                .offline { color: #666; max-width: 400px; margin: 0 auto; }
+              </style>
+            </head>
+            <body>
+              <div class="offline">
+                <h1>You're Offline</h1>
+                <p>Please check your internet connection and try again.</p>
+                <button onclick="window.location.reload()">Try Again</button>
+              </div>
+            </body>
+          </html>
+        `, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' }
+        });
       })()
     );
     return;
