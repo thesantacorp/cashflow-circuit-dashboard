@@ -1,7 +1,7 @@
 
 {
-  "short_name": "Cashflow Circuit",
-  "name": "Cashflow Circuit Dashboard",
+  "short_name": "Stack'd",
+  "name": "Stack'd - Financial Dashboard",
   "icons": [
     {
       "src": "favicon.ico",
@@ -9,14 +9,14 @@
       "type": "image/x-icon"
     },
     {
-      "src": "app-icon.png",
+      "src": "app-icon-192.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any maskable"
     },
     {
-      "src": "app-icon.png",
-      "type": "image/png",
+      "src": "app-icon-512.png",
+      "type": "image/png", 
       "sizes": "512x512",
       "purpose": "any maskable"
     }

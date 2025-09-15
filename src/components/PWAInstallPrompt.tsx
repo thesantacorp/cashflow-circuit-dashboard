@@ -57,15 +57,20 @@ export const PWAInstallPrompt = () => {
   const handleInstallClick = async () => {
     if (deferredPrompt) {
       // Android/Chrome install
-      deferredPrompt.prompt();
-      const choiceResult = await deferredPrompt.userChoice;
-      
-      if (choiceResult.outcome === 'accepted') {
-        toast.success('App installed successfully!');
+      try {
+        deferredPrompt.prompt();
+        const choiceResult = await deferredPrompt.userChoice;
+        
+        if (choiceResult.outcome === 'accepted') {
+          toast.success('App installed successfully!');
+          setShowPrompt(false);
+        }
+      } catch (error) {
+        console.error('Install prompt error:', error);
+        toast.info('To install: Use your browser\'s "Add to Home Screen" option');
       }
       
       setDeferredPrompt(null);
-      setShowPrompt(false);
     } else if (isIOS) {
       // iOS instructions
       toast.info('Tap the Share button and then "Add to Home Screen"');
@@ -93,7 +98,7 @@ export const PWAInstallPrompt = () => {
               <Smartphone className="h-5 w-5 text-primary" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-sm">Install Cashflow Circuit</h3>
+              <h3 className="font-semibold text-sm">Install Stack'd</h3>
               <p className="text-xs text-muted-foreground mt-1">
                 {isIOS 
                   ? "Add to your home screen for quick access" 
