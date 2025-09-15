@@ -29,7 +29,7 @@ register({
     // Notify user that the app is available offline
     if ('Notification' in window && Notification.permission === 'granted') {
       navigator.serviceWorker.ready.then(registration => {
-        registration.showNotification('Cashflow Circuit', {
+        registration.showNotification('Stack\'d', {
           body: 'App is now available offline! You can record expenses anytime.',
           icon: '/app-icon.png'
         });

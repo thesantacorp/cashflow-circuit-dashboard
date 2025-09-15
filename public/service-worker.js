@@ -2,7 +2,7 @@
 /* eslint-disable no-restricted-globals */
 
 // Improved service worker with better caching strategies and offline expense page support
-const CACHE_NAME = 'cashflow-circuit-v4';
+const CACHE_NAME = 'stackd-v4';
 const APP_SHELL_URLS = [
   '/',
   '/index.html',
@@ -98,7 +98,7 @@ self.addEventListener('fetch', (event) => {
           <!DOCTYPE html>
           <html>
             <head>
-              <title>Offline - Cashflow Circuit</title>
+              <title>Offline - Stack'd</title>
               <meta name="viewport" content="width=device-width, initial-scale=1">
               <style>
                 body { font-family: system-ui; text-align: center; padding: 2rem; }
