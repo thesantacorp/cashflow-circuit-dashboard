@@ -1,7 +1,7 @@
 
 {
   "short_name": "Stack'd",
-  "name": "Stack'd - Financial Dashboard",
+  "name": "Stack'd",
   "icons": [
     {
       "src": "favicon.ico",
@@ -9,13 +9,13 @@
       "type": "image/x-icon"
     },
     {
-      "src": "app-icon-192.png",
+      "src": "icon-192.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any maskable"
     },
     {
-      "src": "app-icon-512.png",
+      "src": "icon-512.png",
       "type": "image/png", 
       "sizes": "512x512",
       "purpose": "any maskable"
@@ -25,7 +25,7 @@
   "display": "standalone",
   "theme_color": "#f97316",
   "background_color": "#ffffff",
-  "description": "Track your expenses and income even when offline with Stack'd",
+  "description": "Stack'd - Your financial dashboard",
   "orientation": "portrait",
   "scope": "/",
   "prefer_related_applications": false,

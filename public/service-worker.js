@@ -2,13 +2,14 @@
 /* eslint-disable no-restricted-globals */
 
 // Improved service worker with better caching strategies and offline expense page support
-const CACHE_NAME = 'stackd-v5';
+const CACHE_NAME = 'stackd-v6';
 const APP_SHELL_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/favicon.ico',
-  '/app-icon.png',
+  '/icon-192.png',
+  '/icon-512.png',
   // Include all main routes for offline access
   '/expenses',
   '/income',
