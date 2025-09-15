@@ -25,7 +25,7 @@
   "display": "standalone",
   "theme_color": "#f97316",
   "background_color": "#ffffff",
-  "description": "Track your expenses and income even when offline - installable web app",
+  "description": "Track your expenses and income even when offline with Stack'd",
   "orientation": "portrait",
   "scope": "/",
   "prefer_related_applications": false,
