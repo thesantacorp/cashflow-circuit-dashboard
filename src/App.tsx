@@ -30,7 +30,6 @@ import UpdatePasswordPage from "./pages/auth/UpdatePasswordPage";
 import ProfilePage from "./pages/ProfilePage";
 import MobileNavbar from "./components/MobileNavbar";
 import Index from "./pages/Index";
-import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,11 +49,10 @@ function App() {
           <TransactionProvider>
             <BackupProvider>
               <NotificationProvider>
-                  <TooltipProvider>
-                    <Toaster />
-                    <Sonner />
-                    <PWAInstallPrompt />
-                    <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white overflow-x-hidden">
+                <TooltipProvider>
+                  <Toaster />
+                  <Sonner />
+                  <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white overflow-x-hidden">
                     <Routes>
                       {/* Auth routes */}
                       <Route path="/auth" element={<AuthPage />}>
