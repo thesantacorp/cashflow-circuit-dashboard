@@ -5,7 +5,6 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import { register } from './serviceWorkerRegistration';
-import { registerSW } from './utils/pwa';
 import { Toaster } from 'sonner';
 // Import the type declarations to ensure they're included in the build
 import './types/google-api.d';
@@ -21,14 +20,21 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   </React.StrictMode>,
 );
 
-// Register the enhanced PWA service worker
-registerSW();
-
-// Also register the existing service worker for backward compatibility
+// Register service worker with enhanced offline/online notifications
 register({
   onSuccess: (registration) => {
     console.log('Service worker registration successful');
     console.log('App ready for offline use');
+    
+    // Notify user that the app is available offline
+    if ('Notification' in window && Notification.permission === 'granted') {
+      navigator.serviceWorker.ready.then(registration => {
+        registration.showNotification('Cashflow Circuit', {
+          body: 'App is now available offline! You can record expenses anytime.',
+          icon: '/app-icon.png'
+        });
+      });
+    }
   },
   onUpdate: (registration) => {
     console.log('New content is available');

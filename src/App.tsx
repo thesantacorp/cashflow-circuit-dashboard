@@ -31,7 +31,6 @@ import ProfilePage from "./pages/ProfilePage";
 import MobileNavbar from "./components/MobileNavbar";
 import Index from "./pages/Index";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
-import InstallButton from "./components/InstallButton";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,7 +54,6 @@ function App() {
                     <Toaster />
                     <Sonner />
                     <PWAInstallPrompt />
-                    <InstallButton />
                     <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white overflow-x-hidden">
                     <Routes>
                       {/* Auth routes */}

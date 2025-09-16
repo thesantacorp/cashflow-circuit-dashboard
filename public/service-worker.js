@@ -2,14 +2,13 @@
 /* eslint-disable no-restricted-globals */
 
 // Improved service worker with better caching strategies and offline expense page support
-const CACHE_NAME = 'stackd-v7';
+const CACHE_NAME = 'cashflow-circuit-v4';
 const APP_SHELL_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/favicon.ico',
-  '/icon-192.png',
-  '/icon-512.png',
+  '/app-icon.png',
   // Include all main routes for offline access
   '/expenses',
   '/income',
@@ -99,7 +98,7 @@ self.addEventListener('fetch', (event) => {
           <!DOCTYPE html>
           <html>
             <head>
-              <title>Offline - Stack'd</title>
+              <title>Offline - Cashflow Circuit</title>
               <meta name="viewport" content="width=device-width, initial-scale=1">
               <style>
                 body { font-family: system-ui; text-align: center; padding: 2rem; }
