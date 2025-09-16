@@ -2,7 +2,7 @@
 /* eslint-disable no-restricted-globals */
 
 // Improved service worker with better caching strategies and offline expense page support
-const CACHE_NAME = 'stackd-v6';
+const CACHE_NAME = 'stackd-v7';
 const APP_SHELL_URLS = [
   '/',
   '/index.html',
