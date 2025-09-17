@@ -30,6 +30,8 @@ import UpdatePasswordPage from "./pages/auth/UpdatePasswordPage";
 import ProfilePage from "./pages/ProfilePage";
 import MobileNavbar from "./components/MobileNavbar";
 import Index from "./pages/Index";
+import InstallButton from "./components/InstallButton";
+import OfflineIndicator from "./components/OfflineIndicator";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -148,6 +150,10 @@ function App() {
                       {/* 404 route */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>
+                    
+                    {/* PWA Components */}
+                    <InstallButton />
+                    <OfflineIndicator />
                   </div>
                 </TooltipProvider>
               </NotificationProvider>
