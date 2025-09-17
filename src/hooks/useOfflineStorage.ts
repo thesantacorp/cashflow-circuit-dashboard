@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Transaction, Category } from '@/types';
 
 interface OfflineData {
@@ -121,7 +121,7 @@ export function useOfflineStorage() {
     });
   }, []);
 
-  return {
+  return useMemo(() => ({
     data,
     addTransaction,
     updateTransaction,
@@ -131,5 +131,5 @@ export function useOfflineStorage() {
     deleteCategory,
     replaceAllData,
     updateData
-  };
+  }), [data, addTransaction, updateTransaction, deleteTransaction, addCategory, updateCategory, deleteCategory, replaceAllData, updateData]);
 }

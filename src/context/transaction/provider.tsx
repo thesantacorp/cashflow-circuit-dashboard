@@ -41,7 +41,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       transactions: state.transactions,
       categories: state.categories
     });
-  }, [state.transactions, state.categories, offlineStorage]);
+  }, [state.transactions, state.categories]); // Removed offlineStorage from dependencies
 
   // Process offline queue when coming online
   useEffect(() => {

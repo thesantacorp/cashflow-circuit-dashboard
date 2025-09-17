@@ -13,10 +13,8 @@ import './types/google-api.d';
 registerSW();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <App />
-      <Toaster />
-    </BrowserRouter>
-  </React.StrictMode>,
+  <BrowserRouter>
+    <App />
+    <Toaster />
+  </BrowserRouter>
 );
