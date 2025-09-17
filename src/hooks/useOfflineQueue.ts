@@ -10,25 +10,24 @@ interface QueueItem {
 }
 
 export function useOfflineQueue() {
-  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [queue, setQueue] = useState<QueueItem[]>(() => {
+    // Initialize from localStorage on first render
+    try {
+      const savedQueue = localStorage.getItem('offlineQueue');
+      return savedQueue ? JSON.parse(savedQueue) : [];
+    } catch (error) {
+      console.error('Failed to load offline queue:', error);
+      localStorage.removeItem('offlineQueue');
+      return [];
+    }
+  });
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Load queue from localStorage on mount
+  // Save queue to localStorage whenever it changes (but skip initial load)
   useEffect(() => {
-    const savedQueue = localStorage.getItem('offlineQueue');
-    if (savedQueue) {
-      try {
-        setQueue(JSON.parse(savedQueue));
-      } catch (error) {
-        console.error('Failed to load offline queue:', error);
-        localStorage.removeItem('offlineQueue');
-      }
+    if (queue.length > 0 || localStorage.getItem('offlineQueue')) {
+      localStorage.setItem('offlineQueue', JSON.stringify(queue));
     }
-  }, []);
-
-  // Save queue to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('offlineQueue', JSON.stringify(queue));
   }, [queue]);
 
   const addToQueue = useCallback((item: Omit<QueueItem, 'timestamp'>) => {
