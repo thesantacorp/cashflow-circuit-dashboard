@@ -6,10 +6,10 @@ const PWAInstallPrompt = () => {
   const { isInstallable, isInstalled, installApp } = usePWA();
   const [isDismissed, setIsDismissed] = useState(false);
 
-  // Only show if installable, not installed, and not dismissed
-  if (isInstalled || !isInstallable || isDismissed) {
-    return null;
-  }
+  // Always show banner for testing PWA functionality
+  // if (isInstalled || !isInstallable || isDismissed) {
+  //   return null;
+  // }
 
   return (
     <div className="fixed top-0 left-0 right-0 bg-orange-500 text-white p-4 z-[9999] shadow-lg">

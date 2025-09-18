@@ -5,10 +5,10 @@ import { Download } from 'lucide-react';
 const InstallButton = () => {
   const { isInstallable, isInstalled, installApp } = usePWA();
 
-  // Only show if installable and not installed
-  if (isInstalled || !isInstallable) {
-    return null;
-  }
+  // Always show button for testing PWA functionality
+  // if (isInstalled || !isInstallable) {
+  //   return null;
+  // }
 
   return (
     <div className="fixed top-4 right-4 z-[9998]">
