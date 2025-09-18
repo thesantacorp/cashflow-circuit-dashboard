@@ -1,6 +1,6 @@
 
-export * from "./context";
+export { TransactionContext, useTransactions } from "./context";
 export { TransactionProvider } from "./provider"; 
-export * from "./types";
-export * from "./hooks/useTransactionOperations";
-export * from "./hooks/useDataOperations";
+export type { ContextType, TransactionState, TransactionAction } from "./types";
+export { useTransactionOperations } from "./hooks/useTransactionOperations";
+export { useDataOperations } from "./hooks/useDataOperations";
