@@ -1,14 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { usePWA } from '../hooks/usePWA';
 import { Download, X } from 'lucide-react';
 
 const PWAInstallPrompt = () => {
   const { isInstallable, isInstalled, installApp } = usePWA();
+  const [isDismissed, setIsDismissed] = useState(false);
 
-  // Always show for testing - remove this condition later
-  const shouldShow = true; // Change this to: !isInstalled && isInstallable
-
-  if (!shouldShow) {
+  // Only show if installable, not installed, and not dismissed
+  if (isInstalled || !isInstallable || isDismissed) {
     return null;
   }
 
@@ -25,13 +24,15 @@ const PWAInstallPrompt = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={installApp}
-            className="bg-white text-orange-500 px-4 py-2 rounded-lg font-medium hover:bg-orange-50 transition-colors"
+            className="bg-white text-orange-500 px-4 py-2 rounded-lg font-medium hover:bg-orange-50 transition-colors touch-manipulation"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
             Install Now
           </button>
           <button
-            onClick={() => {/* handle dismiss */}}
-            className="p-2 hover:bg-orange-600 rounded-lg transition-colors"
+            onClick={() => setIsDismissed(true)}
+            className="p-2 hover:bg-orange-600 rounded-lg transition-colors touch-manipulation"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
             <X className="w-4 h-4" />
           </button>

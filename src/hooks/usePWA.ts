@@ -11,11 +11,13 @@ export const usePWA = () => {
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
-    // Check if app is already installed
+    // Check if app is already installed (standalone mode)
     const checkIfInstalled = () => {
       const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
       const isInWebAppMode = (window.navigator as any).standalone === true;
-      setIsInstalled(isInStandaloneMode || isInWebAppMode);
+      const isInstalled = isInStandaloneMode || isInWebAppMode;
+      setIsInstalled(isInstalled);
+      console.log('Stack\'d: PWA installed status:', isInstalled);
     };
 
     // Listen for beforeinstallprompt event
