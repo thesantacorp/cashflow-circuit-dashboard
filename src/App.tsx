@@ -32,7 +32,6 @@ import MobileNavbar from "./components/MobileNavbar";
 import Index from "./pages/Index";
 import InstallButton from "./components/InstallButton";
 import OfflineIndicator from "./components/OfflineIndicator";
-import PWAInstallPrompt from "./components/PWAInstallPrompt";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -153,7 +152,6 @@ function App() {
                     </Routes>
                     
                     {/* PWA Components */}
-                    <PWAInstallPrompt />
                     <InstallButton />
                     <OfflineIndicator />
                   </div>

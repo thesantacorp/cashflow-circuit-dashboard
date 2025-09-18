@@ -1,12 +1,12 @@
 
 {
   "name": "Stack'd",
-  "short_name": "Stack'd Finance",
+  "short_name": "Stack'd Finance", 
   "description": "Don't just track, grow your finances",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f97316",
-  "theme_color": "#f97316",
+  "background_color": "#FF6B35",
+  "theme_color": "#FF6B35",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "en",
@@ -60,6 +60,5 @@
       "type": "image/png",
       "purpose": "maskable any"
     }
-  ],
-  "prefer_related_applications": false
+  ]
 }

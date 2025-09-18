@@ -8,48 +8,24 @@ export const registerSW = () => {
           scope: '/'
         });
         
-        console.log('Stack\'d SW: Registration successful');
+        console.log('SW: Service worker registered successfully');
         
-        // Handle service worker updates
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('Stack\'d SW: New content available');
-                // Could show a notification to refresh here
-                showUpdateAvailable();
+                console.log('SW: New content available');
               }
             });
           }
         });
-
-        // Listen for messages from service worker
-        navigator.serviceWorker.addEventListener('message', (event) => {
-          if (event.data?.type === 'SYNC_NEEDED') {
-            console.log('Stack\'d: Sync request received from SW');
-            // Trigger sync in the app
-            window.dispatchEvent(new CustomEvent('pwa-sync-needed', {
-              detail: { timestamp: event.data.timestamp }
-            }));
-          }
-        });
-
       } catch (error) {
-        console.error('Stack\'d SW: Registration failed', error);
+        console.error('SW: Service worker registration failed:', error);
       }
     });
-
-    // Handle online/offline events
-    window.addEventListener('online', () => {
-      console.log('Stack\'d: App is online');
-      notifyServiceWorkerAboutConnectivity(true);
-    });
-
-    window.addEventListener('offline', () => {
-      console.log('Stack\'d: App is offline');
-      notifyServiceWorkerAboutConnectivity(false);
-    });
+  } else {
+    console.log('SW: Service workers not supported');
   }
 };
 

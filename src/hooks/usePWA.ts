@@ -1,36 +1,29 @@
 import { useState, useEffect } from 'react';
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
-
 export const usePWA = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
-    // Check if app is already installed (standalone mode)
+    // Check if app is already installed
     const checkIfInstalled = () => {
       const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
       const isInWebAppMode = (window.navigator as any).standalone === true;
-      const isInstalled = isInStandaloneMode || isInWebAppMode;
-      setIsInstalled(isInstalled);
-      console.log('Stack\'d: PWA installed status:', isInstalled);
+      setIsInstalled(isInStandaloneMode || isInWebAppMode);
     };
 
     // Listen for beforeinstallprompt event
-    const handleBeforeInstallPrompt = (e: Event) => {
-      console.log('Stack\'d: PWA installable');
+    const handleBeforeInstallPrompt = (e) => {
+      console.log('PWA: Install prompt triggered');
       e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setDeferredPrompt(e);
       setIsInstallable(true);
     };
 
     // Listen for appinstalled event
     const handleAppInstalled = () => {
-      console.log('Stack\'d: PWA installed successfully');
+      console.log('PWA: App installed successfully');
       setIsInstalled(true);
       setIsInstallable(false);
       setDeferredPrompt(null);
@@ -47,25 +40,29 @@ export const usePWA = () => {
   }, []);
 
   const installApp = async () => {
-    if (!deferredPrompt) return;
+    console.log('PWA: Install button clicked', { deferredPrompt, isInstallable });
+    
+    if (!deferredPrompt) {
+      console.log('PWA: No deferred prompt available');
+      // For testing on localhost, try to trigger install anyway
+      alert('To install this app, look for the "Install" option in your browser menu or address bar');
+      return;
+    }
 
     try {
-      // Show the installation prompt
       await deferredPrompt.prompt();
-      
-      // Wait for the user's response
       const choiceResult = await deferredPrompt.userChoice;
       
       if (choiceResult.outcome === 'accepted') {
-        console.log('Stack\'d: User accepted the install prompt');
+        console.log('PWA: User accepted the install prompt');
       } else {
-        console.log('Stack\'d: User dismissed the install prompt');
+        console.log('PWA: User dismissed the install prompt');
       }
       
       setDeferredPrompt(null);
       setIsInstallable(false);
     } catch (error) {
-      console.error('Stack\'d: Installation error:', error);
+      console.error('PWA: Installation error:', error);
     }
   };
 
