@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-globals */
 
 // Enhanced Service Worker for Stack'd Finance PWA
-const CACHE_NAME = 'stackd-finance-v1.0.0';
+const CACHE_NAME = 'stackd-finance-v1.0.1';
 const STATIC_CACHE = 'stackd-static-v1';
 const DYNAMIC_CACHE = 'stackd-dynamic-v1';
 

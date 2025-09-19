@@ -43,13 +43,40 @@ export const usePWA = () => {
     console.log('PWA: Install button clicked', { deferredPrompt, isInstallable });
     
     if (!deferredPrompt) {
-      console.log('PWA: No deferred prompt available');
-      // For testing on localhost, try to trigger install anyway
-      alert('To install this app, look for the "Install" option in your browser menu or address bar');
+      console.log('PWA: No deferred prompt available. Checking PWA criteria...');
+      
+      // Check if we're on HTTPS
+      const isHTTPS = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+      console.log('PWA: HTTPS check:', isHTTPS);
+      
+      // Check if service worker is registered
+      const swRegistered = 'serviceWorker' in navigator && navigator.serviceWorker.controller;
+      console.log('PWA: Service Worker registered:', swRegistered);
+      
+      // Check if manifest is available
+      const manifestLink = document.querySelector('link[rel="manifest"]');
+      console.log('PWA: Manifest link found:', !!manifestLink);
+      
+      console.log('PWA: Triggering install prompt manually...');
+      
+      // Try to show a more helpful message
+      const message = `To install Stack'd as an app:
+      
+1. Look for the install icon (⊞) in your browser's address bar
+2. Or go to your browser menu → "Install Stack'd" or "Add to Home Screen"
+3. On mobile: tap the share button and select "Add to Home Screen"
+
+PWA Status:
+- HTTPS: ${isHTTPS ? '✓' : '✗'}
+- Service Worker: ${swRegistered ? '✓' : '✗'}
+- Manifest: ${!!manifestLink ? '✓' : '✗'}`;
+      
+      alert(message);
       return;
     }
 
     try {
+      console.log('PWA: Showing install prompt...');
       await deferredPrompt.prompt();
       const choiceResult = await deferredPrompt.userChoice;
       
