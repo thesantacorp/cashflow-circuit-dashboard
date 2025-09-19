@@ -11,6 +11,7 @@ import { NotificationProvider } from "@/context/NotificationContext";
 import { AuthProvider } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import CommunityLink from "@/components/CommunityLink";
+import { useEffect } from "react";
 import OverviewPageEnhanced from "@/pages/OverviewPageEnhanced";
 import ExpensesPage from "@/pages/ExpensesPage";
 import IncomePage from "@/pages/IncomePage";
@@ -44,6 +45,13 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  useEffect(() => {
+    // Import and initialize PWA Manager
+    import('./utils/PWAManager.js').then(() => {
+      console.log('PWA Manager loaded');
+    });
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
