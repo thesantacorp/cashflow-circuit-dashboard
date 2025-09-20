@@ -1,65 +1,48 @@
 {
-  "name": "Stack'd",
+  "name": "Stack'd - Cash Flow Dashboard",
   "short_name": "Stack'd",
-  "description": "Don't just track, grow your finances.",
-  "start_url": "/",
+  "description": "Professional cash flow tracking and financial dashboard",
+  "start_url": "/?utm_source=pwa",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#22c55e",
+  "background_color": "#FFA500",
+  "theme_color": "#FFA500",
   "orientation": "portrait-primary",
   "scope": "/",
-  "id": "/",
+  "id": "/?utm_source=pwa",
   "categories": ["finance", "productivity", "business"],
   "lang": "en",
   "dir": "ltr",
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "icons": [
     {
-      "src": "/icon-72x72.png",
-      "sizes": "72x72",
+      "src": "/app-icon.png",
+      "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "/icon-96x96.png",
-      "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-128x128.png",
-      "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-144x144.png",
-      "sizes": "144x144",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-152x152.png",
-      "sizes": "152x152",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-192x192.png",
+      "src": "/app-icon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-384x384.png",
-      "sizes": "384x384",
+      "src": "/app-icon.png",
+      "sizes": "144x144",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512x512.png",
-      "sizes": "512x512",
+      "src": "/app-icon.png",
+      "sizes": "96x96",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }
