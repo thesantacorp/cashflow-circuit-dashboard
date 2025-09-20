@@ -1,118 +1,52 @@
-// Enhanced PWA Manager with TRUE installation detection
-class AdvancedPWAManager {
+// PWA Manager Class for Stack'd Finance
+class PWAManager {
   constructor() {
     this.deferredPrompt = null;
     this.isInstalled = false;
     this.isStandalone = false;
-    this.installButton = null;
     this.init();
   }
 
   init() {
-    // Enhanced installation detection
+    // Check if already installed/standalone
     this.checkInstallationStatus();
     
-    // Register service worker with enhanced caching
+    // Register service worker
     this.registerServiceWorker();
     
     // Setup PWA event listeners
     this.setupEventListeners();
     
-    // Initialize install button with better detection
-    setTimeout(() => this.initializeInstallButton(), 1000);
-    
-    // Continuous monitoring for installation status
-    this.startInstallationMonitoring();
+    // Initialize install button
+    this.initializeInstallButton();
   }
 
   checkInstallationStatus() {
-    // Multiple methods to detect if app is installed
-    const checks = [
-      // Check if running in standalone mode
-      window.matchMedia('(display-mode: standalone)').matches,
-      
-      // iOS standalone check
-      window.navigator.standalone === true,
-      
-      // Android WebAPK detection
-      document.referrer.includes('android-app://'),
-      
-      // Check for TWA indicators
-      window.location.search.includes('utm_source=pwa'),
-      
-      // Local storage flag (set after installation)
-      localStorage.getItem('stackd-pwa-installed') === 'true',
-      
-      // URL contains our app identifier
-      window.location.href.includes('utm_source=pwa'),
-      
-      // Check window dimensions (installed apps often have different dimensions)
-      this.isLikelyInstalledApp()
-    ];
-
-    this.isStandalone = checks.some(check => check);
-    this.isInstalled = this.isStandalone;
-
-    console.log('Installation status checks:', {
-      standalone: checks[0],
-      iOS: checks[1],
-      android: checks[2],
-      twa: checks[3],
-      localStorage: checks[4],
-      url: checks[5],
-      dimensions: checks[6],
-      finalResult: this.isInstalled
-    });
+    // Check if running as standalone app
+    this.isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                      window.navigator.standalone === true ||
+                      document.referrer.includes('android-app://');
+    
+    // Check various installation indicators
+    this.isInstalled = this.isStandalone ||
+                      localStorage.getItem('pwa-installed') === 'true' ||
+                      this.isRunningAsApp();
   }
 
-  isLikelyInstalledApp() {
-    // Check if the app is running in a way that suggests it's installed
-    const hasAppLikeProperties = (
-      // No browser UI visible
-      window.outerHeight - window.innerHeight < 100 ||
-      // Full screen or near full screen
-      window.innerWidth === screen.width ||
-      // Specific aspect ratios common in installed apps
-      window.devicePixelRatio > 1
-    );
-
-    return hasAppLikeProperties && (
-      window.matchMedia('(display-mode: standalone)').matches ||
-      window.navigator.standalone
-    );
-  }
-
-  startInstallationMonitoring() {
-    // Monitor for installation changes every few seconds
-    setInterval(() => {
-      const wasInstalled = this.isInstalled;
-      this.checkInstallationStatus();
-      
-      if (wasInstalled !== this.isInstalled) {
-        console.log('Installation status changed:', this.isInstalled);
-        if (this.isInstalled) {
-          this.hideInstallButton();
-          localStorage.setItem('stackd-pwa-installed', 'true');
-        } else {
-          this.showInstallButton();
-        }
-      }
-    }, 3000);
+  isRunningAsApp() {
+    // Additional checks for app-like behavior
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           window.matchMedia('(display-mode: fullscreen)').matches ||
+           window.matchMedia('(display-mode: minimal-ui)').matches ||
+           (window.navigator.standalone === true) ||
+           (window.outerWidth === window.innerWidth && window.outerHeight === window.innerHeight);
   }
 
   async registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js', {
-          scope: '/'
-        });
-        console.log('Service Worker registered:', registration);
-        
-        // Update service worker when available
-        registration.addEventListener('updatefound', () => {
-          console.log('New service worker version available');
-        });
-        
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        console.log('Service Worker registered successfully:', registration);
       } catch (error) {
         console.error('Service Worker registration failed:', error);
       }
@@ -120,111 +54,70 @@ class AdvancedPWAManager {
   }
 
   setupEventListeners() {
-    // Listen for beforeinstallprompt event (Android Chrome)
+    // Listen for beforeinstallprompt event
     window.addEventListener('beforeinstallprompt', (e) => {
-      console.log('beforeinstallprompt fired');
       e.preventDefault();
       this.deferredPrompt = e;
-      
-      if (!this.isInstalled) {
-        this.showInstallButton();
-      }
+      this.showInstallButton();
     });
 
-    // Listen for successful app installation
-    window.addEventListener('appinstalled', (e) => {
-      console.log('App installed successfully');
+    // Listen for app installation
+    window.addEventListener('appinstalled', () => {
+      console.log('PWA installed successfully');
       this.isInstalled = true;
-      localStorage.setItem('stackd-pwa-installed', 'true');
+      localStorage.setItem('pwa-installed', 'true');
       this.hideInstallButton();
       this.deferredPrompt = null;
-      
-      // Show success message
-      this.showInstallationSuccess();
     });
 
-    // Monitor display mode changes
+    // Listen for display mode changes
     window.matchMedia('(display-mode: standalone)').addEventListener('change', (e) => {
-      console.log('Display mode changed:', e.matches);
       if (e.matches) {
         this.isInstalled = true;
         this.hideInstallButton();
-        localStorage.setItem('stackd-pwa-installed', 'true');
-      }
-    });
-
-    // Monitor for navigation that indicates app installation
-    window.addEventListener('beforeunload', () => {
-      if (this.isStandalone) {
-        localStorage.setItem('stackd-pwa-installed', 'true');
       }
     });
   }
 
   initializeInstallButton() {
-    // Find the existing install button
-    this.findAndSetupInstallButton();
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        this.setupInstallButton();
+      });
+    } else {
+      this.setupInstallButton();
+    }
   }
 
-  findAndSetupInstallButton() {
-    // Multiple selectors to find the install button
-    const selectors = [
-      '[data-install-button]',
-      'button[class*="install"]',
-      'button:contains("Install")',
-      '.install-button',
-      '#install-button'
-    ];
-
-    let installButton = null;
+  setupInstallButton() {
+    // Find existing install button or create one
+    let installButton = document.querySelector('[data-install-button]') ||
+                       document.querySelector('button[class*="install"]') ||
+                       this.findInstallButton();
     
-    // Try each selector
-    for (const selector of selectors) {
-      installButton = document.querySelector(selector);
-      if (installButton) break;
-    }
-
-    // If no button found, search by text content
     if (!installButton) {
-      const buttons = document.querySelectorAll('button');
-      for (const button of buttons) {
-        const text = button.textContent.toLowerCase();
-        if (text.includes('install') && text.includes('stack')) {
-          installButton = button;
-          break;
-        }
-      }
+      // Create install button if none exists
+      installButton = this.createInstallButton();
     }
 
     if (installButton) {
       this.installButton = installButton;
       
-      // Clear any existing click handlers
-      const newButton = installButton.cloneNode(true);
-      installButton.parentNode.replaceChild(newButton, installButton);
-      this.installButton = newButton;
-      
-      // Set correct text
+      // Update button text
       this.updateButtonText();
       
-      // Add our click handler
-      this.installButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+      // Add click handler
+      installButton.addEventListener('click', () => {
         this.handleInstallClick();
       });
 
-      // Show or hide based on installation status
+      // Show/hide based on installation status
       if (this.isInstalled) {
         this.hideInstallButton();
       } else {
         this.showInstallButton();
       }
-      
-      console.log('Install button configured:', this.installButton);
-    } else {
-      console.log('No install button found, creating one...');
-      this.createInstallButton();
     }
   }
 
@@ -241,153 +134,77 @@ class AdvancedPWAManager {
   }
 
   createInstallButton() {
-    if (this.isInstalled) return; // Don't create if already installed
-
     const button = document.createElement('button');
-    button.id = 'stackd-pwa-install';
-    button.textContent = 'Install Stack\'d';
+    button.className = 'install-pwa-button';
     button.style.cssText = `
       position: fixed;
       top: 20px;
       right: 20px;
-      z-index: 9999;
-      background: linear-gradient(135deg, #FFA500, #FF8C00);
+      z-index: 1000;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
       color: white;
       border: none;
       padding: 12px 24px;
       border-radius: 8px;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(255, 165, 0, 0.3);
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
       transition: all 0.3s ease;
-      font-family: system-ui, -apple-system, sans-serif;
     `;
     
-    button.addEventListener('click', () => this.handleInstallClick());
+    button.addEventListener('mouseenter', () => {
+      button.style.transform = 'translateY(-2px)';
+      button.style.boxShadow = '0 6px 20px rgba(34, 197, 94, 0.4)';
+    });
+    
+    button.addEventListener('mouseleave', () => {
+      button.style.transform = 'translateY(0)';
+      button.style.boxShadow = '0 4px 12px rgba(34, 197, 94, 0.3)';
+    });
+
     document.body.appendChild(button);
-    this.installButton = button;
+    return button;
   }
 
   updateButtonText() {
     if (this.installButton) {
       this.installButton.textContent = 'Install Stack\'d';
-      
-      // Remove any debug text or indicators
-      const textNode = this.installButton.childNodes[0];
-      if (textNode && textNode.nodeType === Node.TEXT_NODE) {
-        textNode.textContent = 'Install Stack\'d';
-      }
     }
   }
 
   async handleInstallClick() {
-    console.log('Install button clicked');
-    
-    if (this.isInstalled) {
-      console.log('App already installed, hiding button');
-      this.hideInstallButton();
-      return;
-    }
-
     if (this.deferredPrompt) {
-      console.log('Using deferred prompt for installation');
-      
-      // Show the native install prompt
+      // Standard PWA installation
       this.deferredPrompt.prompt();
-      
-      // Wait for user choice
       const { outcome } = await this.deferredPrompt.userChoice;
-      console.log('User choice:', outcome);
       
       if (outcome === 'accepted') {
+        console.log('User accepted the install prompt');
         this.isInstalled = true;
-        localStorage.setItem('stackd-pwa-installed', 'true');
-        this.hideInstallButton();
-        this.showInstallationSuccess();
+        localStorage.setItem('pwa-installed', 'true');
       }
       
       this.deferredPrompt = null;
     } else {
-      // Fallback for browsers without beforeinstallprompt
-      console.log('No deferred prompt, showing fallback');
-      this.showInstallationInstructions();
-    }
-  }
-
-  showInstallationInstructions() {
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isChrome = /Chrome/i.test(navigator.userAgent);
-    const isSafari = /Safari/i.test(navigator.userAgent) && !isChrome;
-
-    if (isAndroid) {
-      this.showAndroidInstructions();
-    } else if (isIOS && isSafari) {
+      // Fallback for iOS and other browsers
       this.showIOSInstructions();
-    } else {
-      this.showDesktopInstructions();
     }
-  }
-
-  showAndroidInstructions() {
-    const modal = this.createModal(
-      '📱 Install Stack\'d',
-      `
-        <div style="text-align: center;">
-          <div style="font-size: 48px; margin: 20px 0;">⬇️</div>
-          <p><strong>To install Stack'd as a real app:</strong></p>
-          <ol style="text-align: left; margin: 20px 0; line-height: 1.6;">
-            <li>Tap the <strong>menu</strong> (⋮) in your browser</li>
-            <li>Select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong></li>
-            <li>Tap <strong>"Install"</strong> when prompted</li>
-            <li>The app will be installed like any other Android app</li>
-          </ol>
-          <p style="color: #666; font-size: 14px;">You can uninstall it later from your app drawer</p>
-        </div>
-      `
-    );
-    document.body.appendChild(modal);
   }
 
   showIOSInstructions() {
-    const modal = this.createModal(
-      '📱 Install Stack\'d',
-      `
-        <div style="text-align: center;">
-          <div style="font-size: 48px; margin: 20px 0;">📱</div>
-          <p><strong>To install Stack'd on iOS:</strong></p>
-          <ol style="text-align: left; margin: 20px 0; line-height: 1.6;">
-            <li>Tap the <strong>Share button</strong> <span style="font-size: 18px;">⬆️</span></li>
-            <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
-            <li>Tap <strong>"Add"</strong> in the top right</li>
-            <li>Stack'd will appear on your home screen</li>
-          </ol>
-          <p style="color: #666; font-size: 14px;">Long press the icon later to remove it</p>
-        </div>
-      `
-    );
-    document.body.appendChild(modal);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    
+    if (isIOS && isSafari) {
+      const modal = this.createIOSModal();
+      document.body.appendChild(modal);
+    } else {
+      // For other browsers, try to trigger download or show generic instructions
+      this.showGenericInstructions();
+    }
   }
 
-  showDesktopInstructions() {
-    const modal = this.createModal(
-      '💻 Install Stack\'d',
-      `
-        <div style="text-align: center;">
-          <div style="font-size: 48px; margin: 20px 0;">⬇️</div>
-          <p><strong>To install Stack'd:</strong></p>
-          <ul style="text-align: left; margin: 20px 0; line-height: 1.6;">
-            <li><strong>Chrome/Edge:</strong> Look for the install icon in the address bar</li>
-            <li><strong>Firefox:</strong> Use the menu → "Install this site as an app"</li>
-            <li><strong>Safari:</strong> File → "Add to Dock"</li>
-          </ul>
-        </div>
-      `
-    );
-    document.body.appendChild(modal);
-  }
-
-  createModal(title, content) {
+  createIOSModal() {
     const modal = document.createElement('div');
     modal.style.cssText = `
       position: fixed;
@@ -400,76 +217,53 @@ class AdvancedPWAManager {
       align-items: center;
       justify-content: center;
       z-index: 10000;
-      backdrop-filter: blur(4px);
     `;
 
-    const contentDiv = document.createElement('div');
-    contentDiv.style.cssText = `
+    const content = document.createElement('div');
+    content.style.cssText = `
       background: white;
-      border-radius: 16px;
-      padding: 32px;
-      max-width: 400px;
-      max-height: 80vh;
-      overflow-y: auto;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 320px;
+      text-align: center;
       position: relative;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
     `;
 
-    contentDiv.innerHTML = `
-      <h2 style="margin: 0 0 24px 0; color: #333; text-align: center;">${title}</h2>
-      ${content}
-      <button id="close-modal" style="
-        background: #FFA500;
+    content.innerHTML = `
+      <h3 style="margin: 0 0 16px 0; color: #111;">Install Stack'd</h3>
+      <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
+        Tap the <strong>Share</strong> button below, then select <strong>"Add to Home Screen"</strong> to install Stack'd as an app.
+      </p>
+      <div style="font-size: 32px; margin: 16px 0;">📱 ➜ 🏠</div>
+      <button id="close-ios-modal" style="
+        background: #22c55e;
         color: white;
         border: none;
-        padding: 14px 28px;
-        border-radius: 8px;
+        padding: 12px 24px;
+        border-radius: 6px;
         font-weight: 600;
         cursor: pointer;
-        width: 100%;
-        margin-top: 24px;
-        font-size: 16px;
       ">Got it!</button>
     `;
 
-    modal.appendChild(contentDiv);
+    modal.appendChild(content);
 
-    // Close handlers
-    const closeButton = contentDiv.querySelector('#close-modal');
-    closeButton.addEventListener('click', () => document.body.removeChild(modal));
-    
+    modal.querySelector('#close-ios-modal').addEventListener('click', () => {
+      document.body.removeChild(modal);
+    });
+
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) document.body.removeChild(modal);
+      if (e.target === modal) {
+        document.body.removeChild(modal);
+      }
     });
 
     return modal;
   }
 
-  showInstallationSuccess() {
-    const modal = this.createModal(
-      '✅ Stack\'d Installed!',
-      `
-        <div style="text-align: center;">
-          <div style="font-size: 64px; margin: 20px 0;">🎉</div>
-          <p style="font-size: 18px; margin: 20px 0;">
-            <strong>Stack'd has been installed successfully!</strong>
-          </p>
-          <p style="color: #666;">
-            You can now find it in your app drawer and use it offline.
-          </p>
-        </div>
-      `
-    );
-    document.body.appendChild(modal);
-    
-    // Auto-close after 3 seconds
-    setTimeout(() => {
-      if (document.body.contains(modal)) {
-        document.body.removeChild(modal);
-      }
-    }, 3000);
+  showGenericInstructions() {
+    alert('To install Stack\'d as an app:\n\n• Chrome/Edge: Use the install button in the address bar\n• Firefox: Add to home screen from the menu\n• Safari: Use Share > Add to Home Screen');
   }
-
 
   showInstallButton() {
     if (this.installButton && !this.isInstalled) {
@@ -484,31 +278,28 @@ class AdvancedPWAManager {
   }
 }
 
-// Initialize the enhanced PWA system
-function initializePWA() {
-  console.log('Initializing enhanced PWA system...');
+// Initialize PWA when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  // Initialize PWA Manager
+  window.pwaManager = new PWAManager();
   
-  // Create and inject manifest
+  // Add manifest link to head if not present
   if (!document.querySelector('link[rel="manifest"]')) {
     const manifestLink = document.createElement('link');
     manifestLink.rel = 'manifest';
     manifestLink.href = '/manifest.json';
     document.head.appendChild(manifestLink);
   }
-
-  // Add enhanced meta tags for better PWA support
-  const metaTags = [
-    { name: 'theme-color', content: '#FFA500' },
+  
+  // Add iOS meta tags for better PWA support
+  const iosTags = [
     { name: 'apple-mobile-web-app-capable', content: 'yes' },
     { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
     { name: 'apple-mobile-web-app-title', content: 'Stack\'d' },
-    { name: 'mobile-web-app-capable', content: 'yes' },
-    { name: 'application-name', content: 'Stack\'d' },
-    { name: 'msapplication-TileColor', content: '#FFA500' },
-    { name: 'msapplication-starturl', content: '/?utm_source=pwa' }
+    { name: 'mobile-web-app-capable', content: 'yes' }
   ];
-
-  metaTags.forEach(tag => {
+  
+  iosTags.forEach(tag => {
     if (!document.querySelector(`meta[name="${tag.name}"]`)) {
       const meta = document.createElement('meta');
       meta.name = tag.name;
@@ -516,26 +307,9 @@ function initializePWA() {
       document.head.appendChild(meta);
     }
   });
-
-  // Initialize the PWA manager
-  window.stackdPWA = new AdvancedPWAManager();
-}
-
-// Auto-initialize when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializePWA);
-} else {
-  initializePWA();
-}
-
-// Also initialize on window load for additional safety
-window.addEventListener('load', () => {
-  if (!window.stackdPWA) {
-    initializePWA();
-  }
 });
 
 // Export for use in other modules if needed
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { AdvancedPWAManager };
+  module.exports = { PWAManager };
 }
