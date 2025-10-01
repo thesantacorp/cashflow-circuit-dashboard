@@ -16,7 +16,8 @@ export const usePWA = () => {
     // Listen for beforeinstallprompt event
     const handleBeforeInstallPrompt = (e) => {
       console.log('PWA: Install prompt triggered');
-      e.preventDefault();
+      // Don't prevent default - let browser show native prompt
+      // e.preventDefault();
       setDeferredPrompt(e);
       setIsInstallable(true);
     };
