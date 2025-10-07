@@ -58,9 +58,29 @@ export const usePWA = () => {
       const manifestLink = document.querySelector('link[rel="manifest"]');
       console.log('PWA: Manifest link found:', !!manifestLink);
       
-      console.log('PWA: Triggering install prompt manually...');
+      // Show iOS-specific instructions if on iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
       
-      // Try to show a more helpful message
+      if (isIOS) {
+        const modal = `
+          <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 10000;">
+            <div style="background: white; padding: 24px; border-radius: 12px; max-width: 320px; text-align: center;">
+              <h3 style="margin: 0 0 16px 0;">Install Stack'd</h3>
+              <p style="margin: 0 0 20px 0; line-height: 1.5;">
+                <strong>Note:</strong> Please use Safari browser for the best installation experience.<br/><br/>
+                Tap the Share button <span style="font-size: 24px;">⬆️</span> then select "Add to Home Screen" to install Stack'd as an app.
+              </p>
+              <button onclick="this.closest('div[style*=fixed]').remove()" style="background: #FFA500; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                Got it!
+              </button>
+            </div>
+          </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modal);
+        return;
+      }
+      
+      // Try to show a more helpful message for other platforms
       const message = `To install Stack'd as an app:
       
 1. Look for the install icon (⊞) in your browser's address bar

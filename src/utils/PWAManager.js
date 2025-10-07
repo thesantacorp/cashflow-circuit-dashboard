@@ -232,11 +232,12 @@ class PWAManager {
     content.innerHTML = `
       <h3 style="margin: 0 0 16px 0; color: #111;">Install Stack'd</h3>
       <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
+        <strong>Note:</strong> Please use Safari browser for the best installation experience.<br/><br/>
         Tap the <strong>Share</strong> button below, then select <strong>"Add to Home Screen"</strong> to install Stack'd as an app.
       </p>
       <div style="font-size: 32px; margin: 16px 0;">📱 ➜ 🏠</div>
       <button id="close-ios-modal" style="
-        background: #22c55e;
+        background: #FFA500;
         color: white;
         border: none;
         padding: 12px 24px;
