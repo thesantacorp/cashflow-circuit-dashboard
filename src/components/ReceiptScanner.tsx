@@ -41,17 +41,42 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ isOpen, onClose 
 
   const startCamera = async () => {
     try {
+      console.log("Requesting camera access...");
+      
+      // Check if mediaDevices is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast.error("Camera not supported on this device or browser");
+        console.error("MediaDevices API not supported");
+        return;
+      }
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: "environment" } 
       });
+      
+      console.log("Camera access granted", mediaStream);
       setStream(mediaStream);
       setShowCamera(true);
+      
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        await videoRef.current.play();
+        console.log("Video stream started");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error accessing camera:", error);
-      toast.error("Could not access camera. Please check permissions.");
+      
+      if (error.name === 'NotAllowedError') {
+        toast.error("Camera permission denied. Please allow camera access in your browser settings.");
+      } else if (error.name === 'NotFoundError') {
+        toast.error("No camera found on this device.");
+      } else if (error.name === 'NotReadableError') {
+        toast.error("Camera is already in use by another application.");
+      } else if (error.name === 'SecurityError') {
+        toast.error("Camera access requires HTTPS. Please use a secure connection.");
+      } else {
+        toast.error(`Could not access camera: ${error.message || 'Unknown error'}`);
+      }
     }
   };
 
@@ -92,6 +117,8 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ isOpen, onClose 
 
   const processImage = async (imageFile: Blob) => {
     setIsProcessing(true);
+    console.log("Processing image, size:", imageFile.size);
+    
     try {
       // Convert image to base64
       const reader = new FileReader();
@@ -193,13 +220,25 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ isOpen, onClose 
 
         {!showCamera && scannedItems.length === 0 && (
           <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Choose how to scan your receipt:
+            </p>
             <div className="flex gap-3">
-              <Button onClick={startCamera} className="flex-1 gap-2">
+              <Button 
+                onClick={() => {
+                  console.log("Take Photo button clicked");
+                  startCamera();
+                }} 
+                className="flex-1 gap-2"
+              >
                 <Camera className="w-4 h-4" />
                 Take Photo
               </Button>
               <Button 
-                onClick={() => fileInputRef.current?.click()} 
+                onClick={() => {
+                  console.log("Upload button clicked");
+                  fileInputRef.current?.click();
+                }} 
                 variant="outline"
                 className="flex-1"
               >
