@@ -10,17 +10,19 @@ import {
   DrawerFooter,
 } from "@/components/ui/drawer";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Bell, Banknote, CreditCard, PieChart, ArrowDownCircle, ArrowUpCircle, Lightbulb } from "lucide-react";
+import { Bell, Banknote, CreditCard, PieChart, ArrowDownCircle, ArrowUpCircle, Lightbulb, ScanLine } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import SettingsSheetContent from "./mobile/SettingsSheetContent";
 import MobileDrawerHeader from "./mobile/MobileDrawerHeader";
 import MobileDrawerContent from "./mobile/MobileDrawerContent";
 import MobileDrawerFooter from "./mobile/MobileDrawerFooter";
+import { ReceiptScanner } from "./ReceiptScanner";
 
 const MobileNav: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [activeSheet, setActiveSheet] = useState<string | null>(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
 
@@ -32,6 +34,15 @@ const MobileNav: React.FC = () => {
   ];
 
   const settingsItems = [
+    { 
+      name: "Scan Receipt", 
+      icon: <ScanLine className="h-5 w-5 mr-2" />,
+      setting: "scanner",
+      action: () => {
+        setIsDrawerOpen(false);
+        setTimeout(() => setIsScannerOpen(true), 300);
+      }
+    },
     { 
       name: "Notifications", 
       icon: <Bell className="h-5 w-5 mr-2" />,
@@ -151,6 +162,8 @@ const MobileNav: React.FC = () => {
           </div>
         </SheetContent>
       </Sheet>
+
+      <ReceiptScanner isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} />
     </>
   );
 };

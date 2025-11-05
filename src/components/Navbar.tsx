@@ -8,7 +8,8 @@ import {
   BellOff,
   UserIcon,
   LogOutIcon,
-  Lightbulb
+  Lightbulb,
+  ScanLine
 } from "lucide-react";
 import { useTransactions } from "@/context/transaction";
 import CurrencySelector from "./CurrencySelector";
@@ -34,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatNumberWithCommas } from "@/lib/utils";
+import { ReceiptScanner } from "./ReceiptScanner";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -44,6 +46,7 @@ const Navbar: React.FC = () => {
   const { permission, isSupported } = useNotifications();
   const { user, profile, signOut } = useAuth();
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   
   const totalExpenses = getTotalByType("expense");
   const totalIncome = getTotalByType("income");
@@ -98,6 +101,16 @@ const Navbar: React.FC = () => {
         <div className="ml-auto flex items-center gap-4">
           {!isMobile && (
             <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsScannerOpen(true)}
+                className="text-white bg-white/10 border-white/20 hover:bg-white/20"
+              >
+                <ScanLine size={16} className="mr-2" />
+                Scan Receipt
+              </Button>
+
               <Dialog open={notificationDialogOpen} onOpenChange={setNotificationDialogOpen}>
                 <DialogTrigger asChild>
                   <Button
@@ -181,6 +194,8 @@ const Navbar: React.FC = () => {
           </DropdownMenu>
         </div>
       </div>
+
+      <ReceiptScanner isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} />
     </nav>
   );
 };
