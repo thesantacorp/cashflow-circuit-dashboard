@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Camera, X, Edit2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -39,6 +39,17 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ isOpen, onClose 
   
   const categories = getCategoriesByType("expense");
 
+  // Effect to start video playback when stream is available
+  useEffect(() => {
+    if (stream && videoRef.current && showCamera) {
+      console.log("Setting up video stream in useEffect");
+      videoRef.current.srcObject = stream;
+      videoRef.current.play()
+        .then(() => console.log("Video playback started"))
+        .catch(err => console.error("Error playing video:", err));
+    }
+  }, [stream, showCamera]);
+
   const startCamera = async () => {
     try {
       console.log("Requesting camera access...");
@@ -57,12 +68,6 @@ export const ReceiptScanner: React.FC<ReceiptScannerProps> = ({ isOpen, onClose 
       console.log("Camera access granted", mediaStream);
       setStream(mediaStream);
       setShowCamera(true);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        await videoRef.current.play();
-        console.log("Video stream started");
-      }
     } catch (error: any) {
       console.error("Error accessing camera:", error);
       
