@@ -161,7 +161,8 @@ export function getPurchaseWarning(
     excited: 0,
     sad: 0,
     neutral: 0,
-    hopeful: 0
+    hopeful: 0,
+    relieved: 0
   };
 
   categoryTransactions.forEach((t) => {

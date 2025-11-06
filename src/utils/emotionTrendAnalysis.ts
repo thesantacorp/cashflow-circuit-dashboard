@@ -65,7 +65,8 @@ export function analyzeEmotionTrends(
     excited: 0,
     sad: 0,
     neutral: 0,
-    hopeful: 0
+    hopeful: 0,
+    relieved: 0
   };
   
   // Total spending by emotion
@@ -76,7 +77,8 @@ export function analyzeEmotionTrends(
     excited: 0,
     sad: 0,
     neutral: 0,
-    hopeful: 0
+    hopeful: 0,
+    relieved: 0
   };
   
   // Calculate emotion counts and spending

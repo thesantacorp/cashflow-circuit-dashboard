@@ -237,6 +237,7 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = ({
       case 'sad': return 'rgba(139, 92, 246, 1)';
       case 'bored': return 'rgba(251, 191, 36, 1)';
       case 'hopeful': return 'rgba(14, 159, 110, 1)';
+      case 'relieved': return 'rgba(20, 184, 166, 1)';
       default: return 'rgba(156, 163, 175, 1)';
     }
   }

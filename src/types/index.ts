@@ -1,6 +1,6 @@
 export type TransactionType = "expense" | "income";
 export type Currency = "USD" | "EUR" | "GBP" | "CAD" | "AUD" | "JPY" | "NGN" | "GHS" | "KES" | "XOF";
-export type EmotionalState = "happy" | "stressed" | "bored" | "excited" | "sad" | "neutral" | "hopeful";
+export type EmotionalState = "happy" | "stressed" | "bored" | "excited" | "sad" | "neutral" | "hopeful" | "relieved";
 export type BackupFrequency = "daily" | "weekly" | "monthly" | "manual";
 export type TimePeriod = "week" | "month" | "year" | "all";
 
@@ -47,6 +47,7 @@ export interface EmotionTimelineTrend {
   sad?: number;
   neutral?: number;
   hopeful?: number;
+  relieved?: number;
   [key: string]: string | number | undefined;
 }
 

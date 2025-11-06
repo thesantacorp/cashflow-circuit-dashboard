@@ -6,7 +6,7 @@ import { X } from 'lucide-react';
 import { EmotionalState } from '@/types';
 
 const emotions: Array<EmotionalState | 'all'> = [
-  'all', 'happy', 'excited', 'hopeful', 'neutral', 'bored', 'stressed', 'sad'
+  'all', 'happy', 'excited', 'hopeful', 'relieved', 'neutral', 'bored', 'stressed', 'sad'
 ];
 
 interface EmotionFilterProps {
@@ -59,6 +59,8 @@ const getEmotionBgClass = (emotion: EmotionalState | 'all'): string => {
       return 'bg-blue-500 text-white';
     case 'hopeful':
       return 'bg-purple-400 text-white';
+    case 'relieved':
+      return 'bg-teal-500 text-white';
     case 'neutral':
       return 'bg-gray-500 text-white';
     case 'bored':
