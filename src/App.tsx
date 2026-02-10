@@ -33,6 +33,7 @@ import MobileNavbar from "./components/MobileNavbar";
 import Index from "./pages/Index";
 import InstallButton from "./components/InstallButton";
 import OfflineIndicator from "./components/OfflineIndicator";
+import ImportStatementPage from "./pages/ImportStatementPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -133,6 +134,20 @@ function App() {
                             <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
                               <div className="max-w-7xl mx-auto w-full">
                                 <IdeasPage />
+                              </div>
+                            </main>
+                            <MobileNavbar />
+                            <CommunityLink />
+                          </>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/import" element={
+                        <ProtectedRoute>
+                          <>
+                            <Navbar />
+                            <main className="flex-1 py-6 px-4 sm:px-6 w-full pb-16 md:pb-6">
+                              <div className="max-w-7xl mx-auto w-full">
+                                <ImportStatementPage />
                               </div>
                             </main>
                             <MobileNavbar />

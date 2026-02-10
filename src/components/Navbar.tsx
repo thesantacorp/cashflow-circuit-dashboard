@@ -9,7 +9,8 @@ import {
   UserIcon,
   LogOutIcon,
   Lightbulb,
-  ScanLine
+  ScanLine,
+  FileText
 } from "lucide-react";
 import { useTransactions } from "@/context/transaction";
 import CurrencySelector from "./CurrencySelector";
@@ -85,6 +86,15 @@ const Navbar: React.FC = () => {
                 ? "bg-white/20 text-white hover:bg-white/30" 
                 : "text-white hover:bg-white/10"}>
               Income
+            </Button>
+          </Link>
+          <Link to="/import">
+            <Button variant={location.pathname === "/import" ? "secondary" : "ghost"}
+              className={location.pathname === "/import" 
+                ? "bg-white/20 text-white hover:bg-white/30" 
+                : "text-white hover:bg-white/10"}>
+              <FileText className="mr-2 h-4 w-4" />
+              Import
             </Button>
           </Link>
           <Link to="/ideas">
