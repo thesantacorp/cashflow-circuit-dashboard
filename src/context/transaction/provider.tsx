@@ -220,11 +220,18 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       console.log(`Fetched ${transformedData.transactions.length} transactions and ${transformedData.categories.length} categories`);
       
-      // Always replace data when fetching from Supabase, even if empty (user might have deleted everything)
-      if (force || transformedData.transactions.length > 0 || transformedData.categories.length > 0) {
+      // SAFETY: Never replace local data with empty cloud data unless local is also empty
+      const hasLocalData = state.transactions.length > 0 || state.categories.length > 0;
+      const hasCloudData = transformedData.transactions.length > 0 || transformedData.categories.length > 0;
+      
+      if (hasCloudData) {
         replaceAllData(transformedData);
         setLastSyncTime(new Date());
         console.log('Data replaced with Supabase data');
+      } else if (!hasLocalData) {
+        console.log('Both local and cloud data are empty — nothing to sync');
+      } else {
+        console.log('Cloud data is empty but local data exists — keeping local data safe');
       }
       
       return true;

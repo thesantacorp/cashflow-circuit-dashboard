@@ -102,7 +102,14 @@ export function useSupabaseSync() {
       return false;
     }
 
-    console.log("[useSupabaseSync] Starting manual sync to Supabase - Local data will overwrite cloud data");
+    // SAFETY: Never overwrite cloud data with empty local data
+    if (state.transactions.length === 0 && state.categories.length === 0) {
+      console.log("[useSupabaseSync] Local data is empty — skipping sync to prevent overwriting cloud data");
+      toast("No local data to sync. Use 'Restore from Cloud' to get your data back.");
+      return false;
+    }
+
+    console.log("[useSupabaseSync] Starting smart merge sync to Supabase");
     setIsSyncing(true);
     
     try {
@@ -113,58 +120,68 @@ export function useSupabaseSync() {
         if (error) throw error;
         return data;
       }, 'Connection check');
+
+      // Fetch existing cloud data
+      const { data: existingTransactions } = await (client.from('transactions') as any)
+        .select('transaction_id')
+        .eq('user_email', user.email);
       
-      await executeWithRetry(async () => {
-        const { error } = await (client.from('transactions') as any).delete().eq('user_email', user.email);
-        if (error) throw error;
-        return true;
-      }, 'Delete existing transactions');
+      const existingTxIds = new Set((existingTransactions || []).map((t: any) => t.transaction_id));
+
+      // Only insert transactions that don't already exist in the cloud
+      const newTransactions = state.transactions.filter(t => !existingTxIds.has(t.id));
       
-      await executeWithRetry(async () => {
-        const { error } = await (client.from('categories') as any).delete().eq('user_email', user.email);
-        if (error) throw error;
-        return true;
-      }, 'Delete existing categories');
-      
-      const batchSize = 50;
-      const batches = Math.ceil(state.transactions.length / batchSize);
-      
-      for (let i = 0; i < batches; i++) {
-        const start = i * batchSize;
-        const end = Math.min(start + batchSize, state.transactions.length);
-        const batch = state.transactions.slice(start, end);
+      if (newTransactions.length > 0) {
+        const batchSize = 50;
+        const batches = Math.ceil(newTransactions.length / batchSize);
         
-        const transactionRows = batch.map(transaction => ({
+        for (let i = 0; i < batches; i++) {
+          const start = i * batchSize;
+          const end = Math.min(start + batchSize, newTransactions.length);
+          const batch = newTransactions.slice(start, end);
+          
+          const transactionRows = batch.map(transaction => ({
+            user_email: user.email,
+            transaction_id: transaction.id,
+            type: transaction.type,
+            category_id: transaction.categoryId,
+            amount: transaction.amount,
+            description: transaction.description || '',
+            date: transaction.date,
+            emotional_state: transaction.emotionalState || 'neutral'
+          }));
+          
+          await executeWithRetry(async () => {
+            const { error } = await (client.from('transactions') as any).insert(transactionRows);
+            if (error) throw error;
+            return true;
+          }, `Insert transactions batch ${i + 1}/${batches}`);
+        }
+      }
+
+      // Merge categories — only insert new ones
+      const { data: existingCategories } = await (client.from('categories') as any)
+        .select('category_id')
+        .eq('user_email', user.email);
+
+      const existingCatIds = new Set((existingCategories || []).map((c: any) => c.category_id));
+      const newCategories = state.categories.filter(c => !existingCatIds.has(c.id));
+
+      if (newCategories.length > 0) {
+        const categoryRows = newCategories.map(category => ({
           user_email: user.email,
-          transaction_id: transaction.id,
-          type: transaction.type,
-          category_id: transaction.categoryId,
-          amount: transaction.amount,
-          description: transaction.description || '',
-          date: transaction.date,
-          emotional_state: transaction.emotionalState || 'neutral'
+          category_id: category.id,
+          name: category.name,
+          type: category.type,
+          color: category.color
         }));
         
         await executeWithRetry(async () => {
-          const { error } = await (client.from('transactions') as any).insert(transactionRows);
+          const { error } = await (client.from('categories') as any).insert(categoryRows);
           if (error) throw error;
           return true;
-        }, `Insert transactions batch ${i + 1}/${batches}`);
+        }, 'Insert categories');
       }
-      
-      const categoryRows = state.categories.map(category => ({
-        user_email: user.email,
-        category_id: category.id,
-        name: category.name,
-        type: category.type,
-        color: category.color
-      }));
-      
-      await executeWithRetry(async () => {
-        const { error } = await (client.from('categories') as any).insert(categoryRows);
-        if (error) throw error;
-        return true;
-      }, 'Insert categories');
       
       if (user.id) {
         await executeWithRetry(async () => {
@@ -185,8 +202,8 @@ export function useSupabaseSync() {
       
       localStorage.removeItem(DISABLE_AUTO_SYNC_KEY);
       
-      console.log("[useSupabaseSync] Manual sync completed successfully - Local data has been saved to cloud");
-      toast("Your local data was successfully saved to the cloud");
+      console.log(`[useSupabaseSync] Smart merge completed — added ${newTransactions.length} transactions, ${newCategories.length} categories`);
+      toast(`Sync complete: ${newTransactions.length} new transactions merged to cloud`);
       
       return true;
     } catch (error: any) {
