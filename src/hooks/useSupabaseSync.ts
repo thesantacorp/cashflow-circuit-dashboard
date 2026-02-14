@@ -302,52 +302,11 @@ export function useSupabaseSync() {
         return;
       }
       
+      // Simple: always sync local data UP to cloud (additive only, never destructive)
       const syncData = async () => {
         try {
-          const client = await getBestClient();
-          
-          const hasLocalData = state.transactions.length > 0 || state.categories.length > 0;
-          
-          let remoteCount = 0;
-          try {
-            const { data } = await client
-              .from('transactions')
-              .select('count', { count: 'exact', head: true })
-              .eq('user_email', user.email);
-            
-            if (data) {
-              if (Array.isArray(data) && data[0]?.count) {
-                remoteCount = data[0].count;
-              } else if (typeof data === 'object' && (data as any).count !== undefined) {
-                remoteCount = (data as any).count;
-              }
-            }
-          } catch (error) {
-            console.error('Error checking remote data count:', error);
-          }
-          
-          if (remoteCount > 0 && !hasLocalData) {
-            await restoreFromSupabase();
-          } else if (hasLocalData && remoteCount === 0) {
+          if (state.transactions.length > 0 || state.categories.length > 0) {
             await syncToSupabase();
-          } else if (hasLocalData && remoteCount > 0) {
-            if (profile.backup_last_date) {
-              const backupDate = new Date(profile.backup_last_date);
-              const localStorageDate = localStorage.getItem('lastTransactionUpdate');
-              
-              if (localStorageDate) {
-                const localDate = new Date(localStorageDate);
-                if (localDate > backupDate) {
-                  await syncToSupabase();
-                } else {
-                  await restoreFromSupabase();
-                }
-              } else {
-                await restoreFromSupabase();
-              }
-            } else {
-              await syncToSupabase();
-            }
           }
         } catch (error) {
           console.error('Auto-sync error:', error);
@@ -356,7 +315,7 @@ export function useSupabaseSync() {
       
       syncData().catch(console.error);
     }
-  }, [user, profile, state.transactions.length, state.categories.length, syncToSupabase, restoreFromSupabase, getBestClient, location.pathname]);
+  }, [user, profile, syncToSupabase]);
 
   const handleManualRestore = async () => {
     const success = await restoreFromSupabase();

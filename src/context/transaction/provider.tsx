@@ -27,7 +27,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const offlineStorage = useOfflineStorage();
   const offlineQueue = useOfflineQueue();
   
-  // Use offline storage data as the source of truth
+  // Initialize with empty state — Supabase is the source of truth when logged in
   const [state, dispatch] = useReducer(transactionReducer, {
     transactions: offlineStorage.data.transactions,
     categories: offlineStorage.data.categories,
@@ -184,7 +184,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!user || !isOnline) return false;
     
     try {
-      console.log('Fetching latest data from Supabase...');
+      console.log('[fetchLatestData] Loading data from Supabase (source of truth)...');
       
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
@@ -217,46 +217,33 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         color: c.color
       }));
       
-      console.log(`Fetched ${cloudTransactions.length} transactions and ${cloudCategories.length} categories from cloud`);
+      console.log(`[fetchLatestData] Supabase has ${cloudTransactions.length} transactions, ${cloudCategories.length} categories`);
       
+      // Supabase is the source of truth — always use cloud data
+      // Only exception: if cloud is empty, push any local-only data UP to cloud first
       const hasLocalData = state.transactions.length > 0 || state.categories.length > 0;
       const hasCloudData = cloudTransactions.length > 0 || cloudCategories.length > 0;
       
       if (!hasCloudData && hasLocalData) {
-        // SAFETY: Never replace local data with empty cloud data
-        console.log('[fetchLatestData] Cloud is empty but local has data — keeping local data, syncing UP to cloud');
+        console.log('[fetchLatestData] Cloud empty, local has data — pushing local data to cloud');
+        // Sync local data up to cloud instead of losing it
+        for (const t of state.transactions) {
+          await syncTransactionToSupabase(t);
+        }
+        for (const c of state.categories) {
+          await syncCategoryToSupabase(c);
+        }
+        console.log('[fetchLatestData] Local data pushed to cloud successfully');
         return true;
       }
       
-      if (!hasCloudData && !hasLocalData) {
-        console.log('[fetchLatestData] Both empty — nothing to do');
-        return true;
-      }
-      
-      // MERGE instead of replace: combine cloud + local, deduplicate by ID
-      const localTxIds = new Set(state.transactions.map(t => t.id));
-      const cloudTxIds = new Set(cloudTransactions.map(t => t.id));
-      
-      // Keep all cloud transactions + any local-only transactions
-      const mergedTransactions = [
-        ...cloudTransactions,
-        ...state.transactions.filter(t => !cloudTxIds.has(t.id))
-      ];
-      
-      const localCatIds = new Set(state.categories.map(c => c.id));
-      const cloudCatIds = new Set(cloudCategories.map(c => c.id));
-      
-      const mergedCategories = [
-        ...cloudCategories,
-        ...state.categories.filter(c => !cloudCatIds.has(c.id))
-      ];
-      
+      // Cloud data wins — replace local state entirely
       replaceAllData({
-        transactions: mergedTransactions,
-        categories: mergedCategories
+        transactions: cloudTransactions,
+        categories: cloudCategories
       });
       setLastSyncTime(new Date());
-      console.log(`[fetchLatestData] Merged: ${mergedTransactions.length} transactions, ${mergedCategories.length} categories`);
+      console.log(`[fetchLatestData] State replaced with Supabase data`);
       
       return true;
     } catch (error) {
