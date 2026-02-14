@@ -200,39 +200,63 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       if (categoriesError) throw categoriesError;
       
-      const transformedData = {
-        transactions: transactionsData.map((t) => ({
-          id: t.transaction_id,
-          type: t.type,
-          categoryId: t.category_id,
-          amount: t.amount,
-          description: t.description || '',
-          date: t.date,
-          emotionalState: t.emotional_state
-        })),
-        categories: categoriesData.map((c) => ({
-          id: c.category_id,
-          name: c.name,
-          type: c.type,
-          color: c.color
-        }))
-      };
+      const cloudTransactions = transactionsData.map((t) => ({
+        id: t.transaction_id,
+        type: t.type,
+        categoryId: t.category_id,
+        amount: t.amount,
+        description: t.description || '',
+        date: t.date,
+        emotionalState: t.emotional_state
+      }));
       
-      console.log(`Fetched ${transformedData.transactions.length} transactions and ${transformedData.categories.length} categories`);
+      const cloudCategories = categoriesData.map((c) => ({
+        id: c.category_id,
+        name: c.name,
+        type: c.type,
+        color: c.color
+      }));
       
-      // SAFETY: Never replace local data with empty cloud data unless local is also empty
+      console.log(`Fetched ${cloudTransactions.length} transactions and ${cloudCategories.length} categories from cloud`);
+      
       const hasLocalData = state.transactions.length > 0 || state.categories.length > 0;
-      const hasCloudData = transformedData.transactions.length > 0 || transformedData.categories.length > 0;
+      const hasCloudData = cloudTransactions.length > 0 || cloudCategories.length > 0;
       
-      if (hasCloudData) {
-        replaceAllData(transformedData);
-        setLastSyncTime(new Date());
-        console.log('Data replaced with Supabase data');
-      } else if (!hasLocalData) {
-        console.log('Both local and cloud data are empty — nothing to sync');
-      } else {
-        console.log('Cloud data is empty but local data exists — keeping local data safe');
+      if (!hasCloudData && hasLocalData) {
+        // SAFETY: Never replace local data with empty cloud data
+        console.log('[fetchLatestData] Cloud is empty but local has data — keeping local data, syncing UP to cloud');
+        return true;
       }
+      
+      if (!hasCloudData && !hasLocalData) {
+        console.log('[fetchLatestData] Both empty — nothing to do');
+        return true;
+      }
+      
+      // MERGE instead of replace: combine cloud + local, deduplicate by ID
+      const localTxIds = new Set(state.transactions.map(t => t.id));
+      const cloudTxIds = new Set(cloudTransactions.map(t => t.id));
+      
+      // Keep all cloud transactions + any local-only transactions
+      const mergedTransactions = [
+        ...cloudTransactions,
+        ...state.transactions.filter(t => !cloudTxIds.has(t.id))
+      ];
+      
+      const localCatIds = new Set(state.categories.map(c => c.id));
+      const cloudCatIds = new Set(cloudCategories.map(c => c.id));
+      
+      const mergedCategories = [
+        ...cloudCategories,
+        ...state.categories.filter(c => !cloudCatIds.has(c.id))
+      ];
+      
+      replaceAllData({
+        transactions: mergedTransactions,
+        categories: mergedCategories
+      });
+      setLastSyncTime(new Date());
+      console.log(`[fetchLatestData] Merged: ${mergedTransactions.length} transactions, ${mergedCategories.length} categories`);
       
       return true;
     } catch (error) {
@@ -502,15 +526,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!user || !isOnline) return false;
     
     try {
-      await supabase
-        .from('transactions')
-        .delete()
-        .eq('user_email', user.email)
-        .eq('transaction_id', transaction.id);
-      
+      // Use upsert to avoid delete-then-insert which can cause data loss
       const { error } = await supabase
         .from('transactions')
-        .insert({
+        .upsert({
           user_email: user.email,
           transaction_id: transaction.id,
           type: transaction.type,
@@ -519,9 +538,32 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           description: transaction.description || '',
           date: transaction.date,
           emotional_state: transaction.emotionalState || 'neutral'
-        });
+        }, { onConflict: 'user_email,transaction_id' });
       
-      if (error) throw error;
+      if (error) {
+        // Fallback: if upsert fails (no unique constraint), try delete+insert
+        console.warn('Upsert failed, falling back to insert:', error.message);
+        await supabase
+          .from('transactions')
+          .delete()
+          .eq('user_email', user.email)
+          .eq('transaction_id', transaction.id);
+        
+        const { error: insertError } = await supabase
+          .from('transactions')
+          .insert({
+            user_email: user.email,
+            transaction_id: transaction.id,
+            type: transaction.type,
+            category_id: transaction.categoryId,
+            amount: transaction.amount,
+            description: transaction.description || '',
+            date: transaction.date,
+            emotional_state: transaction.emotionalState || 'neutral'
+          });
+        
+        if (insertError) throw insertError;
+      }
       
       if (user.id) {
         await supabase
@@ -575,27 +617,38 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       console.log('Provider - Syncing category to Supabase:', category);
       
-      // First delete any existing category with this ID
-      const { error: deleteError } = await supabase
-        .from('categories')
-        .delete()
-        .eq('user_email', user.email)
-        .eq('category_id', category.id);
-      
-      if (deleteError) {
-        console.error('Provider - Error deleting category before update:', deleteError);
-      }
-      
-      // Then insert the updated category
+      // Use upsert to avoid delete-then-insert data loss
       const { error: insertError } = await supabase
         .from('categories')
-        .insert({
+        .upsert({
           user_email: user.email,
           category_id: category.id,
           name: category.name,
           type: category.type,
           color: category.color
-        });
+        }, { onConflict: 'user_email,category_id' });
+      
+      if (insertError) {
+        // Fallback if no unique constraint exists
+        console.warn('Category upsert failed, falling back to delete+insert:', insertError.message);
+        await supabase
+          .from('categories')
+          .delete()
+          .eq('user_email', user.email)
+          .eq('category_id', category.id);
+        
+        const { error: fallbackError } = await supabase
+          .from('categories')
+          .insert({
+            user_email: user.email,
+            category_id: category.id,
+            name: category.name,
+            type: category.type,
+            color: category.color
+          });
+        
+        if (fallbackError) throw fallbackError;
+      }
       
       if (insertError) {
         console.error('Provider - Error inserting updated category:', insertError);

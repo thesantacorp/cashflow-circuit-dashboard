@@ -107,6 +107,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          backup_approved: boolean | null
           backup_last_date: string | null
           created_at: string | null
           currency_preference: string | null
@@ -117,6 +118,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          backup_approved?: boolean | null
           backup_last_date?: string | null
           created_at?: string | null
           currency_preference?: string | null
@@ -127,6 +129,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          backup_approved?: boolean | null
           backup_last_date?: string | null
           created_at?: string | null
           currency_preference?: string | null
@@ -173,6 +176,33 @@ export type Database = {
           transaction_id?: string
           type?: string
           user_email?: string
+        }
+        Relationships: []
+      }
+      user_backups: {
+        Row: {
+          backup_date: string
+          categories_data: Json
+          created_at: string
+          id: string
+          transactions_data: Json
+          user_id: string
+        }
+        Insert: {
+          backup_date?: string
+          categories_data?: Json
+          created_at?: string
+          id?: string
+          transactions_data?: Json
+          user_id: string
+        }
+        Update: {
+          backup_date?: string
+          categories_data?: Json
+          created_at?: string
+          id?: string
+          transactions_data?: Json
+          user_id?: string
         }
         Relationships: []
       }
