@@ -7,6 +7,7 @@ import TransactionForm from "@/components/TransactionForm";
 import TransactionList from "@/components/TransactionList";
 import LocalStorageInfo from "@/components/LocalStorageInfo";
 import SpendingRecommendations from "@/components/SpendingRecommendations";
+import BudgetManager from "@/components/BudgetManager";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
 import { useTransactions } from "@/context/transaction";
@@ -66,8 +67,9 @@ const ExpensesPage: React.FC = () => {
       </div>
 
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="mb-8">
-        <TabsList className="grid w-full grid-cols-3 mb-4">
+        <TabsList className="grid w-full grid-cols-4 mb-4">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="budget">Budget</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
         </TabsList>
@@ -140,6 +142,10 @@ const ExpensesPage: React.FC = () => {
               )}
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="budget" className="pt-4">
+          <BudgetManager />
         </TabsContent>
 
         <TabsContent value="categories" className="pt-4">
