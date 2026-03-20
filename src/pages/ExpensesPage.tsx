@@ -144,6 +144,10 @@ const ExpensesPage: React.FC = () => {
           </div>
         </TabsContent>
 
+        <TabsContent value="budget" className="pt-4">
+          <BudgetManager />
+        </TabsContent>
+
         <TabsContent value="categories" className="pt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <EmotionFilter
