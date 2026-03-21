@@ -54,11 +54,12 @@ class PWAManager {
   }
 
   setupEventListeners() {
-    // Listen for beforeinstallprompt event
+    // Suppress beforeinstallprompt to prevent any "Add to Home Screen" banners.
+    // True PWA install happens via browser's native install flow (Chrome menu / Safari Add to Home Screen).
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
+      console.log('PWA: beforeinstallprompt suppressed by PWAManager');
       this.deferredPrompt = e;
-      this.showInstallButton();
     });
 
     // Listen for app installation
