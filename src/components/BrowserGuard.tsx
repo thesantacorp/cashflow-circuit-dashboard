@@ -9,6 +9,7 @@ type BrowserCheck = {
 
 const detectBrowser = (): BrowserCheck => {
   const ua = navigator.userAgent;
+  const vendor = navigator.vendor || '';
   
   // Already running as installed PWA — always allow
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches
@@ -35,25 +36,27 @@ const detectBrowser = (): BrowserCheck => {
   const isDesktop = !isIOS && !isAndroid;
 
   if (isIOS) {
-    // Safari on iOS: UA contains "Safari" but NOT "CriOS" (Chrome), "FxiOS" (Firefox), "EdgiOS" (Edge), "OPiOS" (Opera)
-    const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|OPT\//.test(ua);
+    const isSafari = /Safari/i.test(ua)
+      && /Apple/i.test(vendor)
+      && !/CriOS|FxiOS|EdgiOS|EdgA|OPiOS|OPT\/|DuckDuckGo|YaBrowser|MiuiBrowser|UCBrowser|SamsungBrowser|Puffin|Focus/i.test(ua);
     if (!isSafari) {
       return {
         allowed: false,
         message: 'Please open Stack\'d in Safari',
-        recommendation: 'Stack\'d needs Safari on iOS to install as a proper app. Copy this URL and paste it in Safari to continue.',
+        recommendation: 'Stack\'d only supports Safari on iPhone and iPad. Other iOS browsers may still show Add to Home Screen, but they do not provide the install behavior required here.',
       };
     }
   }
 
   if (isAndroid) {
-    // Chrome on Android: UA contains "Chrome" but NOT "EdgA" (Edge), "OPR" (Opera), "SamsungBrowser", "UCBrowser", "Firefox"
-    const isChrome = /Chrome/.test(ua) && !/EdgA|OPR|SamsungBrowser|UCBrowser|Firefox|Brave/.test(ua);
+    const isChrome = /Chrome/i.test(ua)
+      && /Google Inc/i.test(vendor)
+      && !/EdgA|OPR|Opera|SamsungBrowser|UCBrowser|Firefox|FxiOS|Brave|DuckDuckGo|YaBrowser|MiuiBrowser|Vivaldi/i.test(ua);
     if (!isChrome) {
       return {
         allowed: false,
         message: 'Please open Stack\'d in Chrome',
-        recommendation: 'Stack\'d needs Google Chrome on Android to install as a proper app. Copy this URL and paste it in Chrome to continue.',
+        recommendation: 'Stack\'d only supports Google Chrome on Android. Other Android browsers may still show Add to Home Screen, but that is not the install flow this app supports.',
       };
     }
   }

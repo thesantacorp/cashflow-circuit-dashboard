@@ -11,7 +11,6 @@ import { NotificationProvider } from "@/context/NotificationContext";
 import { AuthProvider } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import CommunityLink from "@/components/CommunityLink";
-import { useEffect } from "react";
 import OverviewPageEnhanced from "@/pages/OverviewPageEnhanced";
 import ExpensesPage from "@/pages/ExpensesPage";
 import IncomePage from "@/pages/IncomePage";
@@ -31,7 +30,6 @@ import UpdatePasswordPage from "./pages/auth/UpdatePasswordPage";
 import ProfilePage from "./pages/ProfilePage";
 import MobileNavbar from "./components/MobileNavbar";
 import Index from "./pages/Index";
-import InstallButton from "./components/InstallButton";
 import OfflineIndicator from "./components/OfflineIndicator";
 import ImportStatementPage from "./pages/ImportStatementPage";
 import BrowserGuard from "./components/BrowserGuard";
@@ -47,13 +45,6 @@ const queryClient = new QueryClient({
 });
 
 function App() {
-  useEffect(() => {
-    // Import and initialize PWA Manager
-    import('./utils/PWAManager.js').then(() => {
-      console.log('PWA Manager loaded');
-    });
-  }, []);
-
   return (
     <BrowserGuard>
     <QueryClientProvider client={queryClient}>
@@ -177,7 +168,6 @@ function App() {
                     </Routes>
                     
                     {/* PWA Components */}
-                    <InstallButton />
                     <OfflineIndicator />
                   </div>
                 </TooltipProvider>
