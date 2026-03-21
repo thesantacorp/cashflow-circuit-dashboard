@@ -34,6 +34,7 @@ import Index from "./pages/Index";
 import InstallButton from "./components/InstallButton";
 import OfflineIndicator from "./components/OfflineIndicator";
 import ImportStatementPage from "./pages/ImportStatementPage";
+import BrowserGuard from "./components/BrowserGuard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,6 +55,7 @@ function App() {
   }, []);
 
   return (
+    <BrowserGuard>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CurrencyProvider>
@@ -185,6 +187,7 @@ function App() {
         </CurrencyProvider>
       </AuthProvider>
     </QueryClientProvider>
+    </BrowserGuard>
   );
 }
 

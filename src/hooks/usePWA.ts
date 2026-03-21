@@ -14,10 +14,11 @@ export const usePWA = () => {
     };
 
     // Listen for beforeinstallprompt event
-    const handleBeforeInstallPrompt = (e) => {
-      console.log('PWA: Install prompt triggered');
-      // Don't prevent default - let browser show native prompt
-      // e.preventDefault();
+    // We prevent default to suppress any "Add to Home Screen" mini-infobar.
+    // The browser's native install flow (address bar icon / menu) still works for true PWA install.
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      console.log('PWA: beforeinstallprompt suppressed — use browser native install only');
       setDeferredPrompt(e);
       setIsInstallable(true);
     };
