@@ -81,14 +81,7 @@ class PWAManager {
   }
 
   initializeInstallButton() {
-    // Wait for DOM to be ready
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        this.setupInstallButton();
-      });
-    } else {
-      this.setupInstallButton();
-    }
+    // No custom install button — true PWA install only via browser native flow
   }
 
   setupInstallButton() {
