@@ -17,6 +17,19 @@ const detectBrowser = (): BrowserCheck => {
     return { allowed: true, message: '', recommendation: '' };
   }
 
+  // Allow Lovable preview iframe
+  try {
+    if (window.location.hostname.includes('lovable') || 
+        window.location.hostname.includes('localhost') ||
+        window.location.hostname === '127.0.0.1' ||
+        window.self !== window.top) {
+      return { allowed: true, message: '', recommendation: '' };
+    }
+  } catch {
+    // cross-origin iframe — allow it
+    return { allowed: true, message: '', recommendation: '' };
+  }
+
   const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
   const isAndroid = /Android/.test(ua);
   const isDesktop = !isIOS && !isAndroid;
