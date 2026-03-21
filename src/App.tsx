@@ -187,6 +187,7 @@ function App() {
         </CurrencyProvider>
       </AuthProvider>
     </QueryClientProvider>
+    </BrowserGuard>
   );
 }
 
