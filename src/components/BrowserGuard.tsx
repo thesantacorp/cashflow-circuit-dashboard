@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Download, Copy, Check } from 'lucide-react';
 
-type BrowserCheck = {
-  allowed: boolean;
-  message: string;
-  recommendation: string;
-};
+type GuardState = 
+  | { type: 'loading' }
+  | { type: 'allowed' }
+  | { type: 'wrong-browser'; message: string; recommendation: string }
+  | { type: 'not-installed' };
 
 type NavigatorWithBrowserHints = Navigator & {
   brave?: {
@@ -18,49 +18,53 @@ type NavigatorWithBrowserHints = Navigator & {
   };
 };
 
-const detectBrowser = async (): Promise<BrowserCheck> => {
+const detectGuardState = async (): Promise<GuardState> => {
   const ua = navigator.userAgent;
   const vendor = navigator.vendor || '';
   const browserNavigator = navigator as NavigatorWithBrowserHints;
   const brands = browserNavigator.userAgentData?.brands?.map(({ brand }) => brand.toLowerCase()) ?? [];
-  
+
   // Already running as installed PWA — always allow
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches
     || (window.navigator as any).standalone === true;
   if (isStandalone) {
-    return { allowed: true, message: '', recommendation: '' };
+    return { type: 'allowed' };
   }
 
-  // Allow local development and Lovable preview only
+  // Allow dev/preview environments
   try {
-    if (window.location.hostname.startsWith('id-preview--') ||
-        window.location.hostname.includes('localhost') ||
-        window.location.hostname === '127.0.0.1' ||
+    const host = window.location.hostname;
+    if (host.startsWith('id-preview--') ||
+        host.includes('localhost') ||
+        host === '127.0.0.1' ||
         window.self !== window.top) {
-      return { allowed: true, message: '', recommendation: '' };
+      return { type: 'allowed' };
     }
   } catch {
-    // cross-origin iframe — allow it
-    return { allowed: true, message: '', recommendation: '' };
+    return { type: 'allowed' };
   }
 
   const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
   const isAndroid = /Android/.test(ua);
   const isDesktop = !isIOS && !isAndroid;
 
+  // --- iOS: Safari only ---
   if (isIOS) {
     const isSafari = /Safari/i.test(ua)
       && /Apple/i.test(vendor)
       && !/CriOS|FxiOS|EdgiOS|EdgA|OPiOS|OPT\/|DuckDuckGo|YaBrowser|MiuiBrowser|UCBrowser|SamsungBrowser|Puffin|Focus/i.test(ua);
     if (!isSafari) {
       return {
-        allowed: false,
-        message: 'Please open Stack\'d in Safari',
-        recommendation: 'Stack\'d only supports Safari on iPhone and iPad. Other iOS browsers may still show Add to Home Screen, but they do not provide the install behavior required here.',
+        type: 'wrong-browser',
+        message: "Please open Stack'd in Safari",
+        recommendation: "Stack'd only supports Safari on iPhone and iPad.",
       };
     }
+    // Safari but not installed → show install instructions
+    return { type: 'not-installed' };
   }
 
+  // --- Android: Chrome only ---
   if (isAndroid) {
     const brandSet = new Set(brands);
     const hasGoogleChromeBrand = brandSet.has('google chrome');
@@ -79,62 +83,155 @@ const detectBrowser = async (): Promise<BrowserCheck> => {
     const isChromeFallback = /Chrome/i.test(ua) && /Google Inc/i.test(vendor);
     const isChrome = hasGoogleChromeBrand || (!brands.length && isChromeFallback);
 
-    if (!isChrome) {
+    if (!isChrome || hasUnsupportedBrand || hasUnsupportedToken || braveFlag) {
       return {
-        allowed: false,
-        message: 'Please open Stack\'d in Chrome',
-        recommendation: 'Stack\'d only supports Google Chrome on Android. Other Android browsers may still show Add to Home Screen, but that is not the install flow this app supports.',
+        type: 'wrong-browser',
+        message: "Please open Stack'd in Chrome",
+        recommendation: "Stack'd only supports Google Chrome on Android.",
       };
     }
-
-    if (hasUnsupportedBrand || hasUnsupportedToken || braveFlag) {
-      return {
-        allowed: false,
-        message: 'Please open Stack\'d in Chrome',
-        recommendation: 'Stack\'d only supports Google Chrome on Android. Other Android browsers may still show Add to Home Screen, but that is not the install flow this app supports.',
-      };
-    }
+    // Chrome but not installed → show install prompt
+    return { type: 'not-installed' };
   }
 
+  // --- Desktop: Chrome or Edge ---
   if (isDesktop) {
-    // On desktop, allow Chrome, Edge (Chromium-based) — they support WebAPK-like install
     const isChromium = /Chrome/.test(ua) || /Edg/.test(ua);
     if (!isChromium) {
       return {
-        allowed: false,
-        message: 'Please open Stack\'d in Chrome or Edge',
-        recommendation: 'Stack\'d needs a Chromium-based browser (Chrome or Edge) on desktop to install as a proper app. Copy this URL and paste it in Chrome or Edge.',
+        type: 'wrong-browser',
+        message: "Please open Stack'd in Chrome or Edge",
+        recommendation: "Stack'd needs a Chromium-based browser (Chrome or Edge) on desktop to install as a proper app.",
       };
     }
+    // Chromium desktop but not installed
+    return { type: 'not-installed' };
   }
 
-  return { allowed: true, message: '', recommendation: '' };
+  return { type: 'allowed' };
+};
+
+const CopyLinkButton: React.FC = () => {
+  const [copied, setCopied] = useState(false);
+  const url = window.location.href;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback
+      const textarea = document.createElement('textarea');
+      textarea.value = url;
+      textarea.style.position = 'fixed';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="w-full flex items-center justify-center gap-2 bg-muted rounded-lg p-4 active:bg-muted/70 transition-colors"
+    >
+      {copied ? (
+        <Check className="w-5 h-5 text-green-600 shrink-0" />
+      ) : (
+        <Copy className="w-5 h-5 text-muted-foreground shrink-0" />
+      )}
+      <span className="text-sm font-mono text-foreground break-all text-left">
+        {url}
+      </span>
+    </button>
+  );
+};
+
+const InstallScreen: React.FC<{ onInstallPrompt: (() => void) | null }> = ({ onInstallPrompt }) => {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-6">
+      <div className="max-w-md w-full text-center space-y-6">
+        <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+          <Download className="w-8 h-8 text-primary" />
+        </div>
+        <h1 className="text-2xl font-bold text-foreground">Install Stack'd</h1>
+        <p className="text-muted-foreground leading-relaxed">
+          Stack'd needs to be installed as an app before you can use it. This ensures the best experience and keeps your data secure.
+        </p>
+
+        {onInstallPrompt ? (
+          <button
+            onClick={onInstallPrompt}
+            className="w-full py-3 px-6 rounded-lg bg-primary text-primary-foreground font-semibold text-lg active:bg-primary/80 transition-colors"
+          >
+            Install Stack'd
+          </button>
+        ) : isIOS ? (
+          <div className="bg-muted rounded-lg p-4 text-left space-y-3">
+            <p className="font-semibold text-foreground">To install:</p>
+            <ol className="list-decimal list-inside space-y-2 text-muted-foreground text-sm">
+              <li>Tap the <strong>Share</strong> button <span className="text-lg">⬆️</span> at the bottom of Safari</li>
+              <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
+              <li>Tap <strong>"Add"</strong> in the top right</li>
+              <li>Open Stack'd from your home screen</li>
+            </ol>
+          </div>
+        ) : (
+          <div className="bg-muted rounded-lg p-4 text-left space-y-3">
+            <p className="font-semibold text-foreground">To install:</p>
+            <ol className="list-decimal list-inside space-y-2 text-muted-foreground text-sm">
+              <li>Tap the <strong>⋮</strong> menu (three dots) in Chrome</li>
+              <li>Tap <strong>"Install app"</strong> or <strong>"Add to Home Screen"</strong></li>
+              <li>Tap <strong>"Install"</strong> to confirm</li>
+              <li>Open Stack'd from your app drawer</li>
+            </ol>
+          </div>
+        )}
+
+        <p className="text-xs text-muted-foreground">
+          Once installed, Stack'd will appear in your app drawer and work like a native app.
+        </p>
+      </div>
+    </div>
+  );
 };
 
 const BrowserGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [check, setCheck] = useState<BrowserCheck | null>(null);
+  const [state, setState] = useState<GuardState>({ type: 'loading' });
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
-    void detectBrowser().then(setCheck);
+    void detectGuardState().then(setState);
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
-  // Still checking
-  if (!check) return null;
+  if (state.type === 'loading') return null;
 
-  if (!check.allowed) {
+  if (state.type === 'wrong-browser') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <div className="max-w-md w-full text-center space-y-6">
           <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
             <AlertTriangle className="w-8 h-8 text-destructive" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">{check.message}</h1>
-          <p className="text-muted-foreground leading-relaxed">{check.recommendation}</p>
-          <div className="bg-muted rounded-lg p-4">
-            <p className="text-sm text-muted-foreground mb-2">Copy this URL:</p>
-            <code className="text-sm font-mono text-foreground break-all select-all">
-              {window.location.href}
-            </code>
+          <h1 className="text-2xl font-bold text-foreground">{state.message}</h1>
+          <p className="text-muted-foreground leading-relaxed">{state.recommendation}</p>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">Tap to copy this link and paste it in the correct browser:</p>
+            <CopyLinkButton />
           </div>
           <p className="text-xs text-muted-foreground">
             This ensures Stack'd installs as a true app that you can find in your app drawer and uninstall properly — not just a bookmark.
@@ -142,6 +239,24 @@ const BrowserGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         </div>
       </div>
     );
+  }
+
+  if (state.type === 'not-installed') {
+    const handleInstall = deferredPrompt
+      ? async () => {
+          try {
+            await deferredPrompt.prompt();
+            const result = await deferredPrompt.userChoice;
+            if (result.outcome === 'accepted') {
+              setDeferredPrompt(null);
+            }
+          } catch (e) {
+            console.error('Install prompt error:', e);
+          }
+        }
+      : null;
+
+    return <InstallScreen onInstallPrompt={handleInstall} />;
   }
 
   return <>{children}</>;
