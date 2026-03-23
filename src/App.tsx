@@ -27,6 +27,7 @@ import VerifyEmailPage from "./pages/auth/VerifyEmailPage";
 import VerificationSuccessPage from "./pages/auth/VerificationSuccessPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import UpdatePasswordPage from "./pages/auth/UpdatePasswordPage";
+import AuthCallbackPage from "./pages/auth/AuthCallbackPage";
 import ProfilePage from "./pages/ProfilePage";
 import MobileNavbar from "./components/MobileNavbar";
 import Index from "./pages/Index";
@@ -63,6 +64,8 @@ function App() {
                         <Route index element={<LoginPage />} />
                         <Route path="login" element={<LoginPage />} />
                         <Route path="signup" element={<SignupPage />} />
+                        <Route path="callback" element={<AuthCallbackPage />} />
+                        <Route path="verify" element={<AuthCallbackPage />} />
                         <Route path="verify-email" element={<VerifyEmailPage />} />
                         <Route path="verification-success" element={<VerificationSuccessPage />} />
                         <Route path="forgot-password" element={<ForgotPasswordPage />} />

@@ -7,9 +7,22 @@ type BrowserCheck = {
   recommendation: string;
 };
 
-const detectBrowser = (): BrowserCheck => {
+type NavigatorWithBrowserHints = Navigator & {
+  brave?: {
+    isBrave?: () => Promise<boolean> | boolean;
+  };
+  userAgentData?: {
+    brands?: Array<{ brand: string; version: string }>;
+    mobile?: boolean;
+    platform?: string;
+  };
+};
+
+const detectBrowser = async (): Promise<BrowserCheck> => {
   const ua = navigator.userAgent;
   const vendor = navigator.vendor || '';
+  const browserNavigator = navigator as NavigatorWithBrowserHints;
+  const brands = browserNavigator.userAgentData?.brands?.map(({ brand }) => brand.toLowerCase()) ?? [];
   
   // Already running as installed PWA — always allow
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches
@@ -18,9 +31,9 @@ const detectBrowser = (): BrowserCheck => {
     return { allowed: true, message: '', recommendation: '' };
   }
 
-  // Allow Lovable preview iframe
+  // Allow local development and Lovable preview only
   try {
-    if (window.location.hostname.includes('lovable') || 
+    if (window.location.hostname.startsWith('id-preview--') ||
         window.location.hostname.includes('localhost') ||
         window.location.hostname === '127.0.0.1' ||
         window.self !== window.top) {
@@ -49,10 +62,32 @@ const detectBrowser = (): BrowserCheck => {
   }
 
   if (isAndroid) {
-    const isChrome = /Chrome/i.test(ua)
-      && /Google Inc/i.test(vendor)
-      && !/EdgA|OPR|Opera|SamsungBrowser|UCBrowser|Firefox|FxiOS|Brave|DuckDuckGo|YaBrowser|MiuiBrowser|Vivaldi/i.test(ua);
+    const brandSet = new Set(brands);
+    const hasGoogleChromeBrand = brandSet.has('google chrome');
+    const hasUnsupportedBrand = brands.some((brand) =>
+      brand.includes('opera') ||
+      brand.includes('brave') ||
+      brand.includes('edge') ||
+      brand.includes('samsung') ||
+      brand.includes('vivaldi') ||
+      brand.includes('duckduckgo')
+    );
+    const braveFlag = typeof browserNavigator.brave?.isBrave === 'function'
+      ? await browserNavigator.brave.isBrave()
+      : false;
+    const hasUnsupportedToken = /EdgA|OPR|Opera|SamsungBrowser|UCBrowser|Firefox|FxiOS|DuckDuckGo|YaBrowser|MiuiBrowser|Vivaldi/i.test(ua);
+    const isChromeFallback = /Chrome/i.test(ua) && /Google Inc/i.test(vendor);
+    const isChrome = hasGoogleChromeBrand || (!brands.length && isChromeFallback);
+
     if (!isChrome) {
+      return {
+        allowed: false,
+        message: 'Please open Stack\'d in Chrome',
+        recommendation: 'Stack\'d only supports Google Chrome on Android. Other Android browsers may still show Add to Home Screen, but that is not the install flow this app supports.',
+      };
+    }
+
+    if (hasUnsupportedBrand || hasUnsupportedToken || braveFlag) {
       return {
         allowed: false,
         message: 'Please open Stack\'d in Chrome',
@@ -80,7 +115,7 @@ const BrowserGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   const [check, setCheck] = useState<BrowserCheck | null>(null);
 
   useEffect(() => {
-    setCheck(detectBrowser());
+    void detectBrowser().then(setCheck);
   }, []);
 
   // Still checking
