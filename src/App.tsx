@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { TransactionProvider } from "@/context/transaction/provider";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import { BackupProvider } from "@/context/BackupContext";
@@ -33,7 +33,7 @@ import MobileNavbar from "./components/MobileNavbar";
 import Index from "./pages/Index";
 import OfflineIndicator from "./components/OfflineIndicator";
 import ImportStatementPage from "./pages/ImportStatementPage";
-import BrowserGuard from "./components/BrowserGuard";
+import PWAEnforcement from "./components/PWAEnforcement";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,7 +47,7 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <BrowserGuard>
+    <PWAEnforcement>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CurrencyProvider>
@@ -57,7 +57,7 @@ function App() {
                 <TooltipProvider>
                   <Toaster />
                   <Sonner />
-                  <div className="min-h-screen flex flex-col bg-gradient-to-b from-orange-50 to-white overflow-x-hidden">
+                  <div className="min-h-screen flex flex-col bg-gradient-to-b from-secondary to-background overflow-x-hidden">
                     <Routes>
                       {/* Auth routes */}
                       <Route path="/auth" element={<AuthPage />}>
@@ -180,7 +180,7 @@ function App() {
         </CurrencyProvider>
       </AuthProvider>
     </QueryClientProvider>
-    </BrowserGuard>
+    </PWAEnforcement>
   );
 }
 
