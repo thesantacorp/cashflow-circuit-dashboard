@@ -1,37 +1,36 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+};
 
 export const usePWA = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
 
+  const isIOS = useMemo(() => /iPad|iPhone|iPod/.test(navigator.userAgent), []);
+
   useEffect(() => {
-    // Check if app is already installed
-    const checkIfInstalled = () => {
-      const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
-      const isInWebAppMode = (window.navigator as any).standalone === true;
-      setIsInstalled(isInStandaloneMode || isInWebAppMode);
+    const updateStandaloneState = () => {
+      const standalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+      setIsInstalled(standalone);
     };
 
-    // Listen for beforeinstallprompt event
-    // We prevent default to suppress any "Add to Home Screen" mini-infobar.
-    // The browser's native install flow (address bar icon / menu) still works for true PWA install.
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      console.log('PWA: beforeinstallprompt suppressed — use browser native install only');
-      setDeferredPrompt(e);
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setDeferredPrompt(event as BeforeInstallPromptEvent);
       setIsInstallable(true);
     };
 
-    // Listen for appinstalled event
     const handleAppInstalled = () => {
-      console.log('PWA: App installed successfully');
       setIsInstalled(true);
       setIsInstallable(false);
       setDeferredPrompt(null);
     };
 
-    checkIfInstalled();
+    updateStandaloneState();
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
@@ -41,83 +40,26 @@ export const usePWA = () => {
     };
   }, []);
 
-  const installApp = async () => {
-    console.log('PWA: Install button clicked', { deferredPrompt, isInstallable });
-    
-    if (!deferredPrompt) {
-      console.log('PWA: No deferred prompt available. Checking PWA criteria...');
-      
-      // Check if we're on HTTPS
-      const isHTTPS = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
-      console.log('PWA: HTTPS check:', isHTTPS);
-      
-      // Check if service worker is registered
-      const swRegistered = 'serviceWorker' in navigator && navigator.serviceWorker.controller;
-      console.log('PWA: Service Worker registered:', swRegistered);
-      
-      // Check if manifest is available
-      const manifestLink = document.querySelector('link[rel="manifest"]');
-      console.log('PWA: Manifest link found:', !!manifestLink);
-      
-      // Show iOS-specific instructions if on iOS
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      
-      if (isIOS) {
-        const modal = `
-          <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 10000;">
-            <div style="background: white; padding: 24px; border-radius: 12px; max-width: 320px; text-align: center;">
-              <h3 style="margin: 0 0 16px 0;">Install Stack'd</h3>
-              <p style="margin: 0 0 20px 0; line-height: 1.5;">
-                <strong>Note:</strong> Please use Safari browser for the best installation experience.<br/><br/>
-                Tap the Share button <span style="font-size: 24px;">⬆️</span> then select "Add to Home Screen" to install Stack'd as an app.
-              </p>
-              <button onclick="this.closest('div[style*=fixed]').remove()" style="background: #FFA500; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; cursor: pointer;">
-                Got it!
-              </button>
-            </div>
-          </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', modal);
-        return;
-      }
-      
-      // Try to show a more helpful message for other platforms
-      const message = `To install Stack'd as an app:
-      
-1. Look for the install icon (⊞) in your browser's address bar
-2. Or go to your browser menu → "Install Stack'd" or "Add to Home Screen"
-3. On mobile: tap the share button and select "Add to Home Screen"
+  const promptInstall = async () => {
+    if (!deferredPrompt) return false;
 
-PWA Status:
-- HTTPS: ${isHTTPS ? '✓' : '✗'}
-- Service Worker: ${swRegistered ? '✓' : '✗'}
-- Manifest: ${!!manifestLink ? '✓' : '✗'}`;
-      
-      alert(message);
-      return;
-    }
+    await deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
 
-    try {
-      console.log('PWA: Showing install prompt...');
-      await deferredPrompt.prompt();
-      const choiceResult = await deferredPrompt.userChoice;
-      
-      if (choiceResult.outcome === 'accepted') {
-        console.log('PWA: User accepted the install prompt');
-      } else {
-        console.log('PWA: User dismissed the install prompt');
-      }
-      
-      setDeferredPrompt(null);
+    if (choice.outcome === 'accepted') {
       setIsInstallable(false);
-    } catch (error) {
-      console.error('PWA: Installation error:', error);
+      setDeferredPrompt(null);
+      return true;
     }
+
+    return false;
   };
 
   return {
     isInstallable,
     isInstalled,
-    installApp
+    isIOS,
+    isStandalone: isInstalled,
+    promptInstall,
   };
 };
