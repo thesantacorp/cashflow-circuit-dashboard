@@ -105,11 +105,6 @@ export default defineConfig(({ mode }) => ({
         type: "module",
       },
     }),
-    VitePWA({
-      workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-      },
-    }),
     mode === 'development' &&
     componentTagger(),
   ].filter(Boolean),
