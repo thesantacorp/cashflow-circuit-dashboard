@@ -151,7 +151,7 @@ const CopyLinkButton: React.FC = () => {
   );
 };
 
-const InstallScreen: React.FC<{ onInstallPrompt: (() => void) | null }> = ({ onInstallPrompt }) => {
+const InstallScreen: React.FC = () => {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   return (
@@ -165,14 +165,7 @@ const InstallScreen: React.FC<{ onInstallPrompt: (() => void) | null }> = ({ onI
           Stack'd needs to be installed as an app before you can use it. This ensures the best experience and keeps your data secure.
         </p>
 
-        {onInstallPrompt ? (
-          <button
-            onClick={onInstallPrompt}
-            className="w-full py-3 px-6 rounded-lg bg-primary text-primary-foreground font-semibold text-lg active:bg-primary/80 transition-colors"
-          >
-            Install Stack'd
-          </button>
-        ) : isIOS ? (
+        {isIOS ? (
           <div className="bg-muted rounded-lg p-4 text-left space-y-3">
             <p className="font-semibold text-foreground">To install:</p>
             <ol className="list-decimal list-inside space-y-2 text-muted-foreground text-sm">
@@ -204,18 +197,9 @@ const InstallScreen: React.FC<{ onInstallPrompt: (() => void) | null }> = ({ onI
 
 const BrowserGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<GuardState>({ type: 'loading' });
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
     void detectGuardState().then(setState);
-
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
   if (state.type === 'loading') return null;
@@ -242,21 +226,7 @@ const BrowserGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   }
 
   if (state.type === 'not-installed') {
-    const handleInstall = deferredPrompt
-      ? async () => {
-          try {
-            await deferredPrompt.prompt();
-            const result = await deferredPrompt.userChoice;
-            if (result.outcome === 'accepted') {
-              setDeferredPrompt(null);
-            }
-          } catch (e) {
-            console.error('Install prompt error:', e);
-          }
-        }
-      : null;
-
-    return <InstallScreen onInstallPrompt={handleInstall} />;
+    return <InstallScreen />;
   }
 
   return <>{children}</>;
