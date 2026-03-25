@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Check, Copy, Download, ExternalLink, Globe, Plus, Share2, Smartphone, TriangleAlert } from 'lucide-react';
+import { Check, Copy, ExternalLink, Globe, Plus, Share2, Smartphone, TriangleAlert } from 'lucide-react';
 
 import AppLogo from '@/components/AppLogo';
 import { Button } from '@/components/ui/button';
@@ -137,9 +137,8 @@ const InstallShell = ({ children }: { children: React.ReactNode }) => (
 
 const PWAEnforcement = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
-  const { isInstallable, isStandalone, promptInstall } = usePWA();
+  const { isStandalone } = usePWA();
   const [browserDetails, setBrowserDetails] = useState<BrowserDetails | null>(null);
-  const [isInstalling, setIsInstalling] = useState(false);
 
   const isBypassed = useMemo(() => {
     try {
@@ -218,33 +217,21 @@ const PWAEnforcement = ({ children }: { children: React.ReactNode }) => {
             Chrome native install required.
           </div>
           <p className="text-sm leading-6 text-muted-foreground">
-            Install Stack'd, then always launch it from the app icon before using it.
+            Stack'd only works after Chrome installs it and you launch it from the app icon.
           </p>
         </div>
 
-        {isInstallable ? (
-          <Button
-            type="button"
-            size="lg"
-            className="w-full"
-            disabled={isInstalling}
-            onClick={async () => {
-              setIsInstalling(true);
-              try {
-                await promptInstall();
-              } finally {
-                setIsInstalling(false);
-              }
-            }}
-          >
-            <Download className="h-4 w-4" />
-            {isInstalling ? 'Opening install prompt...' : 'Install App Now'}
-          </Button>
-        ) : (
-          <div className="rounded-2xl border border-border/70 bg-background/80 p-4 text-left text-sm text-muted-foreground">
-            If Chrome does not show the native install prompt yet, open Chrome menu <strong>⋮</strong> and choose <strong>Install app</strong>.
-          </div>
-        )}
+        <div className="space-y-3">
+          <Step number={1} icon={Smartphone}>Open Chrome menu <strong>⋮</strong>.</Step>
+          <Step number={2} icon={Plus}>Tap <strong>Install app</strong>. Do not use any home screen shortcut flow.</Step>
+          <Step number={3} icon={ExternalLink}>After install finishes, close Chrome and launch Stack'd from the new app icon.</Step>
+        </div>
+
+        <div className="rounded-2xl border border-border/70 bg-background/80 p-4 text-left text-sm text-muted-foreground">
+          If Chrome only shows <strong>Add to Home screen</strong> instead of <strong>Install app</strong>, this is still a browser shortcut flow — not the installed experience this app requires.
+        </div>
+
+        <CopyLinkButton label="Tap to copy link for Chrome" />
       </InstallShell>
     );
   }
