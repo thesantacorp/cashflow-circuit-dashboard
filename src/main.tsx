@@ -10,6 +10,7 @@ import { Toaster } from 'sonner';
 import './types/google-api.d';
 
 registerSW({
+  immediate: true,
   onNeedRefresh() {
     console.log('PWA: New version available');
   },
