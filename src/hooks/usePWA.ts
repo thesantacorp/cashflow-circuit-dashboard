@@ -6,13 +6,11 @@ export const usePWA = () => {
   const isIOS = useMemo(() => /iPad|iPhone|iPod/.test(navigator.userAgent), []);
 
   useEffect(() => {
-    const updateStandaloneState = () => {
-      const standalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-      setIsInstalled(standalone);
-    };
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
 
-    const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
+    const updateStandaloneState = () => {
+      const standalone = mediaQuery.matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+      setIsInstalled(standalone);
     };
 
     const handleAppInstalled = () => {
@@ -20,12 +18,16 @@ export const usePWA = () => {
     };
 
     updateStandaloneState();
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
+    mediaQuery.addEventListener('change', updateStandaloneState);
+    window.addEventListener('focus', updateStandaloneState);
+    document.addEventListener('visibilitychange', updateStandaloneState);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
+      mediaQuery.removeEventListener('change', updateStandaloneState);
+      window.removeEventListener('focus', updateStandaloneState);
+      document.removeEventListener('visibilitychange', updateStandaloneState);
     };
   }, []);
 
