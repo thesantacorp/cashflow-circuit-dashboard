@@ -14,38 +14,30 @@ export default defineConfig(({ mode }) => ({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      injectRegister: false,
       includeAssets: [
-        "favicon.ico",
-        "icon.png",
+        "icon-192.png",
+        "icon-512.png",
         "apple-touch-icon.png",
-        "robots.txt",
       ],
       manifest: {
         name: "Stack'd",
         short_name: "Stack'd",
         description: "Don't just track, grow your finances.",
-        theme_color: "#f98517",
-        background_color: "#fff7f0",
+        theme_color: "#0f172a",
+        background_color: "#0f172a",
         display: "standalone",
         orientation: "portrait",
         scope: "/",
         start_url: "/",
         icons: [
           {
-            src: "/icon-192x192.png",
+            src: "/icon-192.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "any maskable",
           },
           {
-            src: "/icon-384x384.png",
-            sizes: "384x384",
-            type: "image/png",
-            purpose: "any maskable",
-          },
-          {
-            src: "/icon-512x512.png",
+            src: "/icon-512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any maskable",
@@ -53,7 +45,7 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
           {
@@ -103,7 +95,6 @@ export default defineConfig(({ mode }) => ({
       },
       devOptions: {
         enabled: true,
-        type: "module",
       },
     }),
     mode === 'development' &&
