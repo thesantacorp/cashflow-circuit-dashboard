@@ -33,7 +33,6 @@ import MobileNavbar from "./components/MobileNavbar";
 import Index from "./pages/Index";
 import OfflineIndicator from "./components/OfflineIndicator";
 import ImportStatementPage from "./pages/ImportStatementPage";
-import PWAEnforcement from "./components/PWAEnforcement";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,7 +46,6 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <PWAEnforcement>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CurrencyProvider>
@@ -180,7 +178,6 @@ function App() {
         </CurrencyProvider>
       </AuthProvider>
     </QueryClientProvider>
-    </PWAEnforcement>
   );
 }
 

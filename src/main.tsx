@@ -11,11 +11,11 @@ import './types/google-api.d';
 
 registerSW({
   immediate: true,
-  onNeedRefresh() {
-    console.log('PWA: New version available');
-  },
   onOfflineReady() {
-    console.log('PWA: Offline ready');
+    console.log('App ready to work offline');
+  },
+  onNeedRefresh() {
+    console.log('New version available');
   },
 });
 
