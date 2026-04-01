@@ -8,19 +8,24 @@ import { Toaster } from 'sonner';
 // Import the type declarations to ensure they're included in the build
 import './types/google-api.d';
 
-const clearServiceWorkersAndCaches = async () => {
-  if ('serviceWorker' in navigator) {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(registrations.map((registration) => registration.unregister()));
+const isInIframe = (() => {
+  try {
+    return window.self !== window.top;
+  } catch (e) {
+    return true;
   }
+})();
 
-  if ('caches' in window) {
-    const cacheKeys = await caches.keys();
-    await Promise.all(cacheKeys.map((key) => caches.delete(key)));
-  }
-};
+const isPreviewHost =
+  window.location.hostname.includes('id-preview--') ||
+  window.location.hostname.includes('lovableproject.com');
 
-void clearServiceWorkersAndCaches();
+// Only clear SWs in preview/iframe contexts
+if (isPreviewHost || isInIframe) {
+  navigator.serviceWorker?.getRegistrations().then((registrations) => {
+    registrations.forEach((r) => r.unregister());
+  });
+}
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <BrowserRouter>
@@ -29,7 +34,8 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   </BrowserRouter>
 );
 
-if ('serviceWorker' in navigator) {
+// Only register SW on the published site (not in preview/iframe)
+if ('serviceWorker' in navigator && !isPreviewHost && !isInIframe) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch((err) => {
       console.error('SW registration failed:', err);
