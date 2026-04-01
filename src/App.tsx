@@ -171,6 +171,7 @@ function App() {
                     
                     {/* PWA Components */}
                     <OfflineIndicator />
+                    <InstallPrompt />
                   </div>
                 </TooltipProvider>
               </NotificationProvider>
