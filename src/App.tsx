@@ -33,6 +33,7 @@ import MobileNavbar from "./components/MobileNavbar";
 import Index from "./pages/Index";
 import OfflineIndicator from "./components/OfflineIndicator";
 import ImportStatementPage from "./pages/ImportStatementPage";
+import InstallPrompt from "./components/InstallPrompt";
 
 const queryClient = new QueryClient({
   defaultOptions: {
