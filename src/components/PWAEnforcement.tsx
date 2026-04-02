@@ -121,7 +121,7 @@ export function PWAEnforcement({ children }: { children: React.ReactNode }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {isIOS && isSafari && (
+          {isIOS && isRealSafari && (
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                 <Smartphone className="w-8 h-8 text-primary" />
