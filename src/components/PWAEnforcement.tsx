@@ -60,16 +60,19 @@ export function PWAEnforcement({ children }: { children: React.ReactNode }) {
   };
 
   const getBrowserName = () => {
+    if (isInAppBrowser) return "an in-app browser";
+    if (isWebView) return "a WebView browser";
+    if (isBrave) return "Brave";
     if (isSamsung) return "Samsung Internet";
     if (isFirefox) return "Firefox";
     if (isEdge) return "Edge";
     if (isOpera) return "Opera";
-    if (isChrome) return "Chrome";
-    if (isSafari) return "Safari";
-    return "your browser";
+    if (isRealChrome) return "Chrome";
+    if (isRealSafari) return "Safari";
+    return "your current browser";
   };
 
-  const isWrongBrowser = (isAndroid && !isChrome) || (isIOS && !isSafari);
+  const isWrongBrowser = (isAndroid && !isRealChrome) || (isIOS && !isRealSafari);
 
   if (isWrongBrowser) {
     const requiredBrowser = isIOS ? "Safari" : "Google Chrome";
