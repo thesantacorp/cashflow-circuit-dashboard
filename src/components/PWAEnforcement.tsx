@@ -15,13 +15,29 @@ export function PWAEnforcement({ children }: { children: React.ReactNode }) {
   }
 
   const ua = navigator.userAgent;
-  const isChrome = /Chrome/.test(ua) && !/Edge|Edg|OPR|Opera/.test(ua) && /Google Inc/.test(navigator.vendor || '');
-  const isSafari = /Safari/.test(ua) && /Apple Computer/.test(navigator.vendor || '') && !/Chrome/.test(ua);
   const isAndroid = /Android/.test(ua);
+  const isIOS2 = /iPad|iPhone|iPod/.test(ua);
+  
+  // Strict Chrome detection: must be real Chrome, not WebView or wrapped browsers
+  const isRealChrome = /Chrome\//.test(ua) 
+    && !/Edge|Edg|OPR|Opera|SamsungBrowser|UCBrowser|Brave|Vivaldi|YaBrowser|Silk/.test(ua)
+    && !/wv\)/.test(ua) // WebView
+    && !/FBAN|FBAV|Instagram|Line|Snapchat|Twitter|WhatsApp|LinkedIn|Pinterest|TikTok|Telegram/.test(ua) // In-app browsers
+    && /Google Inc/.test(navigator.vendor || '');
+  
+  // Strict Safari detection: must be real Safari on iOS, not Chrome/Firefox/etc
+  const isRealSafari = isIOS2 
+    && /Safari/.test(ua) 
+    && /Apple Computer/.test(navigator.vendor || '') 
+    && !/CriOS|FxiOS|OPiOS|EdgiOS|FBAN|FBAV|Instagram|Line|Snapchat|Twitter|WhatsApp|LinkedIn|Pinterest|TikTok|Telegram|GSA/.test(ua);
+
   const isSamsung = /SamsungBrowser/.test(ua);
-  const isFirefox = /Firefox/.test(ua);
-  const isEdge = /Edge|Edg/.test(ua);
-  const isOpera = /OPR|Opera/.test(ua);
+  const isFirefox = /Firefox|FxiOS/.test(ua);
+  const isEdge = /Edge|Edg|EdgiOS/.test(ua);
+  const isOpera = /OPR|Opera|OPiOS/.test(ua);
+  const isInAppBrowser = /FBAN|FBAV|Instagram|Line|Snapchat|Twitter|WhatsApp|LinkedIn|Pinterest|TikTok|Telegram|GSA/.test(ua);
+  const isBrave = /Brave/.test(ua);
+  const isWebView = /wv\)/.test(ua);
 
   const handleInstall = async () => {
     if (isInstallable) {
