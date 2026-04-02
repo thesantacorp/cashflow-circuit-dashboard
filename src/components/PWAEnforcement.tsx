@@ -168,7 +168,7 @@ export function PWAEnforcement({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
-          {isAndroid && isChrome && (
+          {isAndroid && isRealChrome && (
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                 <Smartphone className="w-8 h-8 text-primary" />
