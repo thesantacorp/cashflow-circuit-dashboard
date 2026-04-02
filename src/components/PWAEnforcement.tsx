@@ -15,13 +15,29 @@ export function PWAEnforcement({ children }: { children: React.ReactNode }) {
   }
 
   const ua = navigator.userAgent;
-  const isChrome = /Chrome/.test(ua) && !/Edge|Edg|OPR|Opera/.test(ua) && /Google Inc/.test(navigator.vendor || '');
-  const isSafari = /Safari/.test(ua) && /Apple Computer/.test(navigator.vendor || '') && !/Chrome/.test(ua);
   const isAndroid = /Android/.test(ua);
+  const isIOS2 = /iPad|iPhone|iPod/.test(ua);
+  
+  // Strict Chrome detection: must be real Chrome, not WebView or wrapped browsers
+  const isRealChrome = /Chrome\//.test(ua) 
+    && !/Edge|Edg|OPR|Opera|SamsungBrowser|UCBrowser|Brave|Vivaldi|YaBrowser|Silk/.test(ua)
+    && !/wv\)/.test(ua) // WebView
+    && !/FBAN|FBAV|Instagram|Line|Snapchat|Twitter|WhatsApp|LinkedIn|Pinterest|TikTok|Telegram/.test(ua) // In-app browsers
+    && /Google Inc/.test(navigator.vendor || '');
+  
+  // Strict Safari detection: must be real Safari on iOS, not Chrome/Firefox/etc
+  const isRealSafari = isIOS2 
+    && /Safari/.test(ua) 
+    && /Apple Computer/.test(navigator.vendor || '') 
+    && !/CriOS|FxiOS|OPiOS|EdgiOS|FBAN|FBAV|Instagram|Line|Snapchat|Twitter|WhatsApp|LinkedIn|Pinterest|TikTok|Telegram|GSA/.test(ua);
+
   const isSamsung = /SamsungBrowser/.test(ua);
-  const isFirefox = /Firefox/.test(ua);
-  const isEdge = /Edge|Edg/.test(ua);
-  const isOpera = /OPR|Opera/.test(ua);
+  const isFirefox = /Firefox|FxiOS/.test(ua);
+  const isEdge = /Edge|Edg|EdgiOS/.test(ua);
+  const isOpera = /OPR|Opera|OPiOS/.test(ua);
+  const isInAppBrowser = /FBAN|FBAV|Instagram|Line|Snapchat|Twitter|WhatsApp|LinkedIn|Pinterest|TikTok|Telegram|GSA/.test(ua);
+  const isBrave = /Brave/.test(ua);
+  const isWebView = /wv\)/.test(ua);
 
   const handleInstall = async () => {
     if (isInstallable) {
@@ -44,16 +60,19 @@ export function PWAEnforcement({ children }: { children: React.ReactNode }) {
   };
 
   const getBrowserName = () => {
+    if (isInAppBrowser) return "an in-app browser";
+    if (isWebView) return "a WebView browser";
+    if (isBrave) return "Brave";
     if (isSamsung) return "Samsung Internet";
     if (isFirefox) return "Firefox";
     if (isEdge) return "Edge";
     if (isOpera) return "Opera";
-    if (isChrome) return "Chrome";
-    if (isSafari) return "Safari";
-    return "your browser";
+    if (isRealChrome) return "Chrome";
+    if (isRealSafari) return "Safari";
+    return "your current browser";
   };
 
-  const isWrongBrowser = (isAndroid && !isChrome) || (isIOS && !isSafari);
+  const isWrongBrowser = (isAndroid && !isRealChrome) || (isIOS && !isRealSafari);
 
   if (isWrongBrowser) {
     const requiredBrowser = isIOS ? "Safari" : "Google Chrome";
@@ -102,7 +121,7 @@ export function PWAEnforcement({ children }: { children: React.ReactNode }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {isIOS && isSafari && (
+          {isIOS && isRealSafari && (
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                 <Smartphone className="w-8 h-8 text-primary" />
@@ -149,7 +168,7 @@ export function PWAEnforcement({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
-          {isAndroid && isChrome && (
+          {isAndroid && isRealChrome && (
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                 <Smartphone className="w-8 h-8 text-primary" />
