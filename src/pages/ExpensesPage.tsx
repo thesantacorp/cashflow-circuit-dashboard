@@ -67,11 +67,11 @@ const ExpensesPage: React.FC = () => {
       </div>
 
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="mb-8">
-        <TabsList className="grid w-full grid-cols-4 mb-4 gap-1">
-          <TabsTrigger value="dashboard" className="text-xs sm:text-sm px-1 sm:px-3 truncate">Dashboard</TabsTrigger>
-          <TabsTrigger value="budget" className="text-xs sm:text-sm px-1 sm:px-3 truncate">Budget</TabsTrigger>
-          <TabsTrigger value="categories" className="text-xs sm:text-sm px-1 sm:px-3 truncate">Categories</TabsTrigger>
-          <TabsTrigger value="transactions" className="text-xs sm:text-sm px-1 sm:px-3 truncate">Transactions</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-4 gap-1">
+          <TabsTrigger value="dashboard" className="text-xs sm:text-sm">Dashboard</TabsTrigger>
+          <TabsTrigger value="budget" className="text-xs sm:text-sm">Budget</TabsTrigger>
+          <TabsTrigger value="categories" className="text-xs sm:text-sm">Categories</TabsTrigger>
+          <TabsTrigger value="transactions" className="text-xs sm:text-sm">Transactions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="pt-4">
