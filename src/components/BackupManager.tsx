@@ -110,12 +110,12 @@ const BackupManager: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       <CardHeader>
         <CardTitle className="flex items-center text-orange-700">
           <CloudIcon className="mr-2 h-5 w-5" />
-          Data Management
+          Cloud Sync
         </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="mb-4 text-sm text-slate-600">
-          Save your current device data to the cloud or restore previously saved data from the cloud.
+          Your data now syncs automatically while you're signed in. Use these actions only if you need to force a sync or restore this device from the cloud.
         </p>
         
         <ConnectionStatus 
