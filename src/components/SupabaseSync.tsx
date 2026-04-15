@@ -139,8 +139,8 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
               {!isOnline 
                 ? "Offline" 
                 : pendingSyncCount > 0
-                ? `Save to Cloud (${pendingSyncCount})` 
-                : "Save to Cloud"
+                ? `Sync now (${pendingSyncCount})` 
+                : "Sync now"
               }
             </span>
           </Button>
@@ -179,8 +179,8 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
         </CardTitle>
         <CardDescription>
           {isOnline 
-            ? "Your data is saved locally on your device. Use the buttons below to manually save or restore from the cloud."
-            : "Currently in offline mode. Your data is saved locally and will sync when you reconnect."
+            ? "Your data syncs to the cloud automatically while you're signed in. Use the actions below only if you need to force a sync or restore this device."
+            : "Currently offline. Changes are saved on this device and will sync automatically when you reconnect."
           }
         </CardDescription>
       </CardHeader>
@@ -214,9 +214,9 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
         
         <div className="flex justify-between items-center">
           <div>
-            <h4 className="text-sm font-medium">Manual Sync & Restore</h4>
+            <h4 className="text-sm font-medium">Automatic cloud sync</h4>
             <p className="text-xs text-slate-500">
-              Save to cloud or restore your data
+              Signed-in changes sync automatically
             </p>
           </div>
           <div className="flex space-x-2">
@@ -239,17 +239,12 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
               ) : (
                 <UploadIcon className="mr-2 h-3 w-3" />
               )}
-              Save to Cloud {pendingSyncCount > 0 && `(${pendingSyncCount})`}
+              Sync now {pendingSyncCount > 0 && `(${pendingSyncCount})`}
             </Button>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleOperation(() => {
-                if (window.confirm('This will download data from the cloud, replacing your local data. Continue?')) {
-                  return restoreFromSupabase();
-                }
-                return Promise.resolve(false);
-              })}
+              onClick={() => handleOperation(restoreFromSupabase)}
               disabled={isSyncing || isCheckingConnection || !isOnline}
               className="flex items-center"
             >

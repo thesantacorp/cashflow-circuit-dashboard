@@ -13,9 +13,11 @@ import { Category } from "@/types";
 
 export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   let authUser = null;
+  let authLoading = true;
   try {
-    const { user } = useAuth();
+    const { user, isLoading } = useAuth();
     authUser = user;
+    authLoading = isLoading;
   } catch (error) {
     console.warn("Auth context not available yet");
   }
@@ -45,23 +47,32 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Process offline queue when coming online
   useEffect(() => {
-    if (isOnline && offlineQueue.queueLength > 0) {
-      console.log(`Processing ${offlineQueue.queueLength} queued items`);
-      offlineQueue.processQueue(async (item) => {
-        try {
-          if (item.type === 'transaction') {
-            return await syncTransactionToSupabase(item.data);
-          } else if (item.type === 'category') {
-            return await syncCategoryToSupabase(item.data);
-          }
-          return false;
-        } catch (error) {
-          console.error('Queue processing error:', error);
-          return false;
+    if (!user || authLoading || !isOnline || offlineQueue.queueLength === 0) return;
+
+    console.log(`Processing ${offlineQueue.queueLength} queued items`);
+    void offlineQueue.processQueue(async (item) => {
+      try {
+        if (item.type === 'transaction') {
+          return item.action === 'delete'
+            ? await deleteTransactionFromSupabase(item.data)
+            : await syncTransactionToSupabase(item.data);
         }
-      });
-    }
-  }, [isOnline, offlineQueue.queueLength]);
+
+        if (item.type === 'category') {
+          return item.action === 'delete'
+            ? await deleteCategoryFromSupabase(item.data)
+            : await syncCategoryToSupabase(item.data);
+        }
+
+        return false;
+      } catch (error) {
+        console.error('Queue processing error:', error);
+        return false;
+      }
+    }).then(() => {
+      void fetchLatestData(true);
+    });
+  }, [user, authLoading, isOnline, offlineQueue.queueLength]);
 
   // Only run the deduplication once on initial load, without showing toast
   useEffect(() => {
@@ -109,7 +120,12 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   } = useDataOperations(state, dispatch);
 
   useEffect(() => {
-    if (!user) return;
+    if (authLoading) return;
+
+    if (!user) {
+      setIsInitialLoad(false);
+      return;
+    }
 
     try {
       const channel = supabase
@@ -154,8 +170,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           console.log('Category channel status:', status);
         });
 
-      // Auto-fetch data on login if online
-      if (user && isOnline) {
+      if (isOnline) {
         fetchLatestData(true).then((success) => {
           setIsInitialLoad(false);
           if (success) {
@@ -175,8 +190,9 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       };
     } catch (error) {
       console.error('Error setting up real-time subscriptions:', error);
+      setIsInitialLoad(false);
     }
-  }, [user, isOnline]);
+  }, [user, authLoading, isOnline]);
 
   // Remove the old syncPendingChanges function as it's replaced by the offline queue system
 
@@ -315,9 +331,17 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     
     if (user) {
       if (isOnline) {
-        syncTransactionToSupabase(newTransaction);
+        void syncTransactionToSupabase(newTransaction).then((success) => {
+          if (!success) {
+            offlineQueue.addToQueue({
+              id: newTransaction.id,
+              type: 'transaction',
+              action: 'create',
+              data: newTransaction
+            });
+          }
+        });
       } else {
-        // Add to offline queue for later sync
         offlineQueue.addToQueue({
           id: newTransaction.id,
           type: 'transaction',
@@ -341,9 +365,17 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     
     if (user) {
       if (isOnline) {
-        syncTransactionToSupabase(transaction);
+        void syncTransactionToSupabase(transaction).then((success) => {
+          if (!success) {
+            offlineQueue.addToQueue({
+              id: transaction.id,
+              type: 'transaction',
+              action: 'update',
+              data: transaction
+            });
+          }
+        });
       } else {
-        // Add to offline queue for later sync
         offlineQueue.addToQueue({
           id: transaction.id,
           type: 'transaction',
@@ -372,8 +404,28 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       payload: id
     });
     
-    if (user && transaction && isOnline) {
-      deleteTransactionFromSupabase(transaction);
+    if (user) {
+      if (isOnline) {
+        void deleteTransactionFromSupabase(transaction).then((success) => {
+          if (!success) {
+            offlineQueue.addToQueue({
+              id: transaction.id,
+              type: 'transaction',
+              action: 'delete',
+              data: transaction
+            });
+          }
+        });
+      } else {
+        offlineQueue.addToQueue({
+          id: transaction.id,
+          type: 'transaction',
+          action: 'delete',
+          data: transaction
+        });
+        toast("Transaction deleted offline - will sync when online");
+        return true;
+      }
     }
     
     toast("Transaction deleted successfully");
@@ -401,9 +453,17 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     
     if (user) {
       if (isOnline) {
-        syncCategoryToSupabase(newCategory);
+        void syncCategoryToSupabase(newCategory).then((success) => {
+          if (!success) {
+            offlineQueue.addToQueue({
+              id: newCategory.id,
+              type: 'category',
+              action: 'create',
+              data: newCategory
+            });
+          }
+        });
       } else {
-        // Add to offline queue for later sync
         offlineQueue.addToQueue({
           id: newCategory.id,
           type: 'category',
@@ -501,8 +561,28 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       payload: id
     });
     
-    if (user && category && isOnline) {
-      deleteCategoryFromSupabase(category);
+    if (user && category) {
+      if (isOnline) {
+        void deleteCategoryFromSupabase(category).then((success) => {
+          if (!success) {
+            offlineQueue.addToQueue({
+              id: category.id,
+              type: 'category',
+              action: 'delete',
+              data: category
+            });
+          }
+        });
+      } else {
+        offlineQueue.addToQueue({
+          id: category.id,
+          type: 'category',
+          action: 'delete',
+          data: category
+        });
+        toast("Category deleted offline - will sync when online");
+        return true;
+      }
     }
     
     toast("Category deleted successfully");
@@ -513,7 +593,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!user || !isOnline) return false;
     
     try {
-      // Use upsert to avoid delete-then-insert which can cause data loss
       const { error } = await supabase
         .from('transactions')
         .upsert({
@@ -528,7 +607,6 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }, { onConflict: 'user_email,transaction_id' });
       
       if (error) {
-        // Fallback: if upsert fails (no unique constraint), try delete+insert
         console.warn('Upsert failed, falling back to insert:', error.message);
         await supabase
           .from('transactions')
@@ -561,6 +639,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           .eq('id', user.id);
       }
       
+      offlineQueue.removeFromQueue(transaction.id, 'transaction');
       setLastSyncTime(new Date());
       return true;
     } catch (error) {
@@ -590,6 +669,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           .eq('id', user.id);
       }
       
+      offlineQueue.removeFromQueue(transaction.id, 'transaction');
       setLastSyncTime(new Date());
       return true;
     } catch (error) {
@@ -686,6 +766,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
           .eq('id', user.id);
       }
       
+      offlineQueue.removeFromQueue(category.id, 'category');
       setLastSyncTime(new Date());
       return true;
     } catch (error) {
