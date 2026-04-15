@@ -145,16 +145,16 @@ const BudgetManager: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4 text-center">
-            <div>
+            <div className="min-w-0">
               <p className="text-sm text-muted-foreground">Total Budget</p>
-              <p className="text-2xl font-bold text-primary">
-                {currencySymbol}{totalBudget.toFixed(2)}
+              <p className="text-lg sm:text-2xl font-bold text-primary truncate">
+                {currencySymbol}{totalBudget.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm text-muted-foreground">Total Spent</p>
-              <p className={`text-2xl font-bold ${totalSpent > totalBudget ? "text-destructive" : "text-foreground"}`}>
-                {currencySymbol}{totalSpent.toFixed(2)}
+              <p className={`text-lg sm:text-2xl font-bold truncate ${totalSpent > totalBudget ? "text-destructive" : "text-foreground"}`}>
+                {currencySymbol}{totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
           </div>
