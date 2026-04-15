@@ -85,23 +85,30 @@ export function PWAEnforcement({ children }: { children: React.ReactNode }) {
             <div className="mx-auto mb-4 w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center">
               <Globe className="w-8 h-8 text-destructive" />
             </div>
-            <CardTitle>Wrong Browser</CardTitle>
+            <CardTitle>Installation Not Possible</CardTitle>
             <CardDescription>
-              You're currently using {currentBrowser}. This app requires {requiredBrowser} to install properly.
+              You're currently using {currentBrowser}. Stack'd can <span className="font-semibold">only</span> be installed through {requiredBrowser}.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-              <ExternalLink className="w-5 h-5 text-primary mt-0.5" />
+            <div className="flex items-start gap-3 p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
+              <ExternalLink className="w-5 h-5 text-destructive mt-0.5 shrink-0" />
               <div>
-                <p className="font-medium text-sm">Please open in {requiredBrowser}</p>
-                <p className="text-xs text-muted-foreground">Copy the link below and paste it in {requiredBrowser}</p>
+                <p className="font-medium text-sm">This is a one-time request</p>
+                <p className="text-xs text-muted-foreground">
+                  Copy the link below, open it in {requiredBrowser}, and install the app. After that, you'll always open Stack'd directly from your home screen.
+                </p>
               </div>
             </div>
-            <Button onClick={copyLink} className="w-full" variant="default">
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Copy Link for {requiredBrowser}
-            </Button>
+            <div className="space-y-2">
+              <Button onClick={copyLink} className="w-full" size="lg">
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Copy Link for {requiredBrowser}
+              </Button>
+              <p className="text-xs text-center text-muted-foreground">
+                Paste this link in {requiredBrowser} to install
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
