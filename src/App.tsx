@@ -32,6 +32,7 @@ import ProfilePage from "./pages/ProfilePage";
 import MobileNavbar from "./components/MobileNavbar";
 import Index from "./pages/Index";
 import OfflineIndicator from "./components/OfflineIndicator";
+import InstallPrompt from "./components/InstallPrompt";
 import ImportStatementPage from "./pages/ImportStatementPage";
 
 const queryClient = new QueryClient({
@@ -170,6 +171,7 @@ function App() {
                         </Routes>
                         
                         <OfflineIndicator />
+                        <InstallPrompt />
                     </div>
                   </TooltipProvider>
                 </NotificationProvider>
