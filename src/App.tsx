@@ -33,7 +33,6 @@ import MobileNavbar from "./components/MobileNavbar";
 import Index from "./pages/Index";
 import OfflineIndicator from "./components/OfflineIndicator";
 import ImportStatementPage from "./pages/ImportStatementPage";
-import { PWAEnforcement } from "./components/PWAEnforcement";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,8 +56,7 @@ function App() {
                   <TooltipProvider>
                     <Toaster />
                     <Sonner />
-                    <PWAEnforcement>
-                      <div className="min-h-screen flex flex-col bg-gradient-to-b from-secondary to-background overflow-x-hidden">
+                    <div className="min-h-screen flex flex-col bg-gradient-to-b from-secondary to-background overflow-x-hidden">
                         <Routes>
                           {/* Auth routes */}
                           <Route path="/auth" element={<AuthPage />}>
@@ -171,10 +169,8 @@ function App() {
                           <Route path="*" element={<NotFound />} />
                         </Routes>
                         
-                        {/* PWA Components */}
                         <OfflineIndicator />
-                      </div>
-                    </PWAEnforcement>
+                    </div>
                   </TooltipProvider>
                 </NotificationProvider>
               </BackupProvider>
