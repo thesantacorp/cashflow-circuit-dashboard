@@ -50,83 +50,64 @@ const ImportStatementPage: React.FC = () => {
     }
   };
 
-  const extractTextFromPDF = async (file: File): Promise<string> => {
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8 = new Uint8Array(arrayBuffer);
-    
-    // Simple PDF text extraction - find text between BT and ET markers
-    let text = "";
-    const decoder = new TextDecoder("latin1");
-    const raw = decoder.decode(uint8);
-    
-    // Extract text from PDF streams
-    const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
-    let match;
-    while ((match = streamRegex.exec(raw)) !== null) {
-      const chunk = match[1];
-      // Extract readable ASCII text
-      const readable = chunk.replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/\s+/g, " ").trim();
-      if (readable.length > 5) {
-        text += readable + "\n";
-      }
-    }
-
-    // Also try extracting text objects (Tj, TJ operators)
-    const tjRegex = /\(([^)]*)\)\s*Tj/g;
-    while ((match = tjRegex.exec(raw)) !== null) {
-      text += match[1] + " ";
-    }
-
-    // Fallback: extract any readable strings from the entire file
-    if (text.trim().length < 50) {
-      const lines = raw.split(/[\r\n]+/);
-      for (const line of lines) {
-        const clean = line.replace(/[^\x20-\x7E]/g, "").trim();
-        if (clean.length > 10 && !clean.startsWith("%") && !clean.includes("obj") && !clean.includes("endobj")) {
-          text += clean + "\n";
-        }
-      }
-    }
-
-    return text;
-  };
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // strip data:application/pdf;base64, prefix
+        const comma = result.indexOf(",");
+        resolve(comma >= 0 ? result.slice(comma + 1) : result);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
 
   const handleUpload = async () => {
     if (!file) return;
     setLoading(true);
 
     try {
-      const text = await extractTextFromPDF(file);
-
-      if (text.trim().length < 20) {
-        toast({
-          title: "Could not read PDF",
-          description: "The PDF might be scanned/image-based. Try a text-based bank statement PDF.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
+      if (file.size > 15 * 1024 * 1024) {
+        throw new Error("PDF too large (max 15MB). Please upload a smaller statement.");
       }
 
+      const pdfBase64 = await fileToBase64(file);
+
       const { data, error } = await supabase.functions.invoke("parse-bank-statement", {
-        body: { text },
+        body: { pdfBase64 },
       });
 
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
 
-      const parsed: ParsedTransaction[] = (data.transactions || []).map((t: any) => ({
-        date: t.date,
-        description: t.description,
-        amount: Math.abs(Number(t.amount)),
-        type: t.type === "income" ? "income" : "expense",
-        suggestedCategory: t.suggestedCategory,
-        categoryId: findCategoryId(t.suggestedCategory, t.type === "income" ? "income" : "expense"),
-        selected: true,
-      }));
+      const rawTxns = Array.isArray(data?.transactions) ? data.transactions : [];
 
-      setTransactions(parsed);
-      toast({ title: "Success", description: `Found ${parsed.length} transactions.` });
+      const parsed: ParsedTransaction[] = rawTxns
+        .filter((t: any) => t && t.date && t.amount != null && !isNaN(Number(t.amount)))
+        .map((t: any) => {
+          const type: "expense" | "income" = t.type === "income" ? "income" : "expense";
+          return {
+            date: t.date,
+            description: String(t.description || "").trim() || "Transaction",
+            amount: Math.abs(Number(t.amount)),
+            type,
+            suggestedCategory: t.suggestedCategory || "",
+            categoryId: findCategoryId(t.suggestedCategory || "", type),
+            selected: true,
+          };
+        });
+
+      if (parsed.length === 0) {
+        toast({
+          title: "No transactions found",
+          description: "The AI could not detect any transactions in this PDF. Try a different statement.",
+          variant: "destructive",
+        });
+      } else {
+        setTransactions(parsed);
+        toast({ title: "Success", description: `Found ${parsed.length} transactions.` });
+      }
     } catch (err: any) {
       console.error("Import error:", err);
       toast({ title: "Import failed", description: err.message || "Failed to parse statement.", variant: "destructive" });
@@ -134,6 +115,7 @@ const ImportStatementPage: React.FC = () => {
       setLoading(false);
     }
   };
+
 
   const updateTransaction = (index: number, field: keyof ParsedTransaction, value: any) => {
     setTransactions(prev => prev.map((t, i) => {
