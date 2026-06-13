@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Transaction, TransactionType } from "@/types";
-import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, isWithinInterval, endOfDay, endOfWeek, endOfMonth, endOfYear } from "date-fns";
+import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, startOfQuarter, endOfQuarter, subMonths, isWithinInterval, endOfDay, endOfWeek, endOfMonth, endOfYear } from "date-fns";
 import { Trash2, Edit, Search, CloudOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
