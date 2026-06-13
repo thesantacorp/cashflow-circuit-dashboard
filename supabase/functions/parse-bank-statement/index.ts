@@ -12,11 +12,12 @@ serve(async (req) => {
   }
 
   try {
-    const { text } = await req.json();
+    const body = await req.json();
+    const { pdfBase64, text } = body as { pdfBase64?: string; text?: string };
 
-    if (!text || typeof text !== "string") {
+    if (!pdfBase64 && !text) {
       return new Response(
-        JSON.stringify({ error: "PDF text content is required" }),
+        JSON.stringify({ error: "Provide pdfBase64 or text" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -29,19 +30,35 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are a bank statement parser. Extract all transactions from the provided bank statement text.
+    const systemPrompt = `You are an expert bank statement parser. Extract EVERY single transaction line from the provided bank statement. Do not skip any. Do not summarize. Do not invent.
 
-For each transaction, determine:
-- date: the transaction date in YYYY-MM-DD format
-- description: a clean, readable description of the transaction
-- amount: the absolute numeric amount (no currency symbols)
-- type: "expense" for debits/purchases/withdrawals, "income" for credits/deposits/salary
-- suggestedCategory: one of these categories based on the description:
-  - For expenses: "Food & Drinks", "Housing", "Transportation", "Entertainment", "Shopping", "Utilities", "Healthcare"
-  - For income: "Salary", "Freelance", "Investments", "Gifts"
+For each transaction, return:
+- date: YYYY-MM-DD (infer year from statement context if abbreviated)
+- description: cleaned merchant/payee/narration text
+- amount: absolute positive number (no currency symbols, no commas)
+- type: "expense" for debits/withdrawals/payments/purchases, "income" for credits/deposits/salary/refunds. If the statement has explicit Debit/Credit or Money Out/Money In columns, use those.
+- suggestedCategory: choose ONE
+  - Expenses: "Food & Drinks", "Housing", "Transportation", "Entertainment", "Shopping", "Utilities", "Healthcare"
+  - Income: "Salary", "Freelance", "Investments", "Gifts"
 
-Return ONLY valid JSON, no markdown. Use this exact structure:
-{"transactions": [{"date": "2024-01-15", "description": "Grocery Store Purchase", "amount": 45.99, "type": "expense", "suggestedCategory": "Food & Drinks"}]}`;
+Return ONLY a JSON object, no markdown, no prose:
+{"transactions":[{"date":"YYYY-MM-DD","description":"...","amount":0,"type":"expense","suggestedCategory":"..."}]}`;
+
+    const userContent: any[] = [
+      { type: "text", text: "Extract ALL transactions from this bank statement. Return every row." },
+    ];
+
+    if (pdfBase64) {
+      userContent.push({
+        type: "file",
+        file: {
+          filename: "statement.pdf",
+          file_data: `data:application/pdf;base64,${pdfBase64}`,
+        },
+      });
+    } else if (text) {
+      userContent.push({ type: "text", text: `Statement text:\n\n${text.substring(0, 30000)}` });
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -50,15 +67,17 @@ Return ONLY valid JSON, no markdown. Use this exact structure:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Parse this bank statement:\n\n${text.substring(0, 15000)}` },
+          { role: "user", content: userContent },
         ],
       }),
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error("AI gateway error:", response.status, errorText);
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -69,31 +88,37 @@ Return ONLY valid JSON, no markdown. Use this exact structure:
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      return new Response(JSON.stringify({ error: "Failed to parse statement" }), {
+      return new Response(JSON.stringify({ error: "Failed to parse statement", details: errorText }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const aiData = await response.json();
     const content = aiData.choices?.[0]?.message?.content || "";
+    console.log("AI raw content length:", content.length);
 
-    // Extract JSON from response (handle potential markdown wrapping)
-    let jsonStr = content;
-    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[1].trim();
+    let jsonStr = content.trim();
+    const fenced = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fenced) jsonStr = fenced[1].trim();
+    // If still not pure JSON, try to extract the outermost { ... }
+    if (!jsonStr.startsWith("{")) {
+      const firstBrace = jsonStr.indexOf("{");
+      const lastBrace = jsonStr.lastIndexOf("}");
+      if (firstBrace >= 0 && lastBrace > firstBrace) {
+        jsonStr = jsonStr.slice(firstBrace, lastBrace + 1);
+      }
     }
 
     try {
       const parsed = JSON.parse(jsonStr);
-      return new Response(JSON.stringify(parsed), {
+      const txns = Array.isArray(parsed.transactions) ? parsed.transactions : [];
+      console.log("Parsed transactions count:", txns.length);
+      return new Response(JSON.stringify({ transactions: txns }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-    } catch {
-      console.error("Failed to parse AI response as JSON:", content);
-      return new Response(JSON.stringify({ error: "Failed to parse AI response", raw: content }), {
+    } catch (parseErr) {
+      console.error("Failed to parse AI response as JSON:", content.substring(0, 500));
+      return new Response(JSON.stringify({ error: "Failed to parse AI response", raw: content.substring(0, 1000) }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
