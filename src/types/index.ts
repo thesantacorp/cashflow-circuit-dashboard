@@ -2,7 +2,7 @@ export type TransactionType = "expense" | "income";
 export type Currency = "USD" | "EUR" | "GBP" | "CAD" | "AUD" | "JPY" | "NGN" | "GHS" | "KES" | "XOF";
 export type EmotionalState = "happy" | "stressed" | "bored" | "excited" | "sad" | "neutral" | "hopeful" | "relieved";
 export type BackupFrequency = "daily" | "weekly" | "monthly" | "manual";
-export type TimePeriod = "week" | "month" | "year" | "all";
+export type TimePeriod = "day" | "week" | "month" | "last_month" | "quarter" | "year" | "all";
 
 export interface Category {
   id: string;
