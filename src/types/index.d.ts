@@ -3,7 +3,7 @@ export {};
 declare global {
   type CategoryType = "income" | "expense";
   type EmotionalState = "happy" | "stressed" | "bored" | "excited" | "sad" | "neutral" | "hopeful";
-  type TimePeriod = "week" | "month" | "year" | "all";
+  type TimePeriod = "day" | "week" | "month" | "last_month" | "quarter" | "year" | "all";
 
   interface Transaction {
     id: string;
