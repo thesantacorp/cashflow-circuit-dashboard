@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Transaction, TransactionType } from "@/types";
-import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, isWithinInterval, endOfDay, endOfWeek, endOfMonth, endOfYear } from "date-fns";
+import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, startOfQuarter, endOfQuarter, subMonths, isWithinInterval, endOfDay, endOfWeek, endOfMonth, endOfYear } from "date-fns";
 import { Trash2, Edit, Search, CloudOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,7 @@ interface TransactionListProps {
   defaultTimePeriod?: TimePeriod; // NEW: force default filter when provided
 }
 
-type TimePeriod = "day" | "week" | "month" | "year" | "all";
+type TimePeriod = "day" | "week" | "month" | "last_month" | "quarter" | "year" | "all";
 
 const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showViewAll = false, filteredTransactions, defaultTimePeriod }) => {
   const { getTransactionsByType, deleteTransaction, getCategoryById, isOnline, pendingSyncCount } = useTransactions();
@@ -63,6 +63,16 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
       case "month":
         startDate = startOfMonth(now);
         endDate = endOfMonth(now);
+        break;
+      case "last_month": {
+        const lastMonth = subMonths(now, 1);
+        startDate = startOfMonth(lastMonth);
+        endDate = endOfMonth(lastMonth);
+        break;
+      }
+      case "quarter":
+        startDate = startOfQuarter(now);
+        endDate = endOfQuarter(now);
         break;
       case "year":
         startDate = startOfYear(now);
@@ -134,6 +144,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
       case "day": return "Today";
       case "week": return "This Week";
       case "month": return "This Month";
+      case "last_month": return "Last Month";
+      case "quarter": return "This Quarter";
       case "year": return "This Year";
       default: return "All Time";
     }
@@ -153,7 +165,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
                 </Badge>
               )}
               <Select value={timePeriod} onValueChange={(value: TimePeriod) => setTimePeriod(value)}>
-                <SelectTrigger className="w-[130px]">
+                <SelectTrigger className="w-[140px]">
                   <SelectValue placeholder="Time Period" />
                 </SelectTrigger>
                 <SelectContent>
@@ -161,6 +173,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
                   <SelectItem value="day">Today</SelectItem>
                   <SelectItem value="week">This Week</SelectItem>
                   <SelectItem value="month">This Month</SelectItem>
+                  <SelectItem value="last_month">Last Month</SelectItem>
+                  <SelectItem value="quarter">This Quarter</SelectItem>
                   <SelectItem value="year">This Year</SelectItem>
                 </SelectContent>
               </Select>

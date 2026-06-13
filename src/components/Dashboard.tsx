@@ -7,7 +7,7 @@ import { useCurrency } from "@/context/CurrencyContext";
 import EmotionInsights from "./EmotionInsights";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatNumberWithCommas } from "@/lib/utils";
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from "date-fns";
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, subMonths, isWithinInterval } from "date-fns";
 import { TimePeriod } from "./TimePeriodSelect";
 
 interface DashboardProps {
@@ -34,6 +34,16 @@ const filterTransactionsByTimePeriod = (transactions: Transaction[], period: Tim
       startDate = startOfMonth(now);
       endDate = endOfMonth(now);
       break;
+    case "last_month": {
+      const lastMonth = subMonths(now, 1);
+      startDate = startOfMonth(lastMonth);
+      endDate = endOfMonth(lastMonth);
+      break;
+    }
+    case "quarter":
+      startDate = startOfQuarter(now);
+      endDate = endOfQuarter(now);
+      break;
     case "year":
       startDate = startOfYear(now);
       endDate = endOfYear(now);
@@ -52,6 +62,8 @@ const getPeriodLabel = (period?: TimePeriod) => {
     case "day": return "Today";
     case "week": return "This Week";
     case "month": return "This Month";
+    case "last_month": return "Last Month";
+    case "quarter": return "This Quarter";
     case "year": return "This Year";
     default: return "All Time";
   }

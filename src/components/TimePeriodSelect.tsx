@@ -2,7 +2,7 @@
 import React from "react";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
-export type TimePeriod = "day" | "week" | "month" | "year" | "all";
+export type TimePeriod = "day" | "week" | "month" | "last_month" | "quarter" | "year" | "all";
 
 interface TimePeriodSelectProps {
   value: TimePeriod;
@@ -14,6 +14,8 @@ const timePeriodOptions: { label: string; value: TimePeriod }[] = [
   { label: "Today", value: "day" },
   { label: "This Week", value: "week" },
   { label: "This Month", value: "month" },
+  { label: "Last Month", value: "last_month" },
+  { label: "This Quarter", value: "quarter" },
   { label: "This Year", value: "year" },
   { label: "All Time", value: "all" },
 ];
