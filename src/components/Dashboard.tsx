@@ -5,6 +5,7 @@ import { Transaction, TransactionType } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrency } from "@/context/CurrencyContext";
 import EmotionInsights from "./EmotionInsights";
+import CategoryBreakdown from "./CategoryBreakdown";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatNumberWithCommas } from "@/lib/utils";
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, subMonths, isWithinInterval } from "date-fns";
@@ -102,6 +103,13 @@ const Dashboard: React.FC<DashboardProps> = ({ type, filteredTransactions, timeP
           </div>
         </CardContent>
       </Card>
+      <div className="w-full">
+        <CategoryBreakdown
+          type={type}
+          filteredTransactions={filteredTransactions}
+          timePeriod={timePeriod}
+        />
+      </div>
       {type === "expense" && (
         <div className="w-full">
           <EmotionInsights filteredTransactions={filteredTransactions} />

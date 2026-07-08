@@ -111,39 +111,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
+    // Safety timeout: never keep the splash screen up because of a slow/offline
+    // network. After 3s we always release the loading state so the app can
+    // render the cached/offline UI and the user can capture transactions.
+    const safetyTimer = setTimeout(() => {
+      setIsLoading(false);
+    }, 3000);
+
     // Check for existing session
     supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
       console.log('Got existing session:', currentSession?.user?.email);
-      
+
       if (currentSession?.user) {
-        // Check if this session has been invalidated by another login
+        // Session invalidation check is local-only, safe offline
         const isValid = await isCurrentSessionValid(currentSession.user.id);
-        
+
         if (!isValid) {
           console.log('Session invalidated by another login. Signing out.');
-          await supabase.auth.signOut();
+          if (navigator.onLine) {
+            await supabase.auth.signOut().catch(() => {});
+          }
           setSession(null);
           setUser(null);
         } else {
-          // This is the current active session, set the state
           setSession(currentSession);
           setUser(currentSession.user);
-          
-          // Fetch profile after a small delay to avoid potential auth deadlock
-          setTimeout(() => {
-            fetchUserProfile(currentSession.user.id);
-          }, 0);
+
+          // Only fetch profile when online — offline it would hang
+          if (navigator.onLine) {
+            setTimeout(() => {
+              fetchUserProfile(currentSession.user.id);
+            }, 0);
+          }
         }
       } else {
-        // No session, just update the state
         setSession(null);
         setUser(null);
       }
-      
+
+      clearTimeout(safetyTimer);
+      setIsLoading(false);
+    }).catch((err) => {
+      console.error('getSession failed:', err);
+      clearTimeout(safetyTimer);
       setIsLoading(false);
     });
 
     return () => {
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, [navigate, isMobile]);
