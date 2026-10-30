@@ -3,6 +3,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthRedirectOrigin } from '@/lib/siteUrl';
 import { toast } from 'sonner';
 import { checkDatabaseConnection } from '@/utils/supabase/client';
 import { 
@@ -191,7 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             full_name: fullName,
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${getAuthRedirectOrigin()}/auth/callback`,
         },
       });
 
@@ -266,7 +267,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetPassword = async (email: string) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
+        redirectTo: `${getAuthRedirectOrigin()}/auth/update-password`,
       });
       if (error) throw error;
       toast.success('Password reset email sent', {

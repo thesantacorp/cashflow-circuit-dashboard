@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { MailIcon, RefreshCwIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthRedirectOrigin } from '@/lib/siteUrl';
 import { toast } from 'sonner';
 
 const VerifyEmailPage = () => {
@@ -32,13 +33,13 @@ const VerifyEmailPage = () => {
       // For password reset or sign up confirmation
       const { error } = isReset 
         ? await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/auth/update-password`,
+            redirectTo: `${getAuthRedirectOrigin()}/auth/update-password`,
           })
         : await supabase.auth.resend({
             type: 'signup',
             email,
               options: {
-                emailRedirectTo: `${window.location.origin}/auth/callback`,
+                emailRedirectTo: `${getAuthRedirectOrigin()}/auth/callback`,
               },
           });
       
