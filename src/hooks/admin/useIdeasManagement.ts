@@ -18,10 +18,8 @@ export const useIdeasManagement = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
 
-  // Verify user is authenticated and check admin status
   useEffect(() => {
     const checkAdminStatus = async () => {
-      // First check if the user is admin-authenticated
       const adminAuth = sessionStorage.getItem('adminAuthenticated');
       
       if (adminAuth !== 'true') {
@@ -37,7 +35,6 @@ export const useIdeasManagement = () => {
     checkAdminStatus();
   }, [user, navigate]);
 
-  // Fetch ideas and vote summaries
   const fetchIdeas = async () => {
     if (!isAdmin) return;
     
@@ -58,7 +55,6 @@ export const useIdeasManagement = () => {
       
       setIdeas(data || []);
       
-      // Fetch vote summaries for each idea
       if (data && data.length > 0) {
         const voteStats: Record<string, VoteSummary> = {};
         
@@ -112,7 +108,18 @@ export const useIdeasManagement = () => {
     }
   }, [isAdmin]);
 
-  // Handle form submission
+  // We're using the improved ensureStorageBucketExists function now
+  const createBucketDirectly = async () => {
+    try {      
+      // First check if the bucket already exists via enhanced function
+      return await ensureStorageBucketExists('ideas');
+    } catch (error) {
+      console.error('Failed to create bucket directly:', error);
+      toast.error('Storage setup issues. Will try to continue anyway.');
+      return true; // Return true to allow continuing anyway
+    }
+  };
+
   const handleFormSubmit = async (formData: {
     name: string;
     description: string;
@@ -134,31 +141,30 @@ export const useIdeasManagement = () => {
       
       let finalImageUrl = imageUrl;
       
-      // If a new image file is selected, upload it
       if (imageFile) {
         try {
           const bucketName = 'ideas';
           
-          // Ensure bucket exists before uploading
-          const bucketExists = await ensureStorageBucketExists(bucketName);
-          if (!bucketExists) {
-            throw new Error('Failed to ensure storage bucket exists');
-          }
+          console.log('About to ensure bucket exists...');
           
-          // Prepare file path with unique name
+          const bucketCreated = await createBucketDirectly();
+          console.log('Bucket creation result:', bucketCreated);
+          
+          // Continue even if bucket "creation" failed - it might already exist
+          console.log('Proceeding with upload...');
+          
           const fileExt = imageFile.name.split('.').pop();
           const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
           const filePath = `${fileName}`;
           
           console.log(`Uploading file to ${bucketName}/${filePath}`);
           
-          // Upload file
           const { data, error: uploadError } = await supabase
             .storage
             .from(bucketName)
             .upload(filePath, imageFile, {
               cacheControl: '3600',
-              upsert: false
+              upsert: true
             });
             
           if (uploadError) {
@@ -168,10 +174,13 @@ export const useIdeasManagement = () => {
           
           console.log('File uploaded successfully:', data);
           
-          // Ensure file is public
-          await makeFilePublic(bucketName, filePath);
+          try {
+            await makeFilePublic(bucketName, filePath);
+          } catch (publicErr) {
+            console.warn('Non-critical error making file public:', publicErr);
+            // Continue anyway as this is not critical
+          }
           
-          // Get public URL of uploaded image
           const { data: { publicUrl } } = supabase
             .storage
             .from(bucketName)
@@ -182,15 +191,14 @@ export const useIdeasManagement = () => {
         } catch (uploadErr: any) {
           console.error('Error during image upload:', uploadErr);
           toast.error('Failed to upload image: ' + (uploadErr.message || 'Unknown error'));
-          // Continue with idea creation even if image upload fails
+          // Continue without image rather than failing completely
+          console.log('Continuing without image...');
         }
       }
       
-      // Format the date
       const formattedDate = new Date(countdownTimer).toISOString();
       
       if (editingIdea) {
-        // Update existing idea
         const { data, error } = await supabase
           .from('ideas')
           .update({
@@ -211,7 +219,6 @@ export const useIdeasManagement = () => {
         
         toast.success('Idea updated successfully');
       } else {
-        // Create new idea
         const { data, error } = await supabase
           .from('ideas')
           .insert({
@@ -233,7 +240,6 @@ export const useIdeasManagement = () => {
         toast.success('Idea created successfully');
       }
       
-      // Reset form and fetch updated ideas
       setEditingIdea(null);
       setDialogOpen(false);
       fetchIdeas();

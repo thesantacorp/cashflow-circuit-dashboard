@@ -1,9 +1,8 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { Transaction, TransactionType } from "@/types";
-import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, isWithinInterval, endOfDay, endOfWeek, endOfMonth, endOfYear } from "date-fns";
+import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, startOfQuarter, endOfQuarter, subMonths, isWithinInterval, endOfDay, endOfWeek, endOfMonth, endOfYear } from "date-fns";
 import { Trash2, Edit, Search, CloudOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,22 +10,38 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import EditTransactionModal from "./EditTransactionModal";
+import { formatNumberWithCommas } from "@/lib/utils";
 
 interface TransactionListProps {
   type: TransactionType;
   limit?: number;
   showViewAll?: boolean;
+  filteredTransactions?: Transaction[];
+  defaultTimePeriod?: TimePeriod; // NEW: force default filter when provided
 }
 
-type TimePeriod = "day" | "week" | "month" | "year" | "all";
+type TimePeriod = "day" | "week" | "month" | "last_month" | "quarter" | "year" | "all";
 
-const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showViewAll = false }) => {
+const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showViewAll = false, filteredTransactions, defaultTimePeriod }) => {
   const { getTransactionsByType, deleteTransaction, getCategoryById, isOnline, pendingSyncCount } = useTransactions();
   const { currencySymbol } = useCurrency();
-  const transactions = getTransactionsByType(type);
+  const allTransactions = getTransactionsByType(type);
+  const transactions = filteredTransactions || allTransactions;
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
+  
+  // The timePeriod state should reset when defaultTimePeriod changes
+  const initialTimePeriod = typeof defaultTimePeriod === 'string' ? defaultTimePeriod : "month";
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>(initialTimePeriod);
+  
+  React.useEffect(() => {
+    if (defaultTimePeriod && defaultTimePeriod !== timePeriod) {
+      setTimePeriod(defaultTimePeriod);
+    }
+    // if defaultTimePeriod is undefined, don't change anything
+    // eslint-disable-next-line
+  }, [defaultTimePeriod]);
+  
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const filterTransactionsByTimePeriod = (transactions: Transaction[], period: TimePeriod): Transaction[] => {
@@ -48,6 +63,16 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
       case "month":
         startDate = startOfMonth(now);
         endDate = endOfMonth(now);
+        break;
+      case "last_month": {
+        const lastMonth = subMonths(now, 1);
+        startDate = startOfMonth(lastMonth);
+        endDate = endOfMonth(lastMonth);
+        break;
+      }
+      case "quarter":
+        startDate = startOfQuarter(now);
+        endDate = endOfQuarter(now);
         break;
       case "year":
         startDate = startOfYear(now);
@@ -82,9 +107,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
 
   const filteredByTimePeriod = filterTransactionsByTimePeriod(transactions, timePeriod);
   
-  const filteredTransactions = filterTransactionsBySearch(filteredByTimePeriod, searchQuery);
+  const filteredBySearch = filterTransactionsBySearch(filteredByTimePeriod, searchQuery);
   
-  const sortedTransactions = [...filteredTransactions].sort(
+  // Updated sorting logic to ensure newest transactions appear at the top
+  const sortedTransactions = [...filteredBySearch].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
   
@@ -118,6 +144,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
       case "day": return "Today";
       case "week": return "This Week";
       case "month": return "This Month";
+      case "last_month": return "Last Month";
+      case "quarter": return "This Quarter";
       case "year": return "This Year";
       default: return "All Time";
     }
@@ -137,7 +165,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
                 </Badge>
               )}
               <Select value={timePeriod} onValueChange={(value: TimePeriod) => setTimePeriod(value)}>
-                <SelectTrigger className="w-[130px]">
+                <SelectTrigger className="w-[140px]">
                   <SelectValue placeholder="Time Period" />
                 </SelectTrigger>
                 <SelectContent>
@@ -145,6 +173,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
                   <SelectItem value="day">Today</SelectItem>
                   <SelectItem value="week">This Week</SelectItem>
                   <SelectItem value="month">This Month</SelectItem>
+                  <SelectItem value="last_month">Last Month</SelectItem>
+                  <SelectItem value="quarter">This Quarter</SelectItem>
                   <SelectItem value="year">This Year</SelectItem>
                 </SelectContent>
               </Select>
@@ -190,7 +220,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
                         {transaction.description || "No description"}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {format(new Date(transaction.date), "MMM d, yyyy")}
+                        {format(new Date(transaction.date), "EEE MMM d, yyyy")}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 ml-auto">
@@ -199,7 +229,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ type, limit, showView
                           type === "expense" ? "text-red-600" : "text-green-600"
                         }`}
                       >
-                        {type === "expense" ? "-" : "+"}{currencySymbol}{transaction.amount.toFixed(2)}
+                        {type === "expense" ? "-" : "+"}
+                        {currencySymbol}
+                        {formatNumberWithCommas(transaction.amount)}
                       </span>
                       <div className="flex">
                         <Button

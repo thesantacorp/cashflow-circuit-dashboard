@@ -38,6 +38,9 @@ const VerifyEmailPage = () => {
         : await supabase.auth.resend({
             type: 'signup',
             email,
+              options: {
+                emailRedirectTo: `${getAuthRedirectOrigin()}/auth/callback`,
+              },
           });
       
       if (error) throw error;

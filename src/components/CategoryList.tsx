@@ -1,7 +1,7 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTransactions } from "@/context/transaction";
-import { Category, TransactionType } from "@/types";
+import { Category, Transaction, TransactionType } from "@/types";
 import { Plus, Trash2, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -12,14 +12,22 @@ import { toast } from "sonner";
 
 interface CategoryListProps {
   type: TransactionType;
+  filteredTransactions?: Transaction[];
 }
 
-const CategoryList: React.FC<CategoryListProps> = ({ type }) => {
-  const { state, getCategoriesByType, dispatch } = useTransactions();
-  const categories = getCategoriesByType(type);
+const CategoryList: React.FC<CategoryListProps> = ({ type, filteredTransactions }) => {
+  const { state, getCategoriesByType, addCategory, deleteCategory, isOnline } = useTransactions();
+  const [categories, setCategories] = useState<Category[]>([]);
   const [open, setOpen] = useState(false);
   const [newCategory, setNewCategory] = useState<string>("");
   const [color, setColor] = useState<string>(type === "expense" ? "#e74c3c" : "#27ae60");
+
+  // Update categories when the type or state changes
+  useEffect(() => {
+    const fetchedCategories = getCategoriesByType(type);
+    console.log(`[CategoryList] Fetched ${fetchedCategories.length} ${type} categories`, fetchedCategories);
+    setCategories(fetchedCategories);
+  }, [type, getCategoriesByType, state.categories]);
 
   const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,43 +47,48 @@ const CategoryList: React.FC<CategoryListProps> = ({ type }) => {
       return;
     }
     
-    // Generate a unique ID
-    const categoryId = crypto.randomUUID();
-    
     // Add the new category
-    dispatch({
-      type: "ADD_CATEGORY",
-      payload: {
-        id: categoryId,
-        name: newCategory.trim(),
-        type,
-        color
-      }
+    console.log(`[CategoryList] Attempting to add category: ${newCategory} (${type})`);
+    const success = addCategory({
+      name: newCategory.trim(),
+      type,
+      color
     });
     
-    setNewCategory("");
-    setColor(type === "expense" ? "#e74c3c" : "#27ae60");
-    setOpen(false);
-    toast.success(`${newCategory} category added successfully`);
+    if (success) {
+      console.log(`[CategoryList] Successfully added category: ${newCategory}`);
+      setNewCategory("");
+      setColor(type === "expense" ? "#e74c3c" : "#27ae60");
+      setOpen(false);
+      
+      // Don't need to manually fetch categories anymore since we're observing state.categories
+      
+      toast.success(`Added ${type} category: ${newCategory}`);
+      
+      if (!isOnline) {
+        toast.info("You're offline. Changes will sync when you reconnect.", {
+          duration: 4000
+        });
+      }
+    } else {
+      console.error(`[CategoryList] Failed to add category: ${newCategory}`);
+      toast.error("Failed to add category. Please try again.");
+    }
   };
 
   const handleDeleteCategory = (id: string) => {
-    // Check if any transactions use this category
-    const hasTransactions = state.transactions.some(
-      (transaction) => transaction.categoryId === id
-    );
+    console.log(`[CategoryList] Attempting to delete category with ID: ${id}`);
+    const success = deleteCategory(id);
     
-    if (hasTransactions) {
-      toast.error("Cannot delete a category that has transactions");
-      return;
+    if (success) {
+      toast.success("Category deleted successfully");
+      
+      if (!isOnline) {
+        toast.info("You're offline. Changes will sync when you reconnect.", {
+          duration: 4000
+        });
+      }
     }
-    
-    dispatch({ 
-      type: "DELETE_CATEGORY", 
-      payload: id
-    });
-    
-    toast.success("Category deleted successfully");
   };
 
   return (
@@ -131,13 +144,19 @@ const CategoryList: React.FC<CategoryListProps> = ({ type }) => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {categories.map((category) => (
-          <CategoryCard 
-            key={category.id} 
-            category={category} 
-            onDelete={handleDeleteCategory} 
-          />
-        ))}
+        {categories.length > 0 ? (
+          categories.map((category) => (
+            <CategoryCard 
+              key={category.id} 
+              category={category} 
+              onDelete={handleDeleteCategory} 
+            />
+          ))
+        ) : (
+          <div className="col-span-full text-center py-8 text-muted-foreground">
+            No categories found. Add one to get started.
+          </div>
+        )}
       </div>
     </div>
   );

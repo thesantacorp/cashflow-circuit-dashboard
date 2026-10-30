@@ -1,10 +1,12 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
 } from "recharts";
+import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
 
 interface ChartDataItem {
   name: string;
@@ -21,6 +23,8 @@ interface DashboardChartsProps {
   monthlyData: ChartDataItem[];
   categoryData: CategoryItem[];
   currencySymbol: string;
+  onCategorySelect?: (category: string | null) => void;
+  selectedCategory?: string | null;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#FF6B6B', '#6BCB77'];
@@ -28,7 +32,9 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#FF6B6B'
 const DashboardCharts: React.FC<DashboardChartsProps> = ({ 
   monthlyData, 
   categoryData, 
-  currencySymbol 
+  currencySymbol,
+  onCategorySelect,
+  selectedCategory
 }) => {
   // Calculate income vs. expense stats for the trend chart
   const trendData = monthlyData.map(item => {
@@ -39,6 +45,19 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
       savingsRate: item.income > 0 ? Math.round((balance / item.income) * 100) : 0
     };
   });
+
+  const handlePieClick = (data: any, index: number) => {
+    if (onCategorySelect) {
+      const category = data.name;
+      onCategorySelect(category);
+    }
+  };
+
+  const handleClearFilter = () => {
+    if (onCategorySelect) {
+      onCategorySelect(null);
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -84,8 +103,21 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
       {/* Category Distribution Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Top Spending Categories</CardTitle>
-          <CardDescription>Distribution by transaction volume</CardDescription>
+          <div className="flex flex-row justify-between items-center">
+            <div>
+              <CardTitle>Top Spending Categories</CardTitle>
+              <CardDescription>Distribution by transaction volume</CardDescription>
+            </div>
+            {selectedCategory && (
+              <Badge 
+                variant="outline" 
+                className="flex items-center gap-1 px-3 py-1 cursor-pointer hover:bg-secondary"
+                onClick={handleClearFilter}
+              >
+                {selectedCategory} <X className="h-3 w-3" />
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="h-80 flex items-center justify-center">
@@ -101,9 +133,16 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
                   dataKey="value"
                   labelLine={false}
                   label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  onClick={handlePieClick}
+                  style={{ cursor: 'pointer' }}
                 >
-                  {categoryData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {categoryData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={COLORS[index % COLORS.length]} 
+                      stroke={selectedCategory === entry.name ? '#000' : undefined}
+                      strokeWidth={selectedCategory === entry.name ? 2 : 1}
+                    />
                   ))}
                 </Pie>
                 <Tooltip 

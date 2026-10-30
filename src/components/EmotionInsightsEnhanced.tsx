@@ -1,14 +1,14 @@
-
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTransactions } from "@/context/transaction";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
-import { EmotionTimelineTrend, EmotionTrend } from "@/types";
+import { EmotionTimelineTrend, EmotionTrend, TimePeriod } from "@/types";
 import { analyzeEmotionalSpending } from "@/utils/emotionAnalysis";
 import { getEmotionTimelineTrends } from "@/utils/emotionTimelineAnalysis";
 import { getEmotionTrends } from "@/utils/emotionTrendAnalysis";
 import { useCurrency } from "@/context/CurrencyContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -22,6 +22,8 @@ import {
   Legend,
 } from 'chart.js';
 import { Doughnut, Line } from 'react-chartjs-2';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatNumberWithCommas } from "@/lib/utils";
 
 // Register ChartJS components
 ChartJS.register(
@@ -38,22 +40,30 @@ ChartJS.register(
 
 interface EmotionInsightsEnhancedProps {
   currencySymbol?: string;
+  filteredTransactions?: any[];
 }
 
-const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = () => {
+const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = ({ 
+  filteredTransactions 
+}) => {
   const { state } = useTransactions();
   const { currencySymbol } = useCurrency();
+  const [timelinePeriod, setTimelinePeriod] = useState<TimePeriod>("month");
+  const isMobile = useIsMobile();
   
   // Use the current currencySymbol
   const currency = currencySymbol;
   
+  // Use filtered transactions if provided, otherwise use all transactions
+  const transactions = filteredTransactions || state.transactions;
+  
   const emotionTransactions = useMemo(() => {
-    return state.transactions.filter(t => t.emotionalState && t.emotionalState !== "neutral");
-  }, [state.transactions]);
+    return transactions.filter(t => t.emotionalState && t.emotionalState !== "neutral");
+  }, [transactions]);
   
   // Get emotion analysis data
   const { emotionInsights, emotionDistribution, emotionSpending, averageSpending } = useMemo(() => {
-    const insights = analyzeEmotionalSpending(state.transactions, state.categories);
+    const insights = analyzeEmotionalSpending(transactions, state.categories);
     
     // Calculate emotion distribution
     const distribution: Record<string, number> = {};
@@ -84,17 +94,20 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = () => {
       emotionSpending: spending,
       averageSpending: avgSpending
     };
-  }, [state.transactions, state.categories, emotionTransactions]);
+  }, [transactions, state.categories, emotionTransactions]);
 
   // Prepare emotion timeline data
   const timelineData = useMemo(() => {
-    const timelineTrends: EmotionTimelineTrend[] = getEmotionTimelineTrends(emotionTransactions);
+    const timelineTrends: EmotionTimelineTrend[] = getEmotionTimelineTrends(emotionTransactions, timelinePeriod);
     
     const labels = timelineTrends.map(trend => trend.period);
-    const emotions = ["happy", "stressed", "bored", "excited", "sad", "neutral"];
+    const emotions = ["happy", "stressed", "bored", "excited", "sad", "neutral", "hopeful"];
     
     const datasets = emotions
-      .filter(emotion => timelineTrends.some(trend => trend[emotion] !== undefined))
+      .filter(emotion => timelineTrends.some(trend => {
+        const value = trend[emotion];
+        return value !== undefined && typeof value === 'number' && value > 0;
+      }))
       .map(emotion => {
         const color = getEmotionColor(emotion);
         return {
@@ -106,8 +119,19 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = () => {
         };
       });
     
+    // If no dataset is populated, add a placeholder dataset
+    if (datasets.length === 0) {
+      datasets.push({
+        label: 'No Data',
+        data: labels.map(() => 0),
+        borderColor: 'rgba(156, 163, 175, 1)',
+        backgroundColor: 'rgba(156, 163, 175, 0.2)',
+        tension: 0.4,
+      });
+    }
+    
     return { labels, datasets };
-  }, [emotionTransactions]);
+  }, [emotionTransactions, timelinePeriod]);
 
   // Prepare emotion trend data
   const trendData = useMemo(() => {
@@ -123,6 +147,18 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = () => {
       backgroundColor: trends.map(trend => getEmotionColor(trend.emotion)),
     }];
     
+    // If no data, add placeholder
+    if (labels.length === 0) {
+      return {
+        labels: ['No Data'],
+        datasets: [{
+          label: 'Spending',
+          data: [0],
+          backgroundColor: ['rgba(156, 163, 175, 1)'],
+        }]
+      };
+    }
+    
     return { labels, datasets };
   }, [emotionTransactions]);
 
@@ -137,6 +173,20 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = () => {
     const backgroundColor = Object.keys(emotionDistribution).map(emotion => 
       getEmotionColor(emotion)
     );
+    
+    // If no data, add placeholder
+    if (labels.length === 0) {
+      return {
+        labels: ['No Data'],
+        datasets: [
+          {
+            data: [1],
+            backgroundColor: ['rgba(156, 163, 175, 1)'],
+            borderWidth: 1,
+          },
+        ],
+      };
+    }
     
     return {
       labels,
@@ -157,6 +207,13 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = () => {
     plugins: {
       legend: {
         position: 'bottom' as const,
+        display: true,
+        labels: {
+          boxWidth: isMobile ? 8 : 10,
+          font: {
+            size: isMobile ? 8 : 10
+          }
+        }
       },
       tooltip: {
         callbacks: {
@@ -179,6 +236,8 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = () => {
       case 'stressed': return 'rgba(239, 68, 68, 1)';
       case 'sad': return 'rgba(139, 92, 246, 1)';
       case 'bored': return 'rgba(251, 191, 36, 1)';
+      case 'hopeful': return 'rgba(14, 159, 110, 1)';
+      case 'relieved': return 'rgba(20, 184, 166, 1)';
       default: return 'rgba(156, 163, 175, 1)';
     }
   }
@@ -197,38 +256,44 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = () => {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'md:grid-cols-2 lg:grid-cols-3'} overflow-visible`}>
       {/* Emotion Distribution */}
-      <Card className="col-span-1">
-        <CardHeader>
-          <CardTitle>Emotion Distribution</CardTitle>
-          <CardDescription>How often you feel different emotions when spending</CardDescription>
+      <Card className={`col-span-1 overflow-visible ${isMobile ? 'min-w-[250px]' : ''}`}>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs sm:text-sm">Emotion Distribution</CardTitle>
+          <CardDescription className="text-xs">How often you feel different emotions when spending</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[250px] flex items-center justify-center">
+          <div className="h-[150px] sm:h-[200px] flex items-center justify-center">
             <Doughnut data={distributionData} options={chartOptions} />
           </div>
         </CardContent>
       </Card>
 
       {/* Emotional Spending Summary */}
-      <Card className="col-span-1">
-        <CardHeader>
-          <CardTitle>Emotional Spending</CardTitle>
-          <CardDescription>How emotions influence your spending</CardDescription>
+      <Card className={`col-span-1 overflow-visible ${isMobile ? 'min-w-[250px]' : ''}`}>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs sm:text-sm">Emotional Spending</CardTitle>
+          <CardDescription className="text-xs">How emotions influence your spending</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {Object.entries(emotionSpending).map(([emotion, amount]) => (
-              <div key={emotion} className="flex justify-between items-center">
-                <span className="capitalize">{emotion}</span>
-                <span className="font-semibold">{currency}{amount.toFixed(2)}</span>
+          <div className="space-y-2">
+            {Object.keys(emotionSpending).length > 0 ? (
+              Object.entries(emotionSpending).map(([emotion, amount]) => (
+                <div key={emotion} className="flex justify-between items-center">
+                  <span className="capitalize text-xs sm:text-sm">{emotion}</span>
+                  <span className="font-semibold text-xs sm:text-sm">{currency}{formatNumberWithCommas(amount)}</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-4 text-muted-foreground text-xs">
+                No emotional spending data available
               </div>
-            ))}
+            )}
             <div className="pt-2 border-t">
               <div className="flex justify-between items-center">
-                <span className="font-medium">Avg. per transaction</span>
-                <span className="font-semibold">{currency}{averageSpending.toFixed(2)}</span>
+                <span className="font-medium text-xs sm:text-sm">Avg. per transaction</span>
+                <span className="font-semibold text-xs sm:text-sm">{currency}{formatNumberWithCommas(averageSpending)}</span>
               </div>
             </div>
           </div>
@@ -236,26 +301,39 @@ const EmotionInsightsEnhanced: React.FC<EmotionInsightsEnhancedProps> = () => {
       </Card>
 
       {/* Emotion Spending Over Time */}
-      <Card className="md:col-span-2 lg:col-span-1">
-        <CardHeader>
-          <CardTitle>Emotional Spending Trends</CardTitle>
-          <CardDescription>How your emotional spending changes over time</CardDescription>
+      <Card className={`${isMobile ? 'col-span-1' : 'md:col-span-2 lg:col-span-1'} overflow-visible ${isMobile ? 'min-w-[250px]' : ''}`}>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs sm:text-sm">Emotional Spending Trends</CardTitle>
+          <CardDescription className="text-xs">How your emotional spending changes over time</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[250px]">
+          <div className="h-[150px] sm:h-[200px]">
             <Line data={trendData} options={chartOptions} />
           </div>
         </CardContent>
       </Card>
 
       {/* Emotion Timeline */}
-      <Card className="col-span-full">
-        <CardHeader>
-          <CardTitle>Emotion Timeline</CardTitle>
-          <CardDescription>Your emotional spending patterns over time</CardDescription>
+      <Card className={`col-span-full overflow-visible ${isMobile ? 'min-w-[250px]' : ''}`}>
+        <CardHeader className="flex flex-col pb-2">
+          <div className="mb-2">
+            <CardTitle className="text-xs sm:text-sm">Emotion Timeline</CardTitle>
+            <CardDescription className="text-xs">Your emotional spending patterns over time</CardDescription>
+          </div>
+          <Tabs 
+            value={timelinePeriod} 
+            onValueChange={(value) => setTimelinePeriod(value as TimePeriod)}
+            className="w-auto"
+          >
+            <TabsList className="grid w-[180px] grid-cols-3 h-6 sm:h-8">
+              <TabsTrigger value="month" className="text-[10px] sm:text-xs px-1 sm:px-2">Month</TabsTrigger>
+              <TabsTrigger value="year" className="text-[10px] sm:text-xs px-1 sm:px-2">Year</TabsTrigger>
+              <TabsTrigger value="all" className="text-[10px] sm:text-xs px-1 sm:px-2">All Time</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px]">
+          <div className="h-[150px] sm:h-[200px]">
             <Line data={timelineData} options={chartOptions} />
           </div>
         </CardContent>

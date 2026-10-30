@@ -1,16 +1,15 @@
-
 import React, { useEffect, useState } from "react";
 import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 import { useAuth } from "@/context/AuthContext";
 import { useTransactions } from "@/context/transaction";
 import { Button } from "@/components/ui/button";
-import { CloudIcon, DownloadIcon, LoaderIcon, RefreshCw, AlertCircle, WifiOff, CloudOff } from "lucide-react";
+import { CloudIcon, DownloadIcon, LoaderIcon, RefreshCw, AlertCircle, WifiOff, CloudOff, UploadIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { checkDatabaseConnection } from "@/utils/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface SupabaseSyncProps {
   minimal?: boolean;
@@ -23,7 +22,6 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
 
-  // Check connection on mount
   useEffect(() => {
     if (user && isOnline) {
       verifyConnection();
@@ -44,7 +42,6 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
     setConnectionError(null);
     
     try {
-      // First try with the integrated client
       try {
         const { data, error } = await supabase
           .from('user_uuids')
@@ -52,7 +49,6 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
           .limit(1);
         
         if (!error) {
-          // Connection successful with integrated client
           setIsCheckingConnection(false);
           return true;
         }
@@ -60,7 +56,6 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
         console.log('Integrated client check failed, trying fallback client');
       }
       
-      // If that fails, try with the fallback client
       const isConnected = await checkDatabaseConnection();
       
       if (!isConnected) {
@@ -84,17 +79,12 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
 
   const handleOperation = async (operation: () => Promise<boolean>) => {
     if (!isOnline) {
-      toast({
-        title: "Offline",
-        description: "You are currently offline. Please connect to the internet to sync your data.",
-        variant: "destructive"
-      });
+      toast("You are currently offline. Please connect to the internet to sync your data.");
       return;
     }
     
     setConnectionError(null);
     
-    // First try with the integrated client
     try {
       const { data, error } = await supabase
         .from('user_uuids')
@@ -102,7 +92,6 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
         .limit(1);
       
       if (!error) {
-        // Connection successful with integrated client, proceed with operation
         await operation();
         return;
       }
@@ -110,7 +99,6 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
       console.log('Integrated client check failed, trying fallback client');
     }
     
-    // If that fails, try with the fallback client
     try {
       const isConnected = await checkDatabaseConnection();
       if (!isConnected) {
@@ -145,14 +133,14 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
             ) : !isOnline ? (
               <WifiOff className="h-4 w-4" />
             ) : (
-              <CloudIcon className="h-4 w-4" />
+              <UploadIcon className="h-4 w-4" />
             )}
             <span className="ml-2">
               {!isOnline 
                 ? "Offline" 
                 : pendingSyncCount > 0
-                ? `Sync Data (${pendingSyncCount})` 
-                : "Sync Data"
+                ? `Sync now (${pendingSyncCount})` 
+                : "Sync now"
               }
             </span>
           </Button>
@@ -191,8 +179,8 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
         </CardTitle>
         <CardDescription>
           {isOnline 
-            ? "Your data is automatically synced in real-time to your account and available instantly on any device"
-            : "Currently in offline mode. Your data is saved locally and will sync when you reconnect."
+            ? "Your data syncs to the cloud automatically while you're signed in. Use the actions below only if you need to force a sync or restore this device."
+            : "Currently offline. Changes are saved on this device and will sync automatically when you reconnect."
           }
         </CardDescription>
       </CardHeader>
@@ -226,9 +214,9 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
         
         <div className="flex justify-between items-center">
           <div>
-            <h4 className="text-sm font-medium">Manual Sync & Restore</h4>
+            <h4 className="text-sm font-medium">Automatic cloud sync</h4>
             <p className="text-xs text-slate-500">
-              Sync to cloud or restore your data
+              Signed-in changes sync automatically
             </p>
           </div>
           <div className="flex space-x-2">
@@ -236,7 +224,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
               size="sm"
               variant="outline"
               onClick={() => handleOperation(() => {
-                if (window.confirm('This will upload your current data to the cloud. Continue?')) {
+                if (window.confirm('This will upload your current data to the cloud, replacing any cloud data. Continue?')) {
                   return syncToSupabase();
                 }
                 return Promise.resolve(false);
@@ -249,9 +237,9 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
               ) : !isOnline ? (
                 <WifiOff className="mr-2 h-3 w-3" />
               ) : (
-                <CloudIcon className="mr-2 h-3 w-3" />
+                <UploadIcon className="mr-2 h-3 w-3" />
               )}
-              Sync {pendingSyncCount > 0 && `(${pendingSyncCount})`}
+              Sync now {pendingSyncCount > 0 && `(${pendingSyncCount})`}
             </Button>
             <Button
               size="sm"
@@ -267,7 +255,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
               ) : (
                 <DownloadIcon className="mr-2 h-3 w-3" />
               )}
-              Restore
+              Restore from Cloud
             </Button>
           </div>
         </div>
@@ -275,7 +263,7 @@ const SupabaseSync: React.FC<SupabaseSyncProps> = ({ minimal = false }) => {
         {isSyncing && isOnline && (
           <div className="flex items-center justify-center py-2 text-sm text-orange-600">
             <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-            Syncing your data...
+            {syncToSupabase ? "Saving your data to cloud..." : "Restoring your data from cloud..."}
           </div>
         )}
         

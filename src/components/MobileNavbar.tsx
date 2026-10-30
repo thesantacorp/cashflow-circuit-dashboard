@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { Home, PieChart, Settings, Activity } from 'lucide-react';
+import { Home, PieChart, Settings, Activity, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import NetworkStatusIndicator from './NetworkStatusIndicator';
 import { Link } from 'react-router-dom';
@@ -48,6 +48,17 @@ const MobileNavbar: React.FC = () => {
         >
           <PieChart size={20} />
           <span className="text-xs mt-1">Overview</span>
+        </Link>
+        
+        <Link 
+          to="/import" 
+          className={cn(
+            "flex flex-col items-center p-2 rounded-md", 
+            isActive('/import') ? "text-primary" : "text-gray-500"
+          )}
+        >
+          <FileText size={20} />
+          <span className="text-xs mt-1">Import</span>
         </Link>
         
         <Link 

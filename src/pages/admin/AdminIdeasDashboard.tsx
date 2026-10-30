@@ -23,34 +23,32 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { AdminIdeasTable } from '@/components/admin/ideas/AdminIdeasTable';
 import { AdminIdeaForm } from '@/components/admin/ideas/AdminIdeaForm';
 import { AdminVotesStatsGrid } from '@/components/admin/ideas/AdminVotesStatsGrid';
 import { AdminIdeasLoading } from '@/components/admin/ideas/AdminIdeasLoading';
 import { useIdeasManagement } from '@/hooks/admin/useIdeasManagement';
-import { useEffect, useState } from 'react';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { useEffect } from 'react';
 import { toast } from 'sonner';
 
 const AdminIdeasDashboard = () => {
   const navigate = useNavigate();
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const { isAdmin, loading: adminLoading } = useAdminAuth();
 
-  // Check for admin authentication
+  // Redirect non-admin users
   useEffect(() => {
-    const adminAuth = sessionStorage.getItem('adminAuthenticated');
-    if (adminAuth !== 'true') {
+    if (!adminLoading && !isAdmin) {
       toast.error('Admin authentication required');
       navigate('/admin/dashboard');
-      return;
     }
-    setIsAdminAuthenticated(true);
-  }, [navigate]);
+  }, [isAdmin, adminLoading, navigate]);
 
   const { 
     ideas,
     voteSummary,
     loading,
-    isAdmin,
     dialogOpen,
     setDialogOpen,
     isUploading,
@@ -61,7 +59,7 @@ const AdminIdeasDashboard = () => {
     handleNewIdea
   } = useIdeasManagement();
 
-  if (!isAdminAuthenticated) {
+  if (adminLoading || !isAdmin) {
     return null;
   }
 
@@ -105,7 +103,7 @@ const AdminIdeasDashboard = () => {
                     Add New Idea
                   </Button>
                   
-                  <DialogContent className="max-w-2xl">
+                  <DialogContent className="max-w-2xl max-h-[90vh]">
                     <DialogHeader>
                       <DialogTitle>
                         {editingIdea ? 'Edit Idea' : 'Create New Idea'}
@@ -117,11 +115,15 @@ const AdminIdeasDashboard = () => {
                       </DialogDescription>
                     </DialogHeader>
 
-                    <AdminIdeaForm 
-                      idea={editingIdea} 
-                      onSubmit={handleFormSubmit}
-                      isUploading={isUploading}
-                    />
+                    <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
+                      <div className="p-1">
+                        <AdminIdeaForm 
+                          idea={editingIdea} 
+                          onSubmit={handleFormSubmit}
+                          isUploading={isUploading}
+                        />
+                      </div>
+                    </ScrollArea>
                   </DialogContent>
                 </Dialog>
               </div>

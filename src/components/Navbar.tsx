@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,9 @@ import {
   BellOff,
   UserIcon,
   LogOutIcon,
-  Lightbulb
+  Lightbulb,
+  ScanLine,
+  FileText
 } from "lucide-react";
 import { useTransactions } from "@/context/transaction";
 import CurrencySelector from "./CurrencySelector";
@@ -34,6 +35,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { formatNumberWithCommas } from "@/lib/utils";
+import { ReceiptScanner } from "./ReceiptScanner";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -44,6 +47,7 @@ const Navbar: React.FC = () => {
   const { permission, isSupported } = useNotifications();
   const { user, profile, signOut } = useAuth();
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   
   const totalExpenses = getTotalByType("expense");
   const totalIncome = getTotalByType("income");
@@ -84,6 +88,15 @@ const Navbar: React.FC = () => {
               Income
             </Button>
           </Link>
+          <Link to="/import">
+            <Button variant={location.pathname === "/import" ? "secondary" : "ghost"}
+              className={location.pathname === "/import" 
+                ? "bg-white/20 text-white hover:bg-white/30" 
+                : "text-white hover:bg-white/10"}>
+              <FileText className="mr-2 h-4 w-4" />
+              Import
+            </Button>
+          </Link>
           <Link to="/ideas">
             <Button variant={location.pathname === "/ideas" ? "secondary" : "ghost"}
               className={location.pathname === "/ideas" 
@@ -98,6 +111,16 @@ const Navbar: React.FC = () => {
         <div className="ml-auto flex items-center gap-4">
           {!isMobile && (
             <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsScannerOpen(true)}
+                className="text-white bg-white/10 border-white/20 hover:bg-white/20"
+              >
+                <ScanLine size={16} className="mr-2" />
+                Scan Receipt
+              </Button>
+
               <Dialog open={notificationDialogOpen} onOpenChange={setNotificationDialogOpen}>
                 <DialogTrigger asChild>
                   <Button
@@ -129,7 +152,7 @@ const Navbar: React.FC = () => {
               <span className="text-sm text-white/70">Expenses</span>
               <span className="font-medium text-white flex items-center">
                 <ArrowDownIcon className="h-3 w-3 mr-1" />
-                {currencySymbol}{totalExpenses.toFixed(2)}
+                {currencySymbol}{formatNumberWithCommas(totalExpenses)}
               </span>
             </div>
             
@@ -137,14 +160,14 @@ const Navbar: React.FC = () => {
               <span className="text-sm text-white/70">Income</span>
               <span className="font-medium text-white flex items-center">
                 <ArrowUpIcon className="h-3 w-3 mr-1" />
-                {currencySymbol}{totalIncome.toFixed(2)}
+                {currencySymbol}{formatNumberWithCommas(totalIncome)}
               </span>
             </div>
             
             <div className="flex flex-col items-end">
               <span className="text-sm text-white/70">Balance</span>
-              <span className={`font-medium text-white`}>
-                {currencySymbol}{balance.toFixed(2)}
+              <span className="font-medium text-white">
+                {currencySymbol}{formatNumberWithCommas(balance)}
               </span>
             </div>
           </div>
@@ -181,6 +204,8 @@ const Navbar: React.FC = () => {
           </DropdownMenu>
         </div>
       </div>
+
+      <ReceiptScanner isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} />
     </nav>
   );
 };

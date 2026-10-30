@@ -6,6 +6,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { getAuthRedirectOrigin } from '@/lib/siteUrl';
 import { toast } from 'sonner';
 import { checkDatabaseConnection } from '@/utils/supabase/client';
+import { 
+  trackSession, 
+  isCurrentSessionValid, 
+  deactivateOtherSessions, 
+  clearCurrentSession,
+  getCurrentSession
+} from '@/utils/sessionManager';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Define the structure of a user profile
 interface UserProfile {
@@ -41,6 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   // Check connection to Supabase on initial load
   useEffect(() => {
@@ -70,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem(SESSION_KEY, currentSession.access_token);
             console.log('User signed in:', currentSession.user.email);
             
-            // Track the session client-side instead of database
+            // Track the session client-side for single device enforcement
             try {
               const sessionData = {
                 userId: currentSession.user.id,
@@ -80,13 +89,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 isActive: true
               };
               
-              // Store in localStorage for tracking
-              const activeSessionsRaw = localStorage.getItem('active_sessions') || '[]';
-              let activeSessions = JSON.parse(activeSessionsRaw);
-              
-              // Add the new session
-              activeSessions.push(sessionData);
-              localStorage.setItem('active_sessions', JSON.stringify(activeSessions));
+              // Track session (this will deactivate other sessions)
+              trackSession(sessionData);
             } catch (error) {
               console.error('Error tracking session:', error);
             }
@@ -102,51 +106,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (event === 'SIGNED_OUT') {
           // Clear local session ID
-          localStorage.removeItem(SESSION_KEY);
+          clearCurrentSession();
           navigate('/auth');
         }
       }
     );
 
+    // Safety timeout: never keep the splash screen up because of a slow/offline
+    // network. After 3s we always release the loading state so the app can
+    // render the cached/offline UI and the user can capture transactions.
+    const safetyTimer = setTimeout(() => {
+      setIsLoading(false);
+    }, 3000);
+
     // Check for existing session
     supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
       console.log('Got existing session:', currentSession?.user?.email);
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      
+
       if (currentSession?.user) {
-        // Check if this session has been invalidated by another login
-        const storedSessionId = localStorage.getItem(SESSION_KEY);
-        const activeSessionsRaw = localStorage.getItem('active_sessions') || '[]';
-        const activeSessions = JSON.parse(activeSessionsRaw);
-        
-        // Find the most recent active session
-        const latestSession = activeSessions
-          .filter((s: any) => s.userId === currentSession.user.id && s.isActive)
-          .sort((a: any, b: any) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime())[0];
-        
-        // If there's an active session and it's not this one, sign out
-        if (latestSession && storedSessionId && latestSession.sessionId !== storedSessionId) {
+        // Session invalidation check is local-only, safe offline
+        const isValid = await isCurrentSessionValid(currentSession.user.id);
+
+        if (!isValid) {
           console.log('Session invalidated by another login. Signing out.');
-          await supabase.auth.signOut();
-          toast.info('You have been signed out because you signed in on another device');
+          if (navigator.onLine) {
+            await supabase.auth.signOut().catch(() => {});
+          }
           setSession(null);
           setUser(null);
         } else {
-          // This is the current active session, fetch profile
-          setTimeout(() => {
-            fetchUserProfile(currentSession.user.id);
-          }, 0);
+          setSession(currentSession);
+          setUser(currentSession.user);
+
+          // Only fetch profile when online — offline it would hang
+          if (navigator.onLine) {
+            setTimeout(() => {
+              fetchUserProfile(currentSession.user.id);
+            }, 0);
+          }
         }
+      } else {
+        setSession(null);
+        setUser(null);
       }
-      
+
+      clearTimeout(safetyTimer);
+      setIsLoading(false);
+    }).catch((err) => {
+      console.error('getSession failed:', err);
+      clearTimeout(safetyTimer);
       setIsLoading(false);
     });
 
     return () => {
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [navigate, isMobile]);
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -176,7 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             full_name: fullName,
           },
-          emailRedirectTo: `${getAuthRedirectOrigin()}/auth/verify`,
+          emailRedirectTo: `${getAuthRedirectOrigin()}/auth/callback`,
         },
       });
 
@@ -208,39 +224,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       console.log('Sign in successful for:', data.user?.email);
       
-      // Deactivate any previous sessions in localStorage
+      // Create new session data for tracking
       if (data.user) {
-        try {
-          // Get active sessions
-          const activeSessionsRaw = localStorage.getItem('active_sessions') || '[]';
-          let activeSessions = JSON.parse(activeSessionsRaw);
-          
-          // Mark all previous sessions for this user as inactive
-          activeSessions = activeSessions.map((session: any) => {
-            if (session.userId === data.user.id) {
-              return { ...session, isActive: false };
-            }
-            return session;
-          });
-          
-          // Add the new session
-          activeSessions.push({
-            userId: data.user.id,
-            sessionId: data.session.access_token,
-            lastSeen: new Date().toISOString(),
-            deviceInfo: navigator.userAgent,
-            isActive: true
-          });
-          
-          // Store updated sessions
-          localStorage.setItem('active_sessions', JSON.stringify(activeSessions));
-          localStorage.setItem(SESSION_KEY, data.session.access_token);
-        } catch (sessionError) {
-          console.error('Error updating sessions:', sessionError);
-        }
+        const sessionData = {
+          userId: data.user.id,
+          sessionId: data.session.access_token,
+          lastSeen: new Date().toISOString(),
+          deviceInfo: navigator.userAgent,
+          isActive: true
+        };
+        
+        // This will deactivate any other sessions
+        trackSession(sessionData);
+        localStorage.setItem(SESSION_KEY, data.session.access_token);
       }
       
-      toast.success('Signed in successfully');
       navigate('/expenses');
     } catch (error: any) {
       toast.error('Sign in failed', {
@@ -255,27 +253,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      // Update local session tracking
-      if (user) {
-        const activeSessionsRaw = localStorage.getItem('active_sessions') || '[]';
-        let activeSessions = JSON.parse(activeSessionsRaw);
-        
-        // Mark this session as inactive
-        const sessionId = localStorage.getItem(SESSION_KEY);
-        if (sessionId) {
-          activeSessions = activeSessions.map((session: any) => {
-            if (session.sessionId === sessionId) {
-              return { ...session, isActive: false };
-            }
-            return session;
-          });
-          
-          localStorage.setItem('active_sessions', JSON.stringify(activeSessions));
-          localStorage.removeItem(SESSION_KEY);
-        }
-      }
+      // Clear the current session
+      clearCurrentSession();
       
-      toast.success('Signed out successfully');
       navigate('/auth');
     } catch (error: any) {
       toast.error('Sign out failed', {
@@ -314,7 +294,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
       
       await fetchUserProfile(user.id);
-      toast.success('Profile updated successfully');
     } catch (error: any) {
       toast.error('Profile update failed', {
         description: error.message

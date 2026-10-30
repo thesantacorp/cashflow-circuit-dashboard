@@ -6,27 +6,28 @@ import { useTransactions } from "@/context/transaction";
 import { useCurrency } from "@/context/CurrencyContext";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DatabaseIcon, DatabaseBackupIcon, UsersIcon, BarChartIcon, Loader2 } from "lucide-react";
-import AdminLogin from "@/components/admin/AdminLogin";
+import { DatabaseIcon, DatabaseBackupIcon, UsersIcon, BarChartIcon, Loader2, FilterIcon } from "lucide-react";
 import StatCards from "@/components/admin/StatCards";
 import DashboardCharts from "@/components/admin/DashboardCharts";
 import FinancialInsights from "@/components/admin/FinancialInsights";
 import UserSessionsCard from "@/components/admin/UserSessionsCard";
 import AdminOverviewTab from "@/components/admin/AdminOverviewTab";
 import { fetchDashboardStats, getLocalDataStats } from "@/utils/admin/dashboardStats";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { Transaction } from "@/types";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 const AdminDashboard: React.FC = () => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const navigate = useNavigate();
   const { state } = useTransactions();
   const { transactions, categories } = state;
   const { currencySymbol } = useCurrency();
   const { user } = useAuth();
+  const { isAdmin, loading: adminLoading } = useAdminAuth();
   
   const [usageStats, setUsageStats] = useState({
     totalSessions: 0,
@@ -38,18 +39,15 @@ const AdminDashboard: React.FC = () => {
   });
   
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAdmin && !adminLoading) {
       setIsLoading(true);
       
       const loadStats = async () => {
         try {
-          // Get local stats
           const localStats = getLocalDataStats(transactions, categories);
           
-          // Get remote stats
           const remoteStats = await fetchDashboardStats();
           
-          // Combine stats
           const sessions = localStorage.getItem('sessions') ? JSON.parse(localStorage.getItem('sessions')!) : [];
           const users = new Set(sessions.map((s: any) => s.userId));
           
@@ -61,8 +59,7 @@ const AdminDashboard: React.FC = () => {
           });
           
           const avgDuration = sessions.length > 0 ? Math.round(totalDuration / sessions.length) : 0;
-
-          // Ensure we have at least one user counted (the current logged in user)
+          
           const uniqueUserCount = Math.max(1, remoteStats.userCount);
           
           setUsageStats({
@@ -77,7 +74,6 @@ const AdminDashboard: React.FC = () => {
           console.error("Error loading dashboard stats:", error);
           toast.error("Failed to load some dashboard statistics");
           
-          // Still ensure minimum user count on error
           setUsageStats(prev => ({
             ...prev,
             uniqueUsers: Math.max(1, prev.uniqueUsers)
@@ -89,29 +85,25 @@ const AdminDashboard: React.FC = () => {
       
       loadStats();
     }
-  }, [isAuthenticated, transactions.length, categories.length, user]);
-  
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (username === "SupErAdmIn" && password === "K9$PzW2e&xL!mG7@sV3#nQ8*tD5^jF6") {
-      setIsAuthenticated(true);
-      toast.success("Logged in successfully");
-      
-      // Store admin authentication state in sessionStorage
-      sessionStorage.setItem('adminAuthenticated', 'true');
-    } else {
-      toast.error("Invalid username or password");
-    }
-  };
+  }, [isAdmin, adminLoading, transactions.length, categories.length, user]);
 
+  useEffect(() => {
+    if (selectedCategory) {
+      const categoryId = categories.find(c => c.name === selectedCategory)?.id;
+      
+      if (categoryId) {
+        const filtered = transactions.filter(t => 
+          t.categoryId === categoryId && t.type === "expense"
+        );
+        setFilteredTransactions(filtered);
+      }
+    } else {
+      setFilteredTransactions([]);
+    }
+  }, [selectedCategory, transactions, categories]);
+  
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    setUsername("");
-    setPassword("");
-    
-    // Clear admin authentication state
-    sessionStorage.removeItem('adminAuthenticated');
+    navigate("/");
   };
 
   const handleBackToApp = () => {
@@ -126,12 +118,13 @@ const AdminDashboard: React.FC = () => {
     navigate("/admin/ideas");
   };
   
+  // Redirect non-admin users
   useEffect(() => {
-    const adminAuth = sessionStorage.getItem('adminAuthenticated');
-    if (adminAuth === 'true') {
-      setIsAuthenticated(true);
+    if (!adminLoading && !isAdmin && user) {
+      toast.error("Admin access required");
+      navigate("/");
     }
-  }, []);
+  }, [isAdmin, adminLoading, user, navigate]);
   
   const getMonthlyTransactionData = () => {
     const monthlyData: { [key: string]: { expenses: number, income: number } } = {};
@@ -143,14 +136,18 @@ const AdminDashboard: React.FC = () => {
       monthlyData[monthKey] = { expenses: 0, income: 0 };
     }
     
-    transactions.forEach(transaction => {
+    const transactionsToProcess = selectedCategory && filteredTransactions.length > 0 
+      ? filteredTransactions 
+      : transactions;
+    
+    transactionsToProcess.forEach(transaction => {
       const date = new Date(transaction.date);
       if (date >= new Date(now.getFullYear(), now.getMonth() - 5, 1)) {
         const monthKey = format(date, "MMM yyyy");
         if (monthlyData[monthKey]) {
           if (transaction.type === "expense") {
             monthlyData[monthKey].expenses += transaction.amount;
-          } else {
+          } else if (!selectedCategory) {
             monthlyData[monthKey].income += transaction.amount;
           }
         }
@@ -183,7 +180,21 @@ const AdminDashboard: React.FC = () => {
       .slice(0, 5);
   };
 
+  const handleCategorySelect = (category: string | null) => {
+    setSelectedCategory(category);
+    
+    if (category) {
+      toast.success(`Filtered to show ${category} expenses`);
+    } else {
+      toast.info("Showing all transactions");
+    }
+  };
+
   const getTotalByType = (type: string) => {
+    if (selectedCategory && type === "expense") {
+      return filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
+    }
+    
     return transactions
       .filter((t) => t.type === type)
       .reduce((sum, t) => sum + t.amount, 0);
@@ -196,17 +207,19 @@ const AdminDashboard: React.FC = () => {
     (transactions.length / usageStats.uniqueUsers) : 0;
   const hasTransactions = transactions.length > 0;
 
-  if (!isAuthenticated) {
+  // Show loading while checking admin status
+  if (adminLoading) {
     return (
-      <AdminLogin 
-        username={username}
-        setUsername={setUsername}
-        password={password}
-        setPassword={setPassword}
-        handleLogin={handleLogin}
-        handleBackToApp={handleBackToApp}
-      />
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-lg">Checking admin access...</span>
+      </div>
     );
+  }
+
+  // Redirect if not admin
+  if (!isAdmin) {
+    return null;
   }
 
   return (
@@ -214,6 +227,12 @@ const AdminDashboard: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         <div className="flex flex-wrap gap-2">
+          {selectedCategory && (
+            <Button variant="outline" onClick={() => setSelectedCategory(null)} className="flex items-center">
+              <FilterIcon className="mr-2 h-4 w-4" />
+              Clear Filter: {selectedCategory}
+            </Button>
+          )}
           <Button variant="outline" onClick={handleGoToIdeas} className="flex items-center">
             <BarChartIcon className="mr-2 h-4 w-4" />
             Manage Ideas
@@ -245,7 +264,7 @@ const AdminDashboard: React.FC = () => {
             <TabsList className="mb-4">
               <TabsTrigger value="overview">
                 <BarChartIcon className="mr-2 h-4 w-4 inline" />
-                Overview
+                Overview {selectedCategory ? `(${selectedCategory})` : ''}
               </TabsTrigger>
               <TabsTrigger value="insights">
                 <DatabaseIcon className="mr-2 h-4 w-4 inline" />
@@ -266,7 +285,40 @@ const AdminDashboard: React.FC = () => {
                 monthlyData={getMonthlyTransactionData()}
                 categoryData={getCategoryDistribution()}
                 currencySymbol={currencySymbol}
+                onCategorySelect={handleCategorySelect}
+                selectedCategory={selectedCategory}
               />
+              
+              {selectedCategory && filteredTransactions.length > 0 && (
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle>Filtered Transactions: {selectedCategory}</CardTitle>
+                    <CardDescription>
+                      Showing {filteredTransactions.length} transactions in the {selectedCategory} category
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="divide-y">
+                      {filteredTransactions.slice(0, 10).map(transaction => (
+                        <li key={transaction.id} className="py-3 flex justify-between">
+                          <div>
+                            <p className="font-medium">{transaction.description || "No description"}</p>
+                            <p className="text-sm text-muted-foreground">{transaction.date}</p>
+                          </div>
+                          <div className="font-mono font-medium text-right">
+                            {currencySymbol}{transaction.amount.toFixed(2)}
+                          </div>
+                        </li>
+                      ))}
+                      {filteredTransactions.length > 10 && (
+                        <li className="py-3 text-center text-sm text-muted-foreground">
+                          +{filteredTransactions.length - 10} more transactions not shown
+                        </li>
+                      )}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
             
             <TabsContent value="insights">

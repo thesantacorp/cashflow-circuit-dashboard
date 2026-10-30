@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useTransactions } from "@/context/transaction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +10,7 @@ import { useCurrency } from "@/context/CurrencyContext";
 import DataExportImport from "@/components/DataExportImport";
 import LocalStorageInfo from "@/components/LocalStorageInfo";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { formatNumberWithCommas } from "@/lib/utils";
 
 const OverviewPage: React.FC = () => {
   const { state, getTotalByType } = useTransactions();
@@ -81,7 +81,7 @@ const OverviewPage: React.FC = () => {
             <ArrowUpIcon className="h-4 w-4 text-income" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{currencySymbol}{totalIncome.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{currencySymbol}{formatNumberWithCommas(totalIncome)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               From {state.categories.filter(c => c.type === "income").length} income sources
             </p>
@@ -94,7 +94,7 @@ const OverviewPage: React.FC = () => {
             <ArrowDownIcon className="h-4 w-4 text-expense" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{currencySymbol}{totalExpenses.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{currencySymbol}{formatNumberWithCommas(totalExpenses)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Across {state.categories.filter(c => c.type === "expense").length} expense categories
             </p>
@@ -108,7 +108,7 @@ const OverviewPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${balance >= 0 ? "text-income" : "text-expense"}`}>
-              {currencySymbol}{balance.toFixed(2)}
+              {currencySymbol}{formatNumberWithCommas(balance)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {balance >= 0 ? "Surplus" : "Deficit"}

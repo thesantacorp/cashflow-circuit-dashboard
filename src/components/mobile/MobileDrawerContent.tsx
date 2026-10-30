@@ -14,6 +14,7 @@ interface SettingsItem {
   icon: React.ReactNode;
   setting: string;
   description?: string;
+  action?: () => void;
 }
 
 interface MobileDrawerContentProps {

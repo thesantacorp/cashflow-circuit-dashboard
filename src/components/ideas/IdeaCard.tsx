@@ -5,12 +5,16 @@ import {
   ThumbsDown, 
   Clock, 
   ExternalLink, 
-  Info
+  Info,
+  ChevronDown,
+  ChevronUp,
+  ImageIcon
 } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Idea, Vote } from '@/integrations/supabase/customClient';
+import { useState, useEffect } from 'react';
 
 interface IdeaCardProps {
   idea: Idea;
@@ -27,6 +31,16 @@ export const IdeaCard = ({
   downvotes, 
   onVote 
 }: IdeaCardProps) => {
+  const [showFullDescription, setShowFullDescription] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  
+  // Reset image states when idea changes
+  useEffect(() => {
+    setImageLoaded(false);
+    setImageError(false);
+  }, [idea.id, idea.image_url]);
+  
   const getTimeRemaining = (dateString: string) => {
     const targetDate = new Date(dateString);
     const now = new Date();
@@ -54,15 +68,39 @@ export const IdeaCard = ({
     }
   };
 
+  const toggleDescription = () => {
+    setShowFullDescription(!showFullDescription);
+  };
+
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+    setImageError(false);
+  };
+
+  const handleImageError = () => {
+    console.error(`Failed to load image for idea: ${idea.id}, URL: ${idea.image_url}`);
+    setImageError(true);
+    setImageLoaded(false);
+  };
+
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
-      <div className="aspect-video w-full overflow-hidden bg-gray-100">
-        {idea.image_url ? (
-          <img 
-            src={idea.image_url} 
-            alt={idea.name} 
-            className="w-full h-full object-cover"
-          />
+      <div className="aspect-video w-full overflow-hidden bg-gray-100 relative">
+        {idea.image_url && !imageError ? (
+          <>
+            {!imageLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                <ImageIcon className="h-10 w-10 text-gray-300 animate-pulse" />
+              </div>
+            )}
+            <img 
+              src={idea.image_url} 
+              alt={idea.name} 
+              className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+            />
+          </>
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-orange-100">
             <Info className="h-10 w-10 text-orange-300" />
@@ -76,7 +114,29 @@ export const IdeaCard = ({
           {getStatusBadge(idea.countdown_timer)}
         </div>
         
-        <p className="text-gray-600 mb-4 line-clamp-3">{idea.description}</p>
+        <div className="relative">
+          <p className={`text-gray-600 mb-4 ${showFullDescription ? '' : 'line-clamp-3'}`}>
+            {idea.description}
+          </p>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="p-0 h-6 text-sm flex items-center text-gray-500 hover:text-gray-700"
+            onClick={toggleDescription}
+          >
+            {showFullDescription ? (
+              <>
+                <ChevronUp className="h-4 w-4 mr-1" />
+                Show less
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-4 w-4 mr-1" />
+                Show more
+              </>
+            )}
+          </Button>
+        </div>
         
         <div className="flex items-center text-sm text-gray-500 mb-4">
           <Clock className="h-4 w-4 mr-1" />

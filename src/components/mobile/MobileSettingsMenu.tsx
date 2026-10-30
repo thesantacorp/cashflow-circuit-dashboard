@@ -7,6 +7,7 @@ interface SettingsItem {
   icon: React.ReactNode;
   setting: string;
   description?: string;
+  action?: () => void;
 }
 
 interface MobileSettingsMenuProps {
@@ -27,7 +28,7 @@ const MobileSettingsMenu: React.FC<MobileSettingsMenuProps> = ({
             <Button
               variant="outline"
               className="w-full justify-start bg-white text-black border-orange-200 hover:bg-orange-50 hover:text-black"
-              onClick={() => onSettingSelect(item.setting)}
+              onClick={() => item.action ? item.action() : onSettingSelect(item.setting)}
             >
               {item.icon}
               <span>{item.name}</span>

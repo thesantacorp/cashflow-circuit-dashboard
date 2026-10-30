@@ -28,19 +28,8 @@ serve(async (req) => {
       supabaseServiceRole,
     );
     
-    // Get current time to check if it's past 9pm (21:00) local time
     const now = new Date();
-    const currentHour = now.getHours();
-    
-    // Only run between 9pm (21:00) and 10pm (22:00)
-    if (currentHour < 21 || currentHour >= 22) {
-      return new Response(JSON.stringify({
-        success: true,
-        message: "Not in backup window (9pm-10pm). Skipping backup."
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    console.log(`Daily backup triggered at ${now.toISOString()}`);
     
     // Get all users who have approved backups
     const { data: profiles, error: profilesError } = await supabaseAdmin
