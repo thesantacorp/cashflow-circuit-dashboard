@@ -1,15 +1,12 @@
-
 import { CapacitorConfig } from '@capacitor/cli';
 
+// For live-reload against the Lovable preview during development, temporarily add:
+//   server: { url: 'https://1de842c9-6fb1-4a3c-9a18-0bf0af22ba72.lovableproject.com?forceHideBadge=true', cleartext: true }
+// Never ship with `server.url` set: store builds must load the bundled `dist` files.
 const config: CapacitorConfig = {
-  appId: 'app.lovable.1de842c96fb14a3c9a180bf0af22ba72',
-  appName: 'cashflow-circuit-dashboard',
+  appId: 'com.cashflowcircuit.app',
+  appName: 'Stackd',
   webDir: 'dist',
-  server: {
-    url: 'https://1de842c9-6fb1-4a3c-9a18-0bf0af22ba72.lovableproject.com?forceHideBadge=true',
-    cleartext: true
-  },
-  // Additional configurations
   plugins: {
     // Plugin configurations can be added here
   }
